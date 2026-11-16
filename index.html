@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Shopicar Vendre mon auto</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout: app mobile une colonne, barre d'onglets fixe en bas; héros marine, cartes blanches, accent bleu électrique */
+:root{
+  --navy:#0c1828; --navy2:#16253b; --ink:#121b28; --muted:#5d687a; --line:#e2e6ee; --bg:#f3f5f9; --card:#ffffff;
+  --acc:#1d6bff; --acc-ink:#ffffff; --acc-soft:#e8f0ff;
+  --ok:#0f9d63; --ok-soft:#e5f6ee; --warn:#c98a06; --warn-soft:#fdf4de; --bad:#cf3f3f; --bad-soft:#fbeaea;
+  --f-display:'Sora',system-ui,sans-serif; --f-body:'Figtree',system-ui,-apple-system,sans-serif;
+  --r:16px; color-scheme:light;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.45}
+body{padding-bottom:env(safe-area-inset-bottom)}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+h1,h2,h3{font-family:var(--f-display);letter-spacing:-.02em;margin:0;text-wrap:balance}
+.num{font-variant-numeric:tabular-nums}
+#app{max-width:520px;margin:0 auto;min-height:100%;padding-bottom:110px}
+.top{background:var(--navy);color:#fff;padding:calc(env(safe-area-inset-top) + 14px) 18px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.logo{font-family:var(--f-display);font-weight:800;font-size:20px;letter-spacing:-.03em}
+.logo b{color:#6fa2ff}
+.top .back{background:rgba(255,255,255,.1);border:0;color:#fff;width:38px;height:38px;border-radius:12px;font-size:20px}
+.pill-top{font-size:12px;background:rgba(255,255,255,.1);padding:6px 10px;border-radius:99px}
+.wrap{padding:18px;display:flex;flex-direction:column;gap:16px}
+.hero{background:var(--navy);color:#fff;padding:8px 18px 26px;display:flex;flex-direction:column;gap:14px}
+.hero h1{font-size:30px;line-height:1.1}
+.hero p{margin:0;color:#b9c6da}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;display:flex;flex-direction:column;gap:12px}
+.card h2{font-size:18px}
+.card h3{font-size:15px}
+.muted{color:var(--muted);font-size:14px}
+.small{font-size:13px}
+.btn{border:0;border-radius:14px;padding:15px 18px;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;width:100%}
+.btn.pri{background:var(--acc);color:var(--acc-ink)}
+.btn.pri:disabled{background:#a9b6cc}
+.btn.sec{background:var(--card);border:1.5px solid var(--line)}
+.btn.ghost{background:transparent;color:var(--acc);padding:10px}
+.btn.dark{background:#fff;color:var(--navy)}
+.row{display:flex;gap:10px}
+.row>*{flex:1}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-weight:600;font-size:14px}
+.inp{border:1.5px solid var(--line);border-radius:12px;padding:14px;background:#fff;width:100%;font-size:16px}
+.inp:focus{border-color:var(--acc);outline:none}
+.vin-inp{font-family:ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;font-size:18px;text-align:center}
+.vin-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:10px 13px;font-size:14.5px;font-weight:500;text-align:left}
+.chip.on{border-color:var(--acc);background:var(--acc-soft);color:#0b3fa8;font-weight:700}
+.q{display:flex;flex-direction:column;gap:9px}
+.q>.ql{font-weight:700;font-size:15px}
+.q .hint{font-size:13px;color:var(--muted);margin-top:-4px}
+.prog{display:flex;gap:6px}
+.prog i{flex:1;height:5px;border-radius:9px;background:#d9dfe9}
+.prog i.on{background:var(--acc)}
+.steplbl{font-size:13px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.06em}
+.feat{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start}
+.feat .ic{width:36px;height:36px;border-radius:10px;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;font-weight:800;font-family:var(--f-display)}
+.feat b{display:block}
+.tabs{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:5}
+.tabs .in{max-width:520px;width:100%;display:flex}
+.tab{flex:1;background:none;border:0;padding:6px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:12px;font-weight:600;color:var(--muted)}
+.tab svg{width:24px;height:24px}
+.tab.on{color:var(--acc)}
+.badge{background:var(--bad);color:#fff;border-radius:99px;font-size:10px;padding:1px 6px;margin-left:2px}
+.veh{display:grid;grid-template-columns:120px 1fr;gap:14px;align-items:center}
+.veh .t{font-family:var(--f-display);font-weight:700;font-size:17px;line-height:1.2}
+.thumb{width:120px;height:78px;border-radius:12px;background:linear-gradient(180deg,#eef2f8,#dfe6f1);display:grid;place-items:center;overflow:hidden}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.thumb svg{width:108px}
+.kv{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:14.5px}
+.kv .k{color:var(--muted)}
+.kv .v{font-weight:600;text-align:right}
+.kv .sep{grid-column:1/-1;border-top:1px dashed var(--line)}
+.kv .tot{font-weight:800;font-size:17px}
+.stat{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:5px 10px;border-radius:99px;width:max-content}
+.stat.ok{background:var(--ok-soft);color:var(--ok)}
+.stat.warn{background:var(--warn-soft);color:#8a5d00}
+.stat.bad{background:var(--bad-soft);color:var(--bad)}
+.stat.info{background:var(--acc-soft);color:#0b3fa8}
+.offer{background:var(--navy);color:#fff;border-radius:22px;padding:22px 18px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.offer .lbl{color:#9fb3d1;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:.08em}
+.offer .amt{font-family:var(--f-display);font-weight:800;font-size:46px;line-height:1;letter-spacing:-.03em}
+.offer .amt sup{font-size:22px;color:#6fa2ff;margin-left:2px}
+.offer .cd{display:flex;gap:8px;align-items:center;font-size:14px;color:#cfe0ff}
+.bonus{background:linear-gradient(90deg,#1d6bff,#3a86ff);border-radius:14px;padding:12px 14px;color:#fff;font-size:14.5px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.bonus b{font-family:var(--f-display);font-size:18px}
+ul.clean{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+ul.clean li{display:grid;grid-template-columns:18px 1fr;gap:8px;font-size:14.5px}
+ul.clean li:before{content:"";width:8px;height:8px;border-radius:50%;background:var(--acc);margin-top:7px;margin-left:4px}
+ul.clean.warnl li:before{background:var(--warn)}
+.tl{display:flex;flex-direction:column;gap:0}
+.tl .s{display:grid;grid-template-columns:26px 1fr;gap:10px;position:relative;padding-bottom:14px}
+.tl .s:not(:last-child):after{content:"";position:absolute;left:12px;top:24px;bottom:0;width:2px;background:var(--line)}
+.tl .dot{width:26px;height:26px;border-radius:50%;border:2px solid var(--line);background:#fff;display:grid;place-items:center;font-size:13px;font-weight:800;color:var(--muted)}
+.tl .s.done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.tl .s.cur .dot{border-color:var(--acc);color:var(--acc)}
+.tl .s b{font-size:14.5px}
+.load{display:flex;flex-direction:column;gap:14px;padding:30px 18px}
+.ld{display:grid;grid-template-columns:26px 1fr;gap:12px;align-items:center;font-weight:600;color:var(--muted)}
+.ld.on{color:var(--ink)}
+.ld.done{color:var(--ok)}
+.spin{width:22px;height:22px;border-radius:50%;border:3px solid var(--acc-soft);border-top-color:var(--acc);animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.gcar{display:flex;flex-direction:column;gap:12px;cursor:pointer}
+.gcar .bot{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.gcar .amt{font-family:var(--f-display);font-weight:800;font-size:22px}
+.empty{text-align:center;padding:30px 18px;display:flex;flex-direction:column;gap:12px;align-items:center}
+.empty svg{width:180px}
+.err{background:var(--bad-soft);color:#8f2424;border-radius:12px;padding:12px;font-size:14px}
+.note{background:var(--warn-soft);color:#6b4a00;border-radius:12px;padding:12px;font-size:14px}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.photos .ph{aspect-ratio:4/3;border-radius:10px;overflow:hidden;background:#e7ecf4;position:relative}
+.photos .ph img{width:100%;height:100%;object-fit:cover}
+.photos .ph button{position:absolute;top:4px;right:4px;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:99px;width:24px;height:24px;font-size:14px}
+.photos label.add{aspect-ratio:4/3;border:1.5px dashed #b4c0d4;border-radius:10px;display:grid;place-items:center;font-size:13px;color:var(--muted);text-align:center;cursor:pointer;padding:6px}
+.file-hidden{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sheet-bg{position:fixed;inset:0;background:rgba(8,15,26,.5);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:520px;border-radius:22px 22px 0 0;max-height:92%;display:flex;flex-direction:column;overflow:hidden}
+.sheet .hd{display:flex;justify-content:space-between;align-items:center;padding:16px 18px;background:#fff;border-bottom:1px solid var(--line)}
+.sheet .hd h2{font-size:18px}
+.sheet .bd{padding:16px 18px calc(18px + env(safe-area-inset-bottom));overflow:auto;display:flex;flex-direction:column;gap:14px}
+.x{border:0;background:#eef1f6;width:34px;height:34px;border-radius:50%;font-size:18px}
+.chat{display:flex;flex-direction:column;gap:8px;min-height:240px}
+.msg{max-width:82%;padding:10px 13px;border-radius:18px;font-size:15px;white-space:pre-wrap}
+.msg.j{background:#fff;border:1px solid var(--line);align-self:flex-start;border-bottom-left-radius:6px}
+.msg.u{background:var(--acc);color:#fff;align-self:flex-end;border-bottom-right-radius:6px}
+.chatbar{display:flex;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line)}
+.chatbar .inp{padding:12px}
+.chatbar .btn{width:auto;padding:12px 16px}
+.julia-av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#1d6bff,#7a5cff);color:#fff;display:grid;place-items:center;font-weight:800;font-family:var(--f-display)}
+.cmp{display:grid;grid-template-columns:1.3fr .8fr .8fr;font-size:13.5px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.cmp>div{padding:9px 10px;border-bottom:1px solid var(--line);background:#fff}
+.cmp>div:nth-last-child(-n+3){border-bottom:0}
+.cmp .h{background:#f6f8fb;font-weight:700}
+.cmp .y{color:var(--ok);font-weight:700}
+.cmp .n{color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="modal"></div>
+<div id="tabs"></div>
+<input type="file" id="scanFile" class="file-hidden" accept="image/*" capture="environment">
+<input type="file" id="photoFile" class="file-hidden" accept="image/*" multiple>
+
+<script>
+/* ============ CONFIG ============ */
+const FEE = 1200;            // frais Shopicar fixe
+const RECON = 5500;          // marge + remise en état + certification du concessionnaire, retirée du prix de détail
+const BONUS_24H = 250;       // bonus si acceptation < 24 h
+const OFFER_HOURS = 48;      // validité de l'offre
+const SHOW_BREAKDOWN = true; // afficher wholesale − frais au client
+
+/* ============ UTIL ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const money = n => (Math.round(n)).toLocaleString('fr-CA') + ' $';
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),2600); }
+function parseJSON(t){ t=String(t).replace(/```(json)?/g,''); const end=t.lastIndexOf('}'); if(end<0) throw new Error('JSON introuvable');
+  for(let i=t.indexOf('{'); i>=0 && i<end; i=t.indexOf('{',i+1)){ try{ return JSON.parse(t.slice(i,end+1)); }catch(e){} } throw new Error('JSON invalide'); }
+function timeLeft(ms){ if(ms<=0) return 'Expirée'; const h=Math.floor(ms/3600000), m=Math.floor(ms%3600000/60000); return h+' h '+String(m).padStart(2,'0')+' min'; }
+
+/* ============ CAPACITÉS (Claude, stockage) ============ */
+let _sample=null;
+/* Hors de Claude (Vercel, etc.), l'AI passe par /api/ai, qui appelle l'API Anthropic côté serveur. */
+const blobToB64 = b => new Promise(r=>{ const fr=new FileReader(); fr.onload=()=>r(String(fr.result).split(',')[1]); fr.readAsDataURL(b); });
+function apiSample(){
+  const f = async (input, opts={}) => {
+    const images = opts.images ? await Promise.all(opts.images.map(blobToB64)) : [];
+    let res;
+    try{ res = await fetch('/api/ai',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input, images, modelTier:opts.modelTier||'default', web:!!opts.web})}); }
+    catch(e){ const er=new Error('réseau'); er.code='unavailable'; throw er; }
+    const j = await res.json().catch(()=>({}));
+    if(!res.ok){ const er=new Error(j.error||'erreur'); er.code = res.status===429?'rate_limited':res.status===404?'not_granted':'unavailable'; throw er; }
+    return { text: j.text||'' };
+  };
+  f.limits = async () => ({ images:true });
+  return f;
+}
+function getSample(){ if(!_sample) _sample = (window.claude && claude.use) ? claude.use('sample').then(s=>s||apiSample()).catch(()=>apiSample()) : Promise.resolve(apiSample()); return _sample; }
+async function ask(input, opts={}){ const s=await getSample(); if(!s) { const e=new Error('IA non disponible'); e.code='not_granted'; throw e; } const r=await s(input, opts); return r.text; }
+
+const Store = {
+  mode:'memory', db:null, uid:null, mem:[], ready:null, chain:Promise.resolve(),
+  init(){ if(this.ready) return this.ready;
+    this.ready=(async()=>{
+      try{ if(window.claude && claude.use){ const [db,user]=await Promise.all([claude.use('db'),claude.use('user')]);
+        if(db && user){ const id=await user.id(); if(id){ this.db=db; this.uid=id; this.mode='db'; return; } } } }catch(e){}
+      this.toLocal();
+    })(); return this.ready; },
+  toLocal(){ try{ localStorage.setItem('sc_t','1'); localStorage.removeItem('sc_t'); this.mode='local'; }catch(e){ this.mode='memory'; } },
+  col(){ return this.db.collection('leads/'+this.uid+'/cars'); },
+  async list(){ await this.init();
+    if(this.mode==='db'){ try{
+      const snap = await Promise.race([this.col().get(), new Promise((_,r)=>setTimeout(()=>r(new Error('timeout')),10000))]);
+      return snap.docs.map(d=>Object.assign({}, d.data(), {id:d.id}));
+    }catch(e){ this.toLocal(); } }
+    if(this.mode==='local'){ try{ return JSON.parse(localStorage.getItem('sc_cars')||'[]'); }catch(e){ return []; } }
+    return this.mem.slice(); },
+  save(car){ const clean=JSON.parse(JSON.stringify(car));
+    this.chain = this.chain.then(async()=>{ await this.init();
+      if(this.mode==='db'){ try{ await this.col().doc(clean.id).set(clean); return; }catch(e){ this.toLocal(); } }
+      if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]'); const i=all.findIndex(c=>c.id===clean.id); if(i>=0) all[i]=clean; else all.push(clean); localStorage.setItem('sc_cars', JSON.stringify(all)); return; }catch(e){ this.mode='memory'; } }
+      const i=this.mem.findIndex(c=>c.id===clean.id); if(i>=0) this.mem[i]=clean; else this.mem.push(clean);
+    }).catch(()=>{}); return this.chain; }
+};
+
+/* ============ NIV (VIN) ============ */
+const TR={A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:1,K:2,L:3,M:4,N:5,P:7,R:9,S:2,T:3,U:4,V:5,W:6,X:7,Y:8,Z:9};
+const WT=[8,7,6,5,4,3,2,10,0,9,8,7,6,5,4,3,2];
+const YC='ABCDEFGHJKLMNPRSTVWXY123456789';
+function normVin(v){ return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').replace(/O/g,'0').replace(/[IQ]/g, c=>c==='I'?'1':'0'); }
+function vinCheck(v){ if(v.length!==17) return false; let s=0; for(let i=0;i<17;i++){ const c=v[i]; const n=/\d/.test(c)?+c:TR[c]; if(n===undefined) return false; s+=n*WT[i]; } const r=s%11; return v[8]===(r===10?'X':String(r)); }
+function vinYear(v){ const i=YC.indexOf(v[9]); if(i<0) return null; let y=1980+i; if(/[A-Z]/.test(v[6])) y+=30; if(y>new Date().getFullYear()+1) y-=30; return y; }
+const WMI={ '1HG':'Honda','2HG':'Honda','2HK':'Honda','5FN':'Honda','5J6':'Honda','JHM':'Honda','19U':'Acura','5J8':'Acura','JH4':'Acura','19X':'Honda',
+ '1FA':'Ford','1FM':'Ford','1FT':'Ford','2FM':'Ford','3FA':'Ford','1G1':'Chevrolet','2G1':'Chevrolet','1GC':'Chevrolet','3GC':'Chevrolet','2GN':'Chevrolet','3GN':'Chevrolet','1GT':'GMC','3GT':'GMC','2GK':'GMC','1GY':'Cadillac',
+ '2T1':'Toyota','2T3':'Toyota','4T1':'Toyota','5TD':'Toyota','5TF':'Toyota','JTD':'Toyota','JTE':'Toyota','JTM':'Toyota','2T2':'Lexus','JTH':'Lexus','5YJ':'Tesla','7SA':'Tesla','LRW':'Tesla',
+ 'KM8':'Hyundai','KMH':'Hyundai','5NM':'Hyundai','5NP':'Hyundai','KNA':'Kia','KND':'Kia','5XY':'Kia','1N4':'Nissan','3N1':'Nissan','5N1':'Nissan','JN1':'Nissan','JN8':'Nissan',
+ 'WBA':'BMW','5UX':'BMW','WMW':'MINI','WDD':'Mercedes-Benz','W1K':'Mercedes-Benz','4JG':'Mercedes-Benz','W1N':'Mercedes-Benz','WAU':'Audi','WA1':'Audi','WVW':'Volkswagen','3VW':'Volkswagen','1V2':'Volkswagen','WVG':'Volkswagen',
+ 'JM1':'Mazda','JM3':'Mazda','JF1':'Subaru','JF2':'Subaru','4S4':'Subaru','1C4':'Jeep','1C6':'Ram','2C3':'Chrysler','2C4':'Chrysler','3C6':'Ram','3C4':'Jeep','YV1':'Volvo','YV4':'Volvo','SAL':'Land Rover','JA4':'Mitsubishi','ML3':'Mitsubishi' };
+function localDecode(v){ return { make: WMI[v.slice(0,3)] || '', year: vinYear(v) }; }
+
+/* ============ VISUEL AUTO ============ */
+const COLORS={'Noir':'#1d222b','Blanc':'#f4f6f9','Gris':'#7c8594','Argent':'#b9c0ca','Bleu':'#2f6fd6','Rouge':'#c73640','Vert':'#2e7d5b','Autre':'#8b95a7'};
+function carSVG(color){ const c=COLORS[color]||'#8b95a7'; const st=color==='Blanc'?'#c9d0db':'none';
+  return `<svg viewBox="0 0 224 96" aria-hidden="true"><ellipse cx="112" cy="84" rx="100" ry="6" fill="#000" opacity=".08"/>
+  <path d="M12 66 L18 47 Q22 40 34 39 L62 38 L84 21 Q89 17 98 17 L152 17 Q162 17 168 23 L186 38 L202 41 Q212 43 212 53 L212 66 Z" fill="${c}" stroke="${st}" stroke-width="1.5"/>
+  <path d="M71 38 L90 23 L124 23 L124 38 Z" fill="#cfe0f5" opacity=".9"/><path d="M130 23 L156 23 Q163 23 167 28 L177 38 L130 38 Z" fill="#cfe0f5" opacity=".9"/>
+  <rect x="196" y="47" width="12" height="5" rx="2" fill="#ffd36b"/><rect x="14" y="51" width="9" height="5" rx="2" fill="#e35151"/>
+  <circle cx="54" cy="68" r="15" fill="#151a22"/><circle cx="54" cy="68" r="7" fill="#9aa4b4"/><circle cx="172" cy="68" r="15" fill="#151a22"/><circle cx="172" cy="68" r="7" fill="#9aa4b4"/></svg>`; }
+function carThumb(car){ const p=car.photos && car.photos[0]; return `<div class="thumb">${p?`<img src="${p}" alt="">`:carSVG(car.answers && car.answers.couleur)}</div>`; }
+function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
+
+/* ============ QUESTIONNAIRE ============ */
+const NONE_EXT='Aucun dommage', NONE_INT='Aucun dommage', NONE_LIGHT='Aucun voyant', NONE_TITLE='Rien à déclarer', NONE_MOD="Aucune, tout d'origine";
+const STEPS=[
+ {title:'Ton auto', qs:[
+  {id:'km', label:'Kilométrage actuel', type:'number', suffix:'km', req:true, ph:'ex. 84 500'},
+  {id:'postal', label:'Code postal', type:'text', req:true, ph:'ex. H2X 1Y4', hint:'Pour la cueillette et le prix régional.'},
+  {id:'couleur', label:'Couleur', type:'single', req:true, opts:['Noir','Blanc','Gris','Argent','Bleu','Rouge','Vert','Autre']},
+  {id:'transmission', label:'Transmission', type:'single', req:true, opts:['Automatique','Manuelle'], hint:'Préremplie selon ton NIV, corrige au besoin.'},
+  {id:'propriete', label:'Immatriculée au nom de', type:'single', req:true, opts:['Moi seulement','Moi et une autre personne','Une entreprise','Une succession']},
+  {id:'finance', label:'Y a-t-il un prêt ou une location ?', type:'single', req:true, opts:['Payée au complet','Prêt en cours','Location (bail)']},
+  {id:'solde', label:'Solde approximatif à rembourser', type:'number', suffix:'$', req:true, show:a=>a.finance && a.finance!=='Payée au complet', hint:"On paie ton prêteur directement. Tu reçois la différence."},
+  {id:'preteur', label:'Institution financière', type:'text', req:false, show:a=>a.finance && a.finance!=='Payée au complet', ph:'ex. Desjardins, Honda Finance'}
+ ]},
+ {title:'État', qs:[
+  {id:'ext', label:'Extérieur', type:'multi', req:true, none:NONE_EXT, opts:[NONE_EXT,'Petites égratignures ou bosses (moins qu\'une balle de golf)','Bosses ou éraflures plus grandes','Carrosserie fissurée','Pare-brise ou vitre fissuré']},
+  {id:'rouille', label:'Rouille', type:'single', req:true, opts:['Aucune','Légère en surface','Perforée (trous)']},
+  {id:'int', label:'Intérieur', type:'multi', req:true, none:NONE_INT, opts:[NONE_INT,'Taches visibles','Sièges déchirés','Tableau de bord ou panneaux abîmés']},
+  {id:'odeur', label:'Odeur', type:'single', req:true, opts:['Non-fumeur, aucune odeur','Odeur de cigarette','Animaux ou humidité']}
+ ]},
+ {title:'Mécanique et historique', qs:[
+  {id:'voyants', label:'Voyants ou problèmes mécaniques', type:'multi', req:true, none:NONE_LIGHT, opts:[NONE_LIGHT,'Check engine','Freins / ABS','Coussin gonflable','Bruit, fuite ou autre']},
+  {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
+  {id:'accidents', label:'Accidents ou réclamations d\'assurance', type:'single', req:true, opts:['Aucun','1','2 ou plus','Je ne sais pas'], hint:'On le valide avec le rapport Carfax.'},
+  {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGR','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
+  {id:'cles', label:'Nombre de clés', type:'single', req:true, opts:['1','2 ou plus']},
+  {id:'pneus', label:'Pneus inclus', type:'single', req:true, opts:['1 ensemble','2 ensembles (été + hiver)']},
+  {id:'pneusAge', label:'Pneus actuellement installés achetés il y a', type:'single', req:true, opts:['Moins de 12 mois','1 à 3 ans','Plus de 3 ans']},
+  {id:'mags', label:'Jantes', type:'single', req:true, opts:['D\'origine','Après-marché']},
+  {id:'modifs', label:'Modifications', type:'multi', req:true, none:NONE_MOD, opts:[NONE_MOD,'Suspension','Échappement','Performance','Wrap / esthétique','Système de son']}
+ ]},
+ {title:'Photos et contact', qs:[
+  {id:'photos', label:'Photos (facultatif)', type:'photos', req:false, hint:"Avant, arrière, deux côtés, tableau de bord allumé. L'AI s'en sert pour confirmer l'état et réduire les conditions."},
+  {id:'quand', label:'Quand veux-tu vendre ?', type:'single', req:true, opts:['Cette semaine','D\'ici 3 mois','Je veux juste savoir']},
+  {id:'prenom', label:'Prénom', type:'text', req:true, ph:'Ton prénom'},
+  {id:'cell', label:'Cellulaire', type:'tel', req:true, ph:'514 555-0123', hint:"Ton offre est sauvegardée dans ton garage. Julia te texte seulement pour ton dossier."}
+ ]}
+];
+function visibleQs(step, a){ return STEPS[step].qs.filter(q=>!q.show || q.show(a)); }
+function answered(q,a){ const v=a[q.id]; if(!q.req) return true; if(q.type==='multi') return Array.isArray(v)&&v.length>0;
+  if(q.id==='cell') return String(v||'').replace(/\D/g,'').length>=10;
+  if(q.id==='postal') return /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/.test(String(v||'').trim());
+  if(q.type==='number') return Number(String(v||'').replace(/[^\d]/g,''))>0 || (q.id==='solde' && String(v)==='0');
+  return v!==undefined && String(v).trim()!==''; }
+
+/* ============ ÉTAT ============ */
+const S = { screen:'home', tab:'sell', draft:null, step:0, cars:[], loaded:false, current:null, error:null, busy:false, chat:[], loadStage:0 };
+
+function newDraft(){ return { id:uid(), vin:'', vinOk:false, vehicle:null, answers:{}, photos:[], photoBlobs:[] }; }
+
+/* ============ NAVIGATION ============ */
+function go(screen, extra){ Object.assign(S, {screen, error:null}, extra||{}); render(); scrollTo(0,0); }
+function rerender(){ const y=scrollY; render(); scrollTo(0,y); }
+
+/* ============ RENDU ============ */
+function render(){
+  const app=$('#app'); const s=S.screen;
+  if(s==='home') app.innerHTML=vHome();
+  else if(s==='vin') app.innerHTML=vVin();
+  else if(s==='confirm') app.innerHTML=vConfirm();
+  else if(s==='quiz') app.innerHTML=vQuiz();
+  else if(s==='loading') app.innerHTML=vLoading();
+  else if(s==='offer') app.innerHTML=vOffer();
+  else if(s==='accept') app.innerHTML=vAccept();
+  else if(s==='garage') app.innerHTML=vGarage();
+  renderTabs(); bindInputs();
+}
+function topbar(title, back){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<div class="logo">shopi<b>car</b></div>`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}<span class="pill-top">Québec</span></div>`; }
+
+function vHome(){
+  const active=S.cars.filter(c=>['offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
+  return `${topbar()}
+  <div class="hero">
+    <h1>Vends ton auto à Shopicar. Offre ferme en 3 minutes.</h1>
+    <p>Scanne ton NIV, réponds à quelques questions, reçois un prix basé sur le marché wholesale. Sans négociation, sans visite chez un concessionnaire.</p>
+    <button class="btn pri" data-act="start">Scanner ou entrer mon NIV</button>
+    ${active?`<button class="btn dark" data-act="tab-garage">Mon garage · ${active} auto${active>1?'s':''}</button>`:''}
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <div class="feat"><div class="ic">1</div><div><b>Le NIV remplit tout</b><span class="muted">Année, modèle, version, moteur et transmission. Tu ne retapes rien.</span></div></div>
+      <div class="feat"><div class="ic">2</div><div><b>Prix transparent</b><span class="muted">Valeur wholesale calculée par l'AI, moins un frais fixe de ${money(FEE)}. Tu vois le calcul.</span></div></div>
+      <div class="feat"><div class="ic">3</div><div><b>Offre valide ${OFFER_HOURS} h</b><span class="muted">Accepte en moins de 24 h et reçois ${money(BONUS_24H)} de plus.</span></div></div>
+      <div class="feat"><div class="ic">4</div><div><b>On s'occupe du reste</b><span class="muted">Cueillette chez toi, inspection de 10 minutes, paiement le jour même. On rembourse ton prêt directement.</span></div></div>
+    </div>
+    <div class="card">
+      <h2>Ce que tu ne fais pas chez nous</h2>
+      <div class="cmp">
+        <div class="h"></div><div class="h">Shopicar</div><div class="h">Ailleurs</div>
+        <div>Retaper année, modèle, transmission</div><div class="y">Jamais</div><div class="n">Souvent</div>
+        <div>Créer un mot de passe</div><div class="y">Non</div><div class="n">Oui</div>
+        <div>Voir le calcul du prix</div><div class="y">Oui</div><div class="n">Non</div>
+        <div>Pneus d'hiver comptés</div><div class="y">Oui</div><div class="n">Rarement</div>
+        <div>Parler à quelqu'un par texto</div><div class="y">Julia, 24/7</div><div class="n">Formulaire</div>
+      </div>
+    </div>
+    <button class="btn ghost" data-act="julia-novin">Je n'ai pas mon NIV sous la main</button>
+  </div>`; }
+
+function vVin(){ const d=S.draft; const v=d.vin; const len=v.length; const ok=len===17 && vinCheck(v);
+  const hint = len===0?'17 caractères' : len<17? `${len}/17` : ok? 'NIV valide' : 'Vérifie le NIV : un caractère semble erroné';
+  return `${topbar('Ton NIV','home')}
+  <div class="wrap">
+    <div class="card">
+      <h2>Scanne le code-barres ou entre ton NIV</h2>
+      <p class="muted" style="margin:0">Il est sur le montant de la porte conducteur, au bas du pare-brise côté conducteur, ou sur ton certificat d'immatriculation.</p>
+      <button class="btn pri" data-act="scan">${S.busy==='scan'?'<span class="spin"></span> Lecture de la photo…':'Prendre une photo du NIV'}</button>
+      <div class="field"><label for="vin">Ou tape-le</label>
+        <input id="vin" class="inp vin-inp" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(v)}" placeholder="1HGCV1F3XLA000000"></div>
+      <div class="vin-meta"><span id="vinHint" style="color:${ok?'var(--ok)':len===17?'var(--bad)':'var(--muted)'}">${hint}</span><span>Lettres I, O, Q exclues</span></div>
+      ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
+      <button class="btn pri" id="vinGo" data-act="decode" ${len===17?'':'disabled'}>${S.busy==='decode'?'<span class="spin"></span> Décodage…':'Continuer'}</button>
+    </div>
+    <button class="btn ghost" data-act="julia-novin">Pas de NIV ? Écris à Julia</button>
+  </div>`; }
+
+function vConfirm(){ const d=S.draft, v=d.vehicle||{};
+  return `${topbar('Ton véhicule','vin')}
+  <div class="wrap">
+    <div class="card">
+      <span class="stat ${v.confiance==='faible'?'warn':'ok'}">${v.confiance==='faible'?'À vérifier':'Trouvé avec ton NIV'}</span>
+      <div class="veh">${carThumb({answers:d.answers,photos:[]})}<div><div class="t">${esc(vTitle(v))||'Véhicule'}</div><div class="muted">${esc(v.trim||'')}</div><div class="muted small num">NIV ${esc(d.vin)}</div></div></div>
+      <div class="kv">
+        ${v.body?`<span class="k">Carrosserie</span><span class="v">${esc(v.body)}</span>`:''}
+        ${v.engine?`<span class="k">Moteur</span><span class="v">${esc(v.engine)}</span>`:''}
+        ${v.drivetrain?`<span class="k">Traction</span><span class="v">${esc(v.drivetrain)}</span>`:''}
+        ${v.transmission?`<span class="k">Transmission</span><span class="v">${esc(v.transmission)}</span>`:''}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Corrige si besoin</h3>
+      <div class="row"><div class="field"><label for="vy">Année</label><input id="vy" class="inp" inputmode="numeric" data-veh="year" value="${esc(v.year||'')}"></div>
+      <div class="field"><label for="vm">Marque</label><input id="vm" class="inp" data-veh="make" value="${esc(v.make||'')}"></div></div>
+      <div class="field"><label for="vmo">Modèle</label><input id="vmo" class="inp" data-veh="model" value="${esc(v.model||'')}"></div>
+      <div class="field"><label for="vt">Version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="ex. A-Spec, EX-L, Limited"></div>
+      ${v.notes?`<div class="note">${esc(v.notes)}</div>`:''}
+    </div>
+    <button class="btn pri" data-act="confirm-veh">C'est bien mon auto</button>
+  </div>`; }
+
+function qHTML(q,a){
+  const val=a[q.id]; let inner='';
+  if(q.type==='single'||q.type==='multi'){
+    inner=`<div class="chips" role="group" aria-label="${esc(q.label)}">${q.opts.map(o=>{ const on = q.type==='multi'? (val||[]).includes(o) : val===o;
+      return `<button class="chip ${on?'on':''}" aria-pressed="${on}" data-act="pick" data-q="${q.id}" data-v="${esc(o)}">${esc(o)}</button>`; }).join('')}</div>`;
+  } else if(q.type==='photos'){
+    inner=`<div class="photos">${S.draft.photos.map((p,i)=>`<div class="ph"><img src="${p}" alt="Photo ${i+1}"><button data-act="rmphoto" data-i="${i}" aria-label="Retirer">×</button></div>`).join('')}
+      ${S.draft.photos.length<6?`<label class="add" for="photoFile">+ Ajouter<br>des photos</label>`:''}</div>`;
+  } else {
+    inner=`<input id="q_${q.id}" class="inp" data-qi="${q.id}" ${q.type==='number'?'inputmode="numeric"':''} ${q.type==='tel'?'type="tel" inputmode="tel"':''} value="${esc(val||'')}" placeholder="${esc(q.ph||'')}">`;
+  }
+  return `<div class="q"><span class="ql">${q.type==='text'||q.type==='number'||q.type==='tel'?`<label for="q_${q.id}">${esc(q.label)}${q.suffix?` (${q.suffix})`:''}</label>`:esc(q.label)}</span>${q.hint?`<span class="hint">${esc(q.hint)}</span>`:''}${inner}</div>`;
+}
+function vQuiz(){ const st=S.step, a=S.draft.answers; const qs=visibleQs(st,a); const ok=qs.every(q=>answered(q,a));
+  return `${topbar(vTitle(S.draft.vehicle||{}), 'quiz-back')}
+  <div class="wrap">
+    <div class="prog">${STEPS.map((_,i)=>`<i class="${i<=st?'on':''}"></i>`).join('')}</div>
+    <div class="steplbl">Étape ${st+1} de ${STEPS.length} · ${esc(STEPS[st].title)}</div>
+    <div class="card" style="gap:20px">${qs.map(q=>qHTML(q,a)).join('')}</div>
+    ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
+    <button class="btn pri" id="quizNext" data-act="quiz-next" ${ok?'':'disabled'}>${st===STEPS.length-1?'Calculer mon offre':'Continuer'}</button>
+  </div>`; }
+
+const LOAD_STEPS=['Lecture de tes réponses','Recherche d\'autos comparables à vendre au Québec','Ajustement à ton kilométrage et à l\'état','Calcul de ton offre'];
+function vLoading(){ return `${topbar('Ton offre')}
+  <div class="load">
+    <h2 style="font-size:22px">On calcule ton offre</h2>
+    <p class="muted" style="margin:0">${esc(vTitle(S.draft.vehicle||{}))} · ${esc(S.draft.answers.km||'')} km</p>
+    ${LOAD_STEPS.map((t,i)=>`<div class="ld ${i<S.loadStage?'done':i===S.loadStage?'on':''}">${i<S.loadStage?'<span style="font-weight:800">✓</span>':i===S.loadStage?'<span class="spin"></span>':'<span></span>'}<span>${t}</span></div>`).join('')}
+  </div>`; }
+
+function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
+  if(exp) return {cls:'bad',txt:'Offre expirée'};
+  return ({offre:{cls:'ok',txt:'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, planifiee:{cls:'info',txt:'Cueillette planifiée'}, payee:{cls:'ok',txt:'Payée'}})[c.status]||{cls:'info',txt:c.status}; }
+function bonusLive(c){ return ['offre'].includes(c.status) && Date.now() < c.createdAt + 24*3600000; }
+
+function vOffer(){ const c=S.current; if(!c) return vGarage(); const v=c.vehicle, val=c.valuation||{}; const st=statusInfo(c);
+  const expired = st.txt==='Offre expirée'; const firm=c.status==='offre';
+  const shown = c.finalOffer || c.offer;
+  return `${topbar('Mon offre','tab-garage')}
+  <div class="wrap">
+    <div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(v))}</div><div class="muted">${esc(v.trim||'')}</div><span class="stat ${st.cls}" style="margin-top:6px">${st.txt}</span></div></div>
+    <div class="offer">
+      <span class="lbl">${firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
+      <div class="amt num">${Math.round(shown).toLocaleString('fr-CA')}<sup>$</sup></div>
+      ${['offre','a_valider'].includes(c.status)?`<div class="cd"><span>Valide encore</span><b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
+      ${c.status==='a_valider'?`<div class="small" style="color:#ffd88a">Un acheteur Shopicar valide quelques points avant de rendre l'offre ferme, en général en moins de 2 h.</div>`:''}
+      ${bonusLive(c)&&!expired?`<div class="bonus"><span>Accepte d'ici <b class="num" data-cd="${c.createdAt+24*3600000}" style="font-size:14px;font-family:var(--f-body)">${timeLeft(c.createdAt+24*3600000-Date.now())}</b></span><b>+${money(BONUS_24H)}</b></div>`:''}
+      ${c.finalOffer&&c.finalOffer>c.offer?`<div class="small" style="color:#9fe3c2">Bonus 24 h inclus : +${money(c.finalOffer-c.offer)}</div>`:''}
+    </div>
+    ${expired?`<button class="btn pri" data-act="reeval">Réévaluer mon auto</button>`:''}
+    ${firm&&!expired?`<button class="btn pri" data-act="accept">Accepter ${money(c.offer+(bonusLive(c)?BONUS_24H:0))}</button>`:''}
+    ${['acceptee','planifiee'].includes(c.status)?`<button class="btn pri" data-act="open-accept">${c.status==='acceptee'?'Compléter mes documents':'Voir ma cueillette'}</button>`:''}
+    ${['offre','a_valider'].includes(c.status)&&!expired?`<div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre un rendez-vous</button><button class="btn sec" data-act="rdv" data-t="appel">Planifier un appel</button></div>`:''}
+    <button class="btn sec" data-act="julia">Continuer par texto avec Julia</button>
+    ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Appel planifié':'Rendez-vous planifié'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
+    ${SHOW_BREAKDOWN?`<div class="card"><h2>Comment on arrive à ce prix</h2>
+      <div class="kv num">
+        ${val.detail_comparable?`<span class="k">Prix de détail des autos comparables, ajusté à ton kilométrage</span><span class="v">${money(val.detail_comparable)}</span>
+        <span class="k">Marge et remise en état du concessionnaire</span><span class="v" style="color:var(--bad)">− ${money(val.recon)}</span>`
+        :`<span class="k">Valeur wholesale de base</span><span class="v">${money(val.wholesale_base||0)}</span>`}
+        ${(val.ajustements||[]).map(a=>`<span class="k">${esc(a.libelle)}</span><span class="v" style="color:${a.montant<0?'var(--bad)':'var(--ok)'}">${a.montant>0?'+':''}${money(a.montant)}</span>`).join('')}
+        <span class="sep"></span>
+        <span class="k">Valeur wholesale de ton auto</span><span class="v">${money(val.wholesale_final||0)}</span>
+        <span class="k">Frais Shopicar (fixe)</span><span class="v">− ${money(FEE)}</span>
+        <span class="sep"></span>
+        <span class="k tot">Ton offre</span><span class="v tot">${money(c.offer)}</span>
+      </div>
+      <p class="muted small" style="margin:0">Wholesale : ce qu'un concessionnaire paie pour ce véhicule dans un encan entre marchands, avant remise en état. Calculé par l'AI de Shopicar.</p>
+    </div>`:''}
+    ${(val.comparables||[]).length?`<div class="card"><h3>Autos comparables à vendre au Québec</h3>
+      <div class="kv num">${val.comparables.map(x=>`<span class="k">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(x.titre)}</a>`:esc(x.titre)}<br><span class="small">${Number(x.km||0).toLocaleString('fr-CA')} km · ${esc(x.ville||'')}${x.source?' · '+esc(x.source):''}</span></span><span class="v">${money(x.prix||0)}</span>`).join('')}</div>
+      <p class="muted small" style="margin:0">Annonces trouvées au moment du calcul. Le prix de détail inclut la marge du vendeur.</p></div>`:''}
+    ${(val.facteurs||[]).length?`<div class="card"><h3>Ce qui a compté</h3><ul class="clean">${val.facteurs.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
+    <div class="card"><h3>* Conditions de l'offre ferme</h3>
+      <ul class="clean warnl">
+        <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
+        <li><span>État et équipements tels que déclarés, confirmés par une inspection de 10 minutes à la cueillette.</span></li>
+        <li><span>Aucune charge ou dette non déclarée au RDPRM.</span></li>
+        <li><span>Kilométrage à la cueillette au plus 500 km de plus que déclaré.</span></li>
+        <li><span>Pièces d'identité et certificat d'immatriculation au nom du vendeur.</span></li>
+      </ul>
+      <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te faire une offre ajustée. Tu restes libre de refuser.</p>
+    </div>
+    ${(val.drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${val.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
+    <div class="card"><h3>Suivi du dossier</h3>${timeline(c)}</div>
+    <p class="muted small num" style="text-align:center;margin:0">NIV ${esc(c.vin)} · ${esc(c.answers.km)} km · offre du ${new Date(c.createdAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}</p>
+  </div>`; }
+
+function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','payee']; const labels=[['Offre reçue','Calculée par l\'AI'],['Offre acceptée','Documents à téléverser'],['Cueillette planifiée','Chez toi ou chez un garage partenaire'],['Inspection de 10 min','Confirmation de l\'état'],['Payé','Virement le jour même']];
+  let idx=order.indexOf(c.status==='a_valider'?'offre':c.status); if(idx<0) idx=0;
+  return `<div class="tl">${labels.map((l,i)=>`<div class="s ${i<idx||(i===idx&&i===0)?'done':i===idx?'cur':''}"><div class="dot">${i<idx||(i===idx&&i===0)?'✓':i+1}</div><div><b>${l[0]}</b><div class="muted small">${l[1]}</div></div></div>`).join('')}</div>`; }
+
+function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
+  const need=[['immat','Certificat d\'immatriculation (SAAQ)'],['permis','Permis de conduire'], ...(fin?[['pret','État de compte du prêteur']]:[])];
+  const docsOk=need.every(n=>docs[n[0]]); const pkOk=pk.date&&pk.slot&&pk.lieu&&(pk.lieu!=='À mon adresse'||(pk.adresse||'').trim().length>5);
+  const tmr=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  return `${topbar('Prochaines étapes','open-offer')}
+  <div class="wrap">
+    <div class="offer"><span class="lbl">Offre acceptée</span><div class="amt num">${Math.round(c.finalOffer||c.offer).toLocaleString('fr-CA')}<sup>$</sup></div>
+      ${fin?`<div class="small" style="color:#cfe0ff">On rembourse ${esc(c.answers.preteur||'ton prêteur')} (environ ${money(Number(String(c.answers.solde).replace(/\D/g,''))||0)}). Tu reçois la différence.</div>`:''}</div>
+    <div class="card"><h2>1. Documents</h2><p class="muted small" style="margin:0">Une photo claire suffit.</p>
+      ${need.map(n=>`<div class="row" style="align-items:center"><div><b style="font-size:14.5px">${n[1]}</b>${docs[n[0]]?`<div class="small" style="color:var(--ok)">✓ ${esc(docs[n[0]])}</div>`:''}</div>
+        <label class="btn sec" style="flex:0 0 auto;width:auto;padding:10px 14px;font-size:14px" for="doc_${n[0]}">${docs[n[0]]?'Changer':'Téléverser'}</label>
+        <input type="file" id="doc_${n[0]}" class="file-hidden" accept="image/*,application/pdf" data-doc="${n[0]}"></div>`).join('')}
+    </div>
+    <div class="card"><h2>2. Cueillette</h2>
+      <div class="q"><span class="ql">Où ?</span><div class="chips">${['À mon adresse','Garage partenaire près de chez moi'].map(o=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${o}</button>`).join('')}</div></div>
+      ${pk.lieu==='À mon adresse'?`<div class="field"><label for="pkadr">Adresse</label><input id="pkadr" class="inp" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville"></div>`:''}
+      <div class="field"><label for="pkd">Date</label><input id="pkd" type="date" class="inp" min="${tmr}" data-pk="date" value="${esc(pk.date||'')}"></div>
+      <div class="q"><span class="ql">Plage horaire</span><div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div></div>
+    </div>
+    <div class="card"><h2>3. Paiement</h2><p class="muted" style="margin:0">Virement le jour de la cueillette, dès l'inspection de 10 minutes terminée.</p></div>
+    <button class="btn pri" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?'Mettre à jour':'Confirmer la cueillette'}</button>
+    ${!docsOk||!pkOk?`<p class="muted small" style="text-align:center;margin:0">Il manque ${[!docsOk&&'des documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
+  </div>`; }
+
+function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt);
+  return `${topbar('Mon garage')}
+  <div class="wrap">
+    ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
+    ${S.loaded&&!cars.length?`<div class="card empty">${carSVG('Gris')}<h2>Ton garage est vide</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
+    ${cars.map(c=>{ const st=statusInfo(c); return `<div class="card gcar" data-act="open" data-id="${c.id}" role="button" tabindex="0">
+      <div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
+      <div class="bot"><span class="stat ${st.cls}">${st.txt}</span><span class="amt num">${money(c.finalOffer||c.offer)}</span></div>
+      ${['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
+    </div>`; }).join('')}
+    ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
+    ${S.loaded&&Store.mode!=='db'?`<p class="muted small" style="text-align:center;margin:0">Garage sauvegardé sur cet appareil.</p>`:''}
+  </div>`; }
+
+function renderTabs(){ const t=S.screen==='garage'?'garage':'sell'; const n=S.cars.filter(c=>c.status==='offre'&&Date.now()<c.expiresAt).length;
+  $('#tabs').innerHTML=`<nav class="tabs"><div class="in">
+   <button class="tab ${t==='sell'?'on':''}" data-act="tab-sell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-6a2 2 0 012-1.4h10A2 2 0 0119 7l2 6v5h-3m-12 0H3v-5m3 5a2 2 0 104 0m4 0a2 2 0 104 0M3 13h18"/></svg>Vendre</button>
+   <button class="tab ${t==='garage'?'on':''}" data-act="tab-garage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V9l9-6 9 6v12M7 21v-7h10v7M7 17h10"/></svg>Mon garage${n?`<span class="badge">${n}</span>`:''}</button>
+   <button class="tab" data-act="julia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a8 8 0 01-11.6 7.1L4 20l1.1-4.6A8 8 0 1121 12z"/></svg>Julia</button>
+  </div></nav>`; }
+
+/* ============ BIND ============ */
+function bindInputs(){
+  const vin=$('#vin'); if(vin){ vin.addEventListener('input',()=>{ const n=normVin(vin.value).slice(0,17); S.draft.vin=n; if(vin.value!==n) vin.value=n;
+      const ok=n.length===17&&vinCheck(n); const h=$('#vinHint'); h.textContent= n.length===0?'17 caractères': n.length<17?`${n.length}/17`: ok?'NIV valide':'Vérifie le NIV : un caractère semble erroné';
+      h.style.color= ok?'var(--ok)': n.length===17?'var(--bad)':'var(--muted)'; $('#vinGo').disabled = n.length!==17; }); }
+  document.querySelectorAll('[data-veh]').forEach(el=>el.addEventListener('input',()=>{ S.draft.vehicle[el.dataset.veh]=el.value; }));
+  document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
+  document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; if(el.type==='date') rerender(); }));
+  document.querySelectorAll('[data-pk="adresse"]').forEach(el=>el.addEventListener('change',rerender));
+  document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',()=>{ const f=el.files[0]; if(!f) return; S.current.docs=S.current.docs||{}; S.current.docs[el.dataset.doc]=f.name; Store.save(S.current); rerender(); }));
+}
+
+document.addEventListener('click', async e=>{
+  const el=e.target.closest('[data-act]'); if(!el) return; const a=el.dataset.act;
+  if(a==='home'||a==='tab-sell'){ go('home'); }
+  else if(a==='tab-garage'){ go('garage'); loadGarage(); }
+  else if(a==='start'){ S.draft=newDraft(); S.step=0; go('vin'); }
+  else if(a==='vin'){ go('vin'); }
+  else if(a==='scan'){ $('#scanFile').click(); }
+  else if(a==='decode'){ decodeVin(); }
+  else if(a==='confirm-veh'){ const v=S.draft.vehicle; if(!v.year||!v.make||!v.model){ toast('Indique au moins l\'année, la marque et le modèle.'); return; }
+      if(v.transmission && !S.draft.answers.transmission){ S.draft.answers.transmission = /manu/i.test(v.transmission)?'Manuelle':'Automatique'; }
+      S.step=0; go('quiz'); }
+  else if(a==='quiz-back'){ if(S.step>0){ S.step--; go('quiz'); } else go('confirm'); }
+  else if(a==='pick'){ const q=STEPS.flatMap(s=>s.qs).find(x=>x.id===el.dataset.q); const v=el.dataset.v; const ans=S.draft.answers;
+      if(q.type==='multi'){ let arr=(ans[q.id]||[]).slice(); if(v===q.none) arr = arr.includes(v)?[]:[v]; else { arr=arr.filter(x=>x!==q.none); arr = arr.includes(v)?arr.filter(x=>x!==v):[...arr,v]; } ans[q.id]=arr; }
+      else ans[q.id]=v; rerender(); }
+  else if(a==='rmphoto'){ const i=+el.dataset.i; S.draft.photos.splice(i,1); S.draft.photoBlobs.splice(i,1); rerender(); }
+  else if(a==='quiz-next'){ if(S.step<STEPS.length-1){ S.step++; go('quiz'); } else runValuation(); }
+  else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); go('offer'); }
+  else if(a==='open-offer'){ go('offer'); }
+  else if(a==='accept'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
+      c.finalOffer = c.offer + (bonusLive(c)?BONUS_24H:0); c.status='acceptee'; c.acceptedAt=Date.now(); await Store.save(c); go('accept'); }
+  else if(a==='open-accept'){ go('accept'); }
+  else if(a==='pk'){ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.k]=el.dataset.v; rerender(); }
+  else if(a==='confirm-pickup'){ const c=S.current; c.status='planifiee'; await Store.save(c); toast('Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
+  else if(a==='rdv'){ openRdv(el.dataset.t); }
+  else if(a==='rdv-slot'){ RD.slot=el.dataset.v; renderRdv(); }
+  else if(a==='rdv-save'){ saveRdv(); }
+  else if(a==='close'){ $('#modal').innerHTML=''; }
+  else if(a==='julia'){ openJulia(); }
+  else if(a==='julia-novin'){ openJulia("Je n'ai pas mon NIV sous la main. Comment je fais ?"); }
+  else if(a==='julia-send'){ sendJulia(); }
+  else if(a==='reeval'){ const c=S.current; S.draft={ id:uid(), vin:c.vin, vinOk:true, vehicle:Object.assign({},c.vehicle), answers:Object.assign({},c.answers), photos:(c.photos||[]).slice(), photoBlobs:[], replaces:c.id }; S.step=0; go('quiz'); }
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Enter'){ const el=document.activeElement; if(el&&el.matches('[data-act="open"]')) el.click(); if(el&&el.id==='jin'){ e.preventDefault(); sendJulia(); } if(el&&el.id==='vin'&&!$('#vinGo').disabled) decodeVin(); } });
+
+/* ============ IMAGES ============ */
+function loadImg(file){ return new Promise((res,rej)=>{ const u=URL.createObjectURL(file); const im=new Image(); im.onload=()=>res({im,u}); im.onerror=rej; im.src=u; }); }
+function draw(im,max){ const r=Math.min(1,max/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=Math.round(im.width*r); c.height=Math.round(im.height*r); c.getContext('2d').drawImage(im,0,0,c.width,c.height); return c; }
+const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
+
+$('#photoFile').addEventListener('change', async e=>{ const files=[...e.target.files].slice(0, 6-S.draft.photos.length); e.target.value='';
+  for(const f of files){ try{ const {im,u}=await loadImg(f); S.draft.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); S.draft.photoBlobs.push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
+  rerender(); });
+
+/* ============ SCAN NIV ============ */
+let zxingP=null;
+function loadZXing(){ if(zxingP) return zxingP; zxingP=new Promise(res=>{ const s=document.createElement('script'); s.src='https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js'; s.onload=()=>res(window.ZXing||null); s.onerror=()=>res(null); document.head.appendChild(s); }); return zxingP; }
+$('#scanFile').addEventListener('change', async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+  S.busy='scan'; S.error=null; rerender(); let vin=null;
+  try{ const {im,u}=await loadImg(f);
+    const Z=await loadZXing();
+    if(Z){ try{ const hints=new Map(); hints.set(Z.DecodeHintType.POSSIBLE_FORMATS,[Z.BarcodeFormat.CODE_39,Z.BarcodeFormat.CODE_128,Z.BarcodeFormat.DATA_MATRIX,Z.BarcodeFormat.QR_CODE]); hints.set(Z.DecodeHintType.TRY_HARDER,true);
+      const r=new Z.BrowserMultiFormatReader(hints); const c=draw(im,1600); const res=await r.decodeFromImageUrl(c.toDataURL('image/jpeg',.92)); const m=normVin(res.getText()).match(/[A-HJ-NPR-Z0-9]{17}/); if(m) vin=m[0]; }catch(err){} }
+    if(!vin){ const s=await getSample(); if(s){ const lim=await (s.limits?s.limits():{}); if(lim && lim.images!==false){ const blob=await toBlob(draw(im,1400),.85);
+      const t=await s("Lis le numéro d'identification du véhicule (NIV/VIN, 17 caractères, sans I, O ni Q) visible sur cette photo (étiquette de porte, pare-brise, code-barres ou document). Réponds UNIQUEMENT en JSON: {\"vin\":\"...\"} ou {\"vin\":null} si illisible.", {images:[blob], modelTier:'default'});
+      const j=parseJSON(t.text); if(j.vin) vin=normVin(j.vin).slice(0,17); } } }
+    URL.revokeObjectURL(u);
+  }catch(err){}
+  S.busy=false;
+  if(vin && vin.length===17){ S.draft.vin=vin; toast(vinCheck(vin)?'NIV lu : '+vin:'NIV lu, vérifie-le : '+vin); }
+  else S.error="On n'a pas pu lire le NIV sur la photo. Rapproche-toi de l'étiquette, évite les reflets, ou tape-le.";
+  rerender(); });
+
+/* ============ DÉCODAGE ============ */
+async function decodeVin(){ const d=S.draft; const v=d.vin; if(v.length!==17) return; if(S.busy) return;
+  const loc=localDecode(v); const cs=vinCheck(v); S.busy='decode'; S.error=null; rerender();
+  let veh=null;
+  try{
+    const t=await ask(`Décode ce NIV (VIN) nord-américain : ${v}
+Indices déjà calculés : fabricant probable selon le WMI = ${loc.make||'inconnu'}, année modèle selon le 10e caractère = ${loc.year||'inconnue'}, chiffre de contrôle ${cs?'valide':'INVALIDE'}.
+Utilise ta connaissance des structures de NIV (WMI, VDS positions 4 à 8, usine) pour identifier le véhicule le plus précisément possible, tel que vendu au Canada.
+Réponds UNIQUEMENT en JSON, en français pour les champs descriptifs :
+{"year":nombre,"make":"","model":"","trim":"version probable ou vide","body":"VUS, berline, camionnette, etc.","engine":"ex. 2.0 L 4 cyl. turbo","drivetrain":"Traction intégrale / Traction avant / Propulsion / 4x4","transmission":"Automatique ou Manuelle","confiance":"haute|moyenne|faible","notes":"une phrase si la version est incertaine, sinon vide"}`, {modelTier:'default'});
+    veh=parseJSON(t);
+  }catch(err){
+    if(!loc.make && !loc.year){ S.busy=false; S.error = err.code==='not_granted' ? "Le décodage AI n'est pas disponible ici. Ouvre l'app dans Claude, ou entre ton véhicule à l'étape suivante." : "Décodage impossible pour l'instant. Réessaie dans un instant."; }
+    veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Décodage partiel : complète le modèle et la version." };
+  }
+  if(!cs && veh) veh.notes = (veh.notes?veh.notes+' ':'') + "Le chiffre de contrôle du NIV ne concorde pas : vérifie qu'il n'y a pas d'erreur de frappe.";
+  S.busy=false; d.vehicle=veh; go('confirm'); }
+
+/* ============ ÉVALUATION AI ============ */
+function answersText(a){ const L=[]; const add=(k,v)=>{ if(v!==undefined&&v!==''&&!(Array.isArray(v)&&!v.length)) L.push(`- ${k} : ${Array.isArray(v)?v.join(', '):v}`); };
+  add('Kilométrage',a.km+' km'); add('Code postal',a.postal); add('Couleur',a.couleur); add('Transmission',a.transmission); add('Propriété',a.propriete); add('Financement',a.finance); if(a.finance!=='Payée au complet') add('Solde du prêt',a.solde+' $');
+  add('Extérieur',a.ext); add('Rouille',a.rouille); add('Intérieur',a.int); add('Odeur',a.odeur); add('Voyants / mécanique',a.voyants); add('Roulable',a.roulable); add('Accidents / réclamations',a.accidents);
+  add('Titre / historique',a.titre); add('Clés',a.cles); add('Pneus inclus',a.pneus); add('Âge des pneus installés',a.pneusAge); add('Jantes',a.mags); add('Modifications',a.modifs); add('Intention de vente',a.quand); return L.join('\n'); }
+
+let loadTimer=null;
+async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.loadStage=0; go('loading');
+  loadTimer=setInterval(()=>{ if(S.loadStage<LOAD_STEPS.length-1){ S.loadStage++; if(S.screen==='loading') render(); } }, 4000);
+  const today=new Date().toLocaleDateString('fr-CA',{year:'numeric',month:'long',day:'numeric'});
+  const prompt=`Tu es le moteur d'évaluation de Shopicar, acheteur de véhicules d'occasion de particuliers au Québec (Canada). Date : ${today}.
+
+VÉHICULE
+${v.year} ${v.make} ${v.model} ${v.trim||''} | ${v.body||''} | ${v.engine||''} | ${v.drivetrain||''} | NIV ${d.vin}
+
+DÉCLARATIONS DU VENDEUR
+${answersText(a)}
+${d.photoBlobs.length?`\n${d.photoBlobs.length} photo(s) jointe(s) : vérifie qu'elles concordent avec les déclarations et signale tout écart dans "drapeaux".`:''}
+
+MÉTHODE (respecte-la à la lettre)
+1. Si tu as l'outil de recherche web, cherche des annonces ACTUELLES au Québec (concessionnaires, AutoHebdo, CarGurus, Kijiji Autos) du même modèle, même génération, version proche, kilométrage le plus proche possible de ${a.km} km. Retiens 3 à 8 comparables avec prix, km, ville, source et URL. Sinon, utilise ta connaissance du marché québécois et laisse "comparables" vide.
+2. À partir des comparables, estime "detail_comparable" : le prix de détail affiché typique d'un exemplaire en BON état moyen, au kilométrage de CE véhicule (${a.km} km). Corrige pour l'écart de km avec les comparables, une seule fois. N'enlève rien pour la marge du concessionnaire : Shopicar retire elle-même ${RECON} $ pour la marge et la remise en état.
+3. "ajustements" : SEULEMENT ce qui distingue ce véhicule d'un exemplaire en bon état moyen affiché chez un concessionnaire : dommages de carrosserie ou de vitre, rouille, intérieur, odeur, voyants, accidents, titre, clés manquantes, pneus usés, modifications. Un seul ensemble de pneus est la norme : ne pénalise PAS l'absence de pneus d'hiver; un 2e ensemble en bon état vaut un bonus. Ne mets AUCUN ajustement pour le kilométrage (déjà dans l'étape 2). Montants réalistes de reconditionnement au Québec.
+4. Ne sois ni optimiste ni prudent : vise le prix du marché observé.
+
+Termine ta réponse par UN SEUL objet JSON valide, montants en nombres entiers, rien après :
+{"comparables":[{"titre":"2023 Toyota RAV4 Prime XSE","prix":0,"km":0,"ville":"","source":"","url":""}],"detail_comparable":0,"ajustements":[{"libelle":"texte court en français","montant":0}],"confiance":"haute|moyenne|faible","facteurs":["3 à 5 phrases courtes, en français, tutoiement, qui expliquent le prix au vendeur"],"drapeaux":["points à valider par un acheteur, liste vide si rien"]}`;
+  let val=null, err=null;
+  try{ const s=await getSample(); if(!s){ const e=new Error('x'); e.code='not_granted'; throw e; }
+    let opts={modelTier:'complex', web:true}; try{ const lim=s.limits?await s.limits():null; if(d.photoBlobs.length && lim && lim.images) opts.images=d.photoBlobs.slice(0,4); }catch(x){}
+    const r=await s(prompt, opts); val=parseJSON(r.text);
+    val.comparables=(val.comparables||[]).filter(x=>x&&x.titre&&+x.prix>0).map(x=>({titre:String(x.titre),prix:Math.round(+x.prix),km:Math.round(+x.km||0),ville:String(x.ville||''),source:String(x.source||''),url:/^https?:\/\//.test(x.url||'')?x.url:''})).slice(0,8);
+    val.detail_comparable=Math.round(+val.detail_comparable||0);
+    if(!val.detail_comparable) throw new Error('valeur nulle');
+    val.recon=RECON;
+    val.ajustements=(val.ajustements||[]).map(x=>({libelle:String(x.libelle||''),montant:Math.round(+x.montant||0)})).filter(x=>x.montant!==0 && !/kilom/i.test(x.libelle));
+    val.wholesale_base=val.detail_comparable-RECON;
+    val.wholesale_final=val.wholesale_base+val.ajustements.reduce((s,x)=>s+x.montant,0);
+  }catch(e){ err=e; }
+  clearInterval(loadTimer);
+  if(!val||!val.wholesale_final){ go('quiz', {error: err && err.code==='not_granted' ? "Le calcul AI n'est pas disponible ici. Ouvre l'app dans Claude pour obtenir ton offre." : err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : "Le calcul n'a pas abouti. Réessaie."}); return; }
+  const offer=Math.max(0, Math.floor((val.wholesale_final - FEE)/25)*25);
+  const t=a.titre||[]; const review = val.confiance==='faible' || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
+  const now=Date.now();
+  const car={ id:d.replaces||d.id, vin:d.vin, vehicle:v, answers:Object.assign({},a), photos:d.photos.slice(0,3), valuation:val, offer, fee:FEE,
+    status: review?'a_valider':'offre', createdAt:now, expiresAt:now+OFFER_HOURS*3600000 };
+  await Store.save(car);
+  const i=S.cars.findIndex(c=>c.id===car.id); if(i>=0) S.cars[i]=car; else S.cars.push(car);
+  S.current=car; S.draft=null; go('offer'); }
+
+/* ============ RENDEZ-VOUS / APPEL ============ */
+const RD={type:'',date:'',slot:''};
+function openRdv(t){ RD.type=t; RD.date=''; RD.slot=''; renderRdv(); }
+function renderRdv(){ const tmr=new Date(Date.now()+86400000).toISOString().slice(0,10); const slots=RD.type==='appel'?['9 h','11 h','13 h','15 h','17 h','19 h']:['9 h 30','11 h','13 h 30','15 h','16 h 30','18 h'];
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet" onclick="event.stopPropagation()"><div class="hd"><h2>${RD.type==='appel'?'Planifier un appel':'Prendre un rendez-vous'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?'Un acheteur Shopicar te rappelle pour répondre à tes questions sur l\'offre.':'Viens montrer ton auto à notre centre ou à un garage partenaire. L\'inspection prend 10 minutes.'}</p>
+  <div class="field"><label for="rdd">Date</label><input id="rdd" type="date" class="inp" min="${tmr}" value="${RD.date}"></div>
+  <div class="q"><span class="ql">Heure</span><div class="chips">${slots.map(s=>`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}">${s}</button>`).join('')}</div></div>
+  <button class="btn pri" data-act="rdv-save" ${RD.date&&RD.slot?'':'disabled'}>Confirmer</button></div></div></div>`;
+  $('#rdd').addEventListener('input',e=>{ RD.date=e.target.value; renderRdv(); }); }
+async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label: dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot};
+  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Appel planifié.':'Rendez-vous confirmé.'); rerender(); }
+
+/* ============ JULIA ============ */
+function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.';
+  return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}. Offre Shopicar : ${money(c.finalOffer||c.offer)} (statut : ${statusInfo(c).txt}), valide jusqu'au ${new Date(c.expiresAt).toLocaleString('fr-CA')}. Calcul : wholesale ${money(c.valuation.wholesale_final)} moins frais fixe ${money(FEE)}. Bonus de ${money(BONUS_24H)} si acceptée dans les 24 h suivant l'offre.`; }
+function openJulia(prefill){ if(!S.chat.length) S.chat.push({role:'assistant',content:`Salut${S.current&&S.current.answers.prenom?' '+S.current.answers.prenom:''} ! Moi c'est Julia de Shopicar. Je peux t'aider avec ton offre, tes documents ou ta cueillette. Qu'est-ce que je peux faire pour toi ?`});
+  renderJulia(); if(prefill){ $('#jin').value=prefill; sendJulia(); } }
+function renderJulia(typing){ $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet" onclick="event.stopPropagation()" style="height:86%">
+  <div class="hd"><div style="display:flex;gap:10px;align-items:center"><div class="julia-av">J</div><div><b>Julia</b><div class="muted small">Shopicar · répond par texto</div></div></div><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  <div class="bd" id="jbd"><div class="chat">${S.chat.map(m=>`<div class="msg ${m.role==='user'?'u':'j'}">${esc(m.content)}</div>`).join('')}${typing?'<div class="msg j"><span class="spin" style="display:inline-block;width:16px;height:16px;border-width:2px"></span></div>':''}</div></div>
+  <div class="chatbar"><input id="jin" class="inp" placeholder="Écris à Julia…" autocomplete="off"><button class="btn pri" data-act="julia-send">Envoyer</button></div></div></div>`;
+  const b=$('#jbd'); b.scrollTop=b.scrollHeight; }
+let jBusy=false;
+async function sendJulia(){ const inp=$('#jin'); const t=(inp&&inp.value||'').trim(); if(!t||jBusy) return; S.chat.push({role:'user',content:t}); jBusy=true; renderJulia(true);
+  const sys=`Tu es Julia, conseillère de Shopicar, entreprise québécoise qui achète les véhicules des particuliers. Tu écris comme par texto : 1 à 3 phrases, chaleureuse, français québécois neutre, tutoiement, pas d'emoji en excès.
+Règles : l'offre est ferme et sans négociation, basée sur la valeur wholesale moins un frais fixe de ${money(FEE)}; ne change jamais un montant et ne promets rien hors des conditions (Carfax conforme, état confirmé par inspection de 10 min, aucune dette non déclarée au RDPRM). Si le client veut discuter du prix, propose un appel avec un acheteur (bouton « Planifier un appel »). Sans NIV : il est au bas du pare-brise côté conducteur, sur le montant de la porte conducteur, sur le certificat d'immatriculation SAAQ ou la carte d'assurance; on peut aussi prendre une photo dans l'app. Paiement par virement le jour de la cueillette; on rembourse le prêteur directement.
+${juliaContext()}`;
+  const msgs=S.chat.slice(-12).map(m=>({role:m.role,content:m.content})); while(msgs.length&&msgs[0].role!=='user') msgs.shift();
+  if(msgs.length) msgs[0]={role:'user',content:`[Contexte pour Julia, ne pas citer]\n${sys}\n\n[Message du client]\n${msgs[0].content}`};
+  try{ const r=await ask(msgs,{modelTier:'quick', cache:false}); S.chat.push({role:'assistant',content:r.trim()}); }
+  catch(e){ S.chat.push({role:'assistant',content: e.code==='not_granted'?"Je ne suis pas disponible dans cette vue. Ouvre l'app dans Claude pour me parler.":"Petit pépin de mon côté, réessaie dans un instant."}); }
+  jBusy=false; renderJulia(); }
+
+/* ============ GARAGE ============ */
+async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; if(S.screen==='garage'||S.screen==='home') rerender(); }
+
+/* comptes à rebours */
+setInterval(()=>{ document.querySelectorAll('[data-cd]').forEach(el=>{ el.textContent=timeLeft(+el.dataset.cd-Date.now()); }); }, 30000);
+
+render(); loadGarage();
+</script>
+</body>
+</html>

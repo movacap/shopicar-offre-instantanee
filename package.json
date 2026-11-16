@@ -1,0 +1,6 @@
+{
+  "name": "shopicar-offre-instantanee",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" }
+}
