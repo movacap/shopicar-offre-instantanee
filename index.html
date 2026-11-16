@@ -183,7 +183,7 @@ function apiSample(){
     try{ res = await fetch('/api/ai',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({input, images, modelTier:opts.modelTier||'default', web:!!opts.web})}); }
     catch(e){ const er=new Error('réseau'); er.code='unavailable'; throw er; }
     const j = await res.json().catch(()=>({}));
-    if(!res.ok){ const er=new Error(j.error||'erreur'); er.code = res.status===429?'rate_limited':res.status===404?'not_granted':'unavailable'; throw er; }
+    if(!res.ok){ const er=new Error(j.error||'erreur'); er.code = res.status===429?'rate_limited':res.status===404?'not_granted':/ANTHROPIC_API_KEY/.test(j.error||'')?'no_key':'unavailable'; throw er; }
     return { text: j.text||'' };
   };
   f.limits = async () => ({ images:true });
@@ -653,7 +653,7 @@ Termine ta réponse par UN SEUL objet JSON valide, montants en nombres entiers, 
     val.wholesale_final=val.wholesale_base+val.ajustements.reduce((s,x)=>s+x.montant,0);
   }catch(e){ err=e; }
   clearInterval(loadTimer);
-  if(!val||!val.wholesale_final){ go('quiz', {error: err && err.code==='not_granted' ? "Le calcul AI n'est pas disponible ici. Ouvre l'app dans Claude pour obtenir ton offre." : err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : "Le calcul n'a pas abouti. Réessaie."}); return; }
+  if(!val||!val.wholesale_final){ go('quiz', {error: err && err.code==='not_granted' ? "Le calcul AI n'est pas disponible ici. Ouvre l'app dans Claude pour obtenir ton offre." : err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie."}); return; }
   const offer=Math.max(0, Math.floor((val.wholesale_final - FEE)/25)*25);
   const t=a.titre||[]; const review = val.confiance==='faible' || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
   const now=Date.now();
