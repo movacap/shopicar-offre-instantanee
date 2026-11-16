@@ -10,8 +10,9 @@ const MAX_CHARS = 20000;
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST seulement' });
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return res.status(500).json({ error: 'ANTHROPIC_API_KEY manquante sur le serveur' });
+  const key = (process.env.ANTHROPIC_API_KEY || '').trim();
+  if (!key) return res.status(500).json({ error: 'ANTHROPIC_API_KEY manquante ou vide sur le serveur' });
+  if (!key.startsWith('sk-ant-')) return res.status(500).json({ error: `ANTHROPIC_API_KEY mal formée (${key.length} caractères, doit commencer par sk-ant-)` });
 
   const { input, images = [], modelTier = 'default', web = false } = req.body || {};
   const model = MODELS[modelTier] || MODELS.default;
