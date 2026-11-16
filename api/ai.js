@@ -15,6 +15,8 @@ export default async function handler(req, res) {
 
   const { input, images = [], modelTier = 'default', web = false } = req.body || {};
   const model = MODELS[modelTier] || MODELS.default;
+  const t0 = Date.now();
+  console.log('[ai] demande', { modelTier, model, web: !!web, images: (images || []).length });
 
   let messages = typeof input === 'string' ? [{ role: 'user', content: input }] : Array.isArray(input) ? input : null;
   if (!messages || !messages.length) return res.status(400).json({ error: 'input manquant' });
@@ -47,7 +49,8 @@ export default async function handler(req, res) {
         body: JSON.stringify({ model, max_tokens: tools ? 6000 : 2000, messages: convo, ...(tools ? { tools } : {}) }),
       });
       j = await r.json();
-      if (!r.ok) return res.status(r.status === 429 ? 429 : 502).json({ error: j?.error?.message || 'Erreur API' });
+      if (!r.ok) { console.error('[ai] erreur Anthropic', r.status, JSON.stringify(j?.error || j).slice(0, 500)); return res.status(r.status === 429 ? 429 : 502).json({ error: `Anthropic ${r.status} : ${j?.error?.message || 'erreur'}` }); }
+      console.log('[ai] réponse', { turn, stop: j.stop_reason, ms: Date.now() - t0 });
       if (j.stop_reason !== 'pause_turn') break;
       convo = [...convo, { role: 'assistant', content: j.content }];
     }
@@ -57,8 +60,10 @@ export default async function handler(req, res) {
     blocks.forEach((b, i) => { if (b.type === 'web_search_tool_result') start = i + 1; });
     let text = blocks.slice(start).filter(b => b.type === 'text').map(b => b.text).join('');
     if (!text.trim()) text = blocks.filter(b => b.type === 'text').map(b => b.text).join('');
+    console.log('[ai] ok', { ms: Date.now() - t0, chars: text.length, debut: text.slice(-300) });
     return res.status(200).json({ text });
   } catch (e) {
-    return res.status(502).json({ error: 'Appel AI impossible' });
+    console.error('[ai] exception', e?.message || e);
+    return res.status(502).json({ error: 'Appel AI impossible : ' + (e?.message || e) });
   }
 }
