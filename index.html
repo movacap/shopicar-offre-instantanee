@@ -192,11 +192,11 @@ const FEE = FEE_MAX;         // anciens dossiers sans frais enregistré
 const BONUS_24H = 250;       // bonus si acceptation < 24 h
 const OFFER_HOURS = 48;      // validité de l'offre
 const SHOW_BREAKDOWN = true; // afficher wholesale − frais au client
-/* Offres validées qui font monter le prix en direct.
-   TEMPORAIRE : aucune source réelle n'est encore branchée. DEMO_OFFERS = true simule des offres
-   (+300, +400, +300, +500 $ au-dessus de l'estimation) pour voir la jauge monter.
-   Avant le lancement public : mettre false et brancher la vraie source dans feedPoll(). */
-const DEMO_OFFERS = true;
+/* Offres validées qui font monter le prix en direct : elles viennent de 360inspek (réseau Shopicar, agent.shopicar.com),
+   où l'équipe envoie les offres d'achat depuis la fiche du véhicule (api/lead.js → fonction « shopicar-lead »).
+   Démo : ouvrir l'app avec ?demo=1 (?demo=0 pour revenir) simule des offres (+300, +400, +300, +500 $) sans rien envoyer à 360inspek. */
+const DEMO_OFFERS = (()=>{ try{ const q=new URLSearchParams(location.search).get('demo'); if(q==='1') localStorage.setItem('sc_demo','1'); if(q==='0') localStorage.removeItem('sc_demo'); return localStorage.getItem('sc_demo')==='1'; }catch(e){ return /[?&]demo=1/.test(location.search); } })();
+const LEAD_POLL_MS = 8000;
 const DEMO_STEPS = [{t:6,add:300},{t:14,add:400},{t:22,add:300},{t:31,add:500}]; // secondes après le début de la recherche
 const DEMO_DONE_T = 38;
 
@@ -326,6 +326,7 @@ function answered(q,a){ const v=a[q.id]; if(!q.req) return true; if(q.type==='mu
   return v!==undefined && String(v).trim()!==''; }
 
 /* ============ ÉTAT ============ */
+const BLOBS = {}; // photos 1024 px par auto, en mémoire seulement (envoyées à 360inspek au lancement de la recherche)
 const S = { screen:'home', tab:'sell', draft:null, step:0, cars:[], loaded:false, current:null, error:null, busy:false, chat:[], loadStage:0 };
 
 function newDraft(){ return { id:uid(), vin:'', vinOk:false, vehicle:null, answers:{}, photos:[], photoBlobs:[] }; }
@@ -465,7 +466,7 @@ function bonusLive(c){ return !c.estimate && ['offre'].includes(c.status) && Dat
 const amtHTML = n => `${Math.round(n).toLocaleString('fr-CA')}<sup>$</sup>`;
 
 /* ---- détail du calcul (estimation) ---- */
-function breakdownHTML(c, totLbl){ const val=c.valuation||{}; if(!SHOW_BREAKDOWN) return '';
+function breakdownHTML(c, totLbl){ const val=c.valuation||{}; if(!SHOW_BREAKDOWN||!val.wholesale_final) return '';
   return `<div class="card"><h2>Comment on arrive à ${c.estimate?'ton estimation':'ce prix'}</h2>
       <div class="kv num">
         ${val.recon&&val.detail_comparable?`<span class="k">Prix de détail des autos comparables, ajusté à ton kilométrage</span><span class="v">${money(val.detail_comparable)}</span>
@@ -521,7 +522,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage(); const ph=c.pho
     ${!ph.length?`<button class="btn ghost" data-act="best-price-skip" style="margin-top:-8px">Continuer sans photos</button>`:''}
     <button class="btn sec" data-act="julia">Une question ? Écris à Julia</button>
     ${breakdownHTML(c,'Ton estimation')}
-    ${(c.valuation.drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
+    ${((c.valuation||{}).drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
   </div>`; }
 
 /* ---- 3. Julia travaille pour toi (prix en direct) ---- */
@@ -543,7 +544,8 @@ function vSearch(){ const c=S.current; if(!c) return vGarage(); const b=bestOffe
       <div id="liveLadder">${ladderHTML(c)}</div>
     </div>
     <div class="livemsg" id="liveMsg">${b?'Julia continue de travailler pour t\'obtenir notre meilleur prix.':'<span class="spin"></span><span>Julia poursuit ses recherches…</span>'}</div>
-    ${canNotify?`<div class="card"><h3>Pas besoin d'attendre ici</h3>
+    ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton prix augmente. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
+    ${!s.leadToken&&canNotify?`<div class="card"><h3>Pas besoin d'attendre ici</h3>
       <p class="muted small" style="margin:0">${s.notify&&Notification.permission==='granted'?'C\'est noté : tu seras avisé sur cet appareil dès qu\'une meilleure offre est validée. Garde l\'onglet ouvert en arrière-plan.':'On peut t\'aviser sur cet appareil dès qu\'une meilleure offre est validée. Ton dossier reste aussi dans Mon garage.'}</p>
       ${s.notify&&Notification.permission==='granted'?'':`<button class="btn sec" data-act="notify">M'aviser quand mon prix augmente</button>`}</div>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
@@ -584,7 +586,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
     ${nu?conditionsHTML():''}
     ${breakdownHTML(c, nu?'Ton estimation initiale':'Ton offre')}
     ${nu?'':conditionsHTML()}
-    ${(c.valuation.drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
+    ${((c.valuation||{}).drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
     <div class="card"><h3>Suivi du dossier</h3>${timeline(c)}</div>
     <p class="muted small num" style="text-align:center;margin:0">NIV ${esc(c.vin)} · ${esc(c.answers.km)} km · ${nu&&c.offerAt?'offre':'offre'} du ${new Date(c.offerAt||c.createdAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}</p>
   </div>`; }
@@ -675,10 +677,17 @@ document.addEventListener('click', async e=>{
   else if(a==='conseiller'){ openRdv('appel'); }
   else if(a==='notify'){ askNotify(S.current); }
   else if(a==='accept'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
+      if(c.search&&c.search.leadToken){ const b=bestOffer(c); if(!b){ toast('Cette offre n\'est plus valide.'); return; }
+        el.disabled=true; el.innerHTML='<span class="spin"></span> Confirmation…';
+        try{ await leadApi({action:'accept', token:c.search.leadToken, offer_id:b.id}); }
+        catch(e){ toast(e.message==='expired'?'Cette offre est expirée.':e.message==='withdrawn'?'Cette offre a été retirée.':'Acceptation impossible pour l\'instant. Réessaie.'); pollLead(c); rerender(); return; } }
       c.finalOffer = c.offer + (bonusLive(c)?BONUS_24H:0); c.status='acceptee'; c.acceptedAt=Date.now(); await Store.save(c); go('accept'); }
   else if(a==='open-accept'){ go('accept'); }
   else if(a==='pk'){ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.k]=el.dataset.v; rerender(); }
-  else if(a==='confirm-pickup'){ const c=S.current; c.status='planifiee'; await Store.save(c); toast('Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
+  else if(a==='confirm-pickup'){ const c=S.current; const pk=c.pickup||{};
+      if(c.search&&c.search.leadToken){ try{ await leadApi({action:'pickup', token:c.search.leadToken, when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`, where: pk.lieu==='À mon adresse'?pk.adresse:pk.lieu }); }
+        catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
+      c.status='planifiee'; await Store.save(c); toast('Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
   else if(a==='rdv'){ openRdv(el.dataset.t); }
   else if(a==='rdv-slot'){ RD.slot=el.dataset.v; renderRdv(); }
   else if(a==='rdv-save'){ saveRdv(); }
@@ -697,7 +706,7 @@ const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
 
 $('#photoFile').addEventListener('change', async e=>{
   if(S.screen==='estimate' && S.current){ const c=S.current; c.photos=c.photos||[]; const files=[...e.target.files].slice(0, 6-c.photos.length); e.target.value='';
-    for(const f of files){ try{ const {im,u}=await loadImg(f); c.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); URL.revokeObjectURL(u); }catch(err){} }
+    for(const f of files){ try{ const {im,u}=await loadImg(f); c.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); (BLOBS[c.id] ||= []).push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
     await Store.save(c); rerender(); return; }
   const files=[...e.target.files].slice(0, 6-S.draft.photos.length); e.target.value='';
   for(const f of files){ try{ const {im,u}=await loadImg(f); S.draft.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); S.draft.photoBlobs.push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
@@ -795,7 +804,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
     status:'estimation', createdAt:now, expiresAt:now+OFFER_HOURS*3600000 };
   await Store.save(car);
   const i=S.cars.findIndex(c=>c.id===car.id); if(i>=0) S.cars[i]=car; else S.cars.push(car);
-  S.current=car; S.draft=null; go('estimate'); }
+  BLOBS[car.id]=d.photoBlobs.slice(); S.current=car; S.draft=null; go('estimate'); }
 
 /* ============ MEILLEUR PRIX : OFFRES VALIDÉES EN DIRECT ============
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
@@ -805,8 +814,24 @@ function screenFor(c){ return c.status==='estimation'?'estimate':c.status==='rec
 const validOffers = c => ((c.search&&c.search.offers)||[]).filter(o=>o.status==='valid' && Date.now()<o.expiresAt);
 function bestOffer(c){ return validOffers(c).reduce((m,o)=>!m||o.amount>m.amount?o:m, null); }
 function bestSteps(c){ let m=-Infinity; return validOffers(c).slice().sort((a,b)=>a.at-b.at).filter(o=>o.amount>m && (m=o.amount, true)); } // chaque nouvelle meilleure offre
-async function startSearch(c){ if(!c.search) c.search={ status:'running', startedAt:Date.now(), demo:DEMO_OFFERS, notify:false, offers:[] };
-  c.status='recherche'; await Store.save(c); S.liveShown=null; go('search'); }
+async function leadApi(body){ const r=await fetch('/api/lead',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok){ const e=new Error(j.error||'erreur'); e.status=r.status; throw e; } return j; }
+let starting=false;
+async function startSearch(c){ if(starting) return;
+  if(!c.search){
+    if(!DEMO_OFFERS){ starting=true; const btn=document.querySelector('[data-act="best-price"]'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
+      try{
+        const photos = await Promise.all(((BLOBS[c.id]&&BLOBS[c.id].length)?BLOBS[c.id]:[]).slice(0,8).map(blobToB64));
+        if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
+        const v=c.valuation||{};
+        const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers:c.answers, estimate:c.estimate, fee:c.fee, photos,
+          valuation:{ detail_comparable:v.detail_comparable, wholesale_final:v.wholesale_final, comparables:v.comparables, drapeaux:v.drapeaux } }});
+        c.search={ status:'running', startedAt:Date.now(), demo:false, notify:false, offers:[], leadToken:j.token };
+      }catch(e){ starting=false; toast("Impossible d'envoyer ton dossier pour l'instant. Réessaie dans un instant."); rerender(); return; }
+      starting=false;
+    } else c.search={ status:'running', startedAt:Date.now(), demo:true, notify:false, offers:[] };
+  }
+  c.status='recherche'; await Store.save(c); S.liveShown=null; go('search'); if(c.search.leadToken) pollLead(c); }
 function feedPoll(c){ const s=c.search; const now=Date.now(); const added=[]; let changed=false;
   if(s.demo){ // DÉMO : offres simulées sur une ligne de temps fixe (reprend au bon endroit si on quitte et revient)
     const el=(now-s.startedAt)/1000; let amt=c.estimate;
@@ -814,11 +839,37 @@ function feedPoll(c){ const s=c.search; const now=Date.now(); const added=[]; le
       if(el>=st.t && !s.offers.some(o=>o.id===id)){ const at=s.startedAt+st.t*1000; const o={id, amount:Math.round(amt/50)*50, at, expiresAt:at+OFFER_HOURS*3600000, status:'valid'}; s.offers.push(o); added.push(o); } });
     if(el>=DEMO_DONE_T && s.status!=='done'){ s.status='done'; changed=true; }
   }
-  // Source réelle : à brancher ici (offres validées par Shopicar, avec retraits et expirations). Rien n'est simulé hors démo.
+  // Source réelle : pollLead() remplit s.offers depuis 360inspek (retraits et expirations compris). Rien n'est simulé hors démo.
   s.offers.forEach(o=>{ if(o.status==='valid' && now>=o.expiresAt){ o.status='expired'; changed=true; } });
   if(s.status==='done' && c.status==='recherche'){ const b=bestOffer(c);
     if(b){ c.status='offre'; c.offer=b.amount; c.expiresAt=b.expiresAt; c.offerAt=b.at; changed=true; } } // sans offre : « Julia poursuit ses recherches »
   return { added, changed: changed||added.length>0 }; }
+/* Offres réelles : 360inspek, toutes les LEAD_POLL_MS. Une offre « finale » termine la recherche.
+   Après la meilleure offre, on continue de vérifier : une offre retirée ou expirée ne compte plus. */
+const polling={};
+async function pollLead(c){ const s=c.search; if(!s||!s.leadToken||polling[c.id]) return; polling[c.id]=true;
+  try{
+    const j=await leadApi({action:'status', token:s.leadToken});
+    const prev=(bestOffer(c)||{amount:c.estimate}).amount; const known=new Set(s.offers.map(o=>o.id)); const wasStatus=c.status;
+    s.offers=(j.offers||[]).map(o=>({ id:o.id, amount:o.amount, at:Date.parse(o.at), expiresAt:o.expires_at?Date.parse(o.expires_at):Infinity, status:o.status, final:!!o.final, accepted:!!o.accepted }));
+    const added=s.offers.filter(o=>!known.has(o.id) && o.status==='valid');
+    if(s.offers.some(o=>o.final && o.status==='valid')) s.status='done';
+    const b=bestOffer(c);
+    if(c.status==='recherche' && s.status==='done' && b){ c.status='offre'; c.offer=b.amount; c.expiresAt=b.expiresAt; c.offerAt=b.at; }
+    else if(c.status==='offre'){ if(b){ c.offer=b.amount; c.expiresAt=b.expiresAt; } else { c.status='recherche'; s.status='running'; } }
+    const changed = added.length || c.status!==wasStatus || JSON.stringify(j.offers)!==s._last; s._last=JSON.stringify(j.offers);
+    if(changed){ await Store.save(c); onFeed(c, prev, added, wasStatus); }
+  }catch(e){ /* réseau : on réessaie au prochain tour */ }
+  polling[c.id]=false; }
+function onFeed(c, prev, added, wasStatus){
+  const onIt = S.current && S.current.id===c.id; if(onIt) S.current=c;
+  if(onIt && S.screen==='search'){ animateRise(c, prev); if(added.length && document.hidden) notifyRise(c); if(c.status==='offre') setTimeout(()=>{ if(S.screen==='search'&&S.current===c) go('offer'); }, 3200); }
+  else if(onIt && S.screen==='offer' && c.status!==wasStatus){ go(screenFor(c)); }
+  else if(onIt && S.screen==='offer'){ rerender(); }
+  else if(added.length){ if(document.hidden) notifyRise(c); else toast('Bonne nouvelle! Ton prix Shopicar vient d\'augmenter.'); if(S.screen==='garage'||S.screen==='home') rerender(); }
+}
+setInterval(()=>{ S.cars.forEach(c=>{ if(c.search&&c.search.leadToken&&['recherche','offre'].includes(c.status)) pollLead(c); }); }, LEAD_POLL_MS);
+
 function tween(el, from, to, ms){ if(!el) return; if(matchMedia('(prefers-reduced-motion: reduce)').matches){ el.innerHTML=amtHTML(to); return; }
   const t0=performance.now(); const step=t=>{ const k=Math.min(1,(t-t0)/ms); const e=1-Math.pow(1-k,3); el.innerHTML=amtHTML(from+(to-from)*e); if(k<1) requestAnimationFrame(step); }; requestAnimationFrame(step); }
 let msgTimer=null;
@@ -840,7 +891,7 @@ function notifyRise(c){ try{ if(c.search.notify && 'Notification' in window && N
 async function askNotify(c){ if(!('Notification' in window)){ toast('Ton navigateur ne permet pas les notifications.'); return; }
   const p = Notification.permission==='granted' ? 'granted' : await Notification.requestPermission();
   c.search.notify = p==='granted'; await Store.save(c); toast(p==='granted'?'Parfait, on t\'avise dès que ton prix augmente.':'Notifications refusées. Ton dossier reste dans Mon garage.'); rerender(); }
-setInterval(()=>{ S.cars.forEach(c=>{ if(!c.search || c.status!=='recherche') return;
+setInterval(()=>{ S.cars.forEach(c=>{ if(!c.search || !c.search.demo || c.status!=='recherche') return;
   const onIt = S.screen==='search' && S.current && S.current.id===c.id; if(onIt) S.current=c;
   const prev=(bestOffer(c)||{amount:c.estimate}).amount; const r=feedPoll(c); if(!r.changed) return;
   Store.save(c);
@@ -859,6 +910,7 @@ function renderRdv(){ const tmr=new Date(Date.now()+86400000).toISOString().slic
   <button class="btn pri" data-act="rdv-save" ${RD.date&&RD.slot?'':'disabled'}>Confirmer</button></div></div></div>`;
   $('#rdd').addEventListener('input',e=>{ RD.date=e.target.value; renderRdv(); }); }
 async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label: dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot};
+  if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:c.rdv.label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
   await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller te rappelle à l\'heure choisie.':'Rendez-vous confirmé.'); rerender(); }
 
 /* ============ JULIA ============ */
@@ -891,7 +943,17 @@ async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loade
 /* comptes à rebours */
 setInterval(()=>{ document.querySelectorAll('[data-cd]').forEach(el=>{ el.textContent=timeLeft(+el.dataset.cd-Date.now()); }); }, 30000);
 
-render(); loadGarage();
+/* Lien du texto (?o=<jeton>) : ouvre le dossier, même sur un autre appareil (reconstruit depuis 360inspek) */
+async function openFromLink(){ const tok=new URLSearchParams(location.search).get('o'); if(!tok||!/^[0-9a-f]{36}$/.test(tok)) return;
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  await loadGarage(); let c=S.cars.find(x=>x.search&&x.search.leadToken===tok);
+  if(!c){ try{ const j=await leadApi({action:'status', token:tok}); const p=j.payload||{};
+      c={ id:'lead-'+tok.slice(0,10), vin:p.vin||'', vehicle:Object.assign({}, p.vehicle||{}, j.vehicle||{}), answers:Object.assign({}, p.answers||{}), photos:[], valuation:{}, estimate:j.estimate, offer:j.estimate, fee:p.fee||null,
+        status:'recherche', createdAt:Date.parse(j.created_at)||Date.now(), expiresAt:Date.now()+OFFER_HOURS*3600000, search:{ status:'running', startedAt:Date.parse(j.created_at)||Date.now(), demo:false, notify:false, offers:[], leadToken:tok } };
+      S.cars.push(c); await Store.save(c);
+    }catch(e){ toast('Ce lien n\'est plus valide.'); return; } }
+  S.current=c; await pollLead(c); go(screenFor(c)); }
+render(); loadGarage(); openFromLink();
 </script>
 </body>
 </html>

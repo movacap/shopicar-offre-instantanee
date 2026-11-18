@@ -28,7 +28,9 @@ Projet indépendant : aucun lien avec HomPilot ni avec l'infrastructure de Julia
 4. Meilleure offre finale (validité 48 h, conditions), puis Accepter et prendre rendez-vous / Parler à un conseiller / Discuter avec Julia.
 5. Notification sur l'appareil (avec permission) quand le prix monte et que l'app est en arrière-plan.
 
-**TEMPORAIRE : `DEMO_OFFERS = true` dans index.html simule les offres (+300, +400, +300, +500 $).** Avant le lancement public : mettre `false` et brancher la vraie source d'offres validées dans `feedPoll()`.
+**Offres réelles : 360inspek (réseau Shopicar, agent.shopicar.com).** Au bouton « Obtenir mon meilleur prix », `api/lead.js` crée la fiche (avec photos) dans le réseau Shopicar par la fonction 360inspek `shopicar-lead`. L'équipe envoie ses offres avec le bouton « Offre d'achat » de la fiche (case « Offre finale » pour terminer la recherche). Le client reçoit un texto avec un lien `?o=<jeton>` quand son prix monte, et l'app interroge 360inspek toutes les 8 s. Accepter, demander un rappel ou une cueillette avise l'équipe par texto.
+Variable Vercel : `SHOPICAR_LEAD_SECRET` (même valeur que le secret `shopicar_lead_secret` du vault 360inspek).
+Démo sans 360inspek : ouvrir l'app avec `?demo=1` (offres simulées +300, +400, +300, +500 $), `?demo=0` pour revenir.
 
 ## À brancher pour la production
 - Stockage : le garage est sauvegardé sur l'appareil (localStorage). Prochaine étape : une base Supabase dédiée + connexion Google/Facebook ou code SMS.
