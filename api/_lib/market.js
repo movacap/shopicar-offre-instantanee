@@ -24,22 +24,28 @@ function parseJSON(text) {
   return JSON.parse(s.slice(a, b + 1));
 }
 
-async function searchComparables(key, v, km) {
+async function searchComparables(key, v, km, vin) {
   const car = [v.year, v.make, v.model, v.trim].filter(Boolean).join(' ');
   const today = new Date().toLocaleDateString('fr-CA', { year: 'numeric', month: 'long', day: 'numeric' });
   const prompt = `Date : ${today}. Trouve des annonces ACTUELLES de véhicules d'occasion à vendre au Québec (Canada) comparables à :
-${car} | ${v.body || ''} | ${v.engine || ''} | ${v.drivetrain || ''} | environ ${km} km
+${car} | ${v.body || ''} | ${v.engine || ''} | ${v.drivetrain || ''} | environ ${km} km${vin ? ` | NIV ${vin}` : ''}
 
-RÈGLES
-- Même marque, même modèle, même génération et MÊME ANNÉE (${v.year}). Seulement s'il y en a moins de 4, ajoute l'année ${+v.year - 1} ou ${+v.year + 1}.
-- Version (trim), motorisation et traction identiques ou les plus proches possible.
+ÉTAPE 1 : VERSION EXACTE
+- La version donnée vient de la base NHTSA, qui ne distingue pas toujours les éditions spéciales ou limitées.${vin ? `
+- Cherche d'abord les 8 premiers caractères du NIV (« ${String(vin).slice(0, 8)} ») avec l'année pour confirmer la version exacte : édition spéciale ou limitée (ex. MINI John Cooper Works GP, Honda Civic Type R, Ford Raptor, Toyota TRD Pro, Porsche GT3, etc.), version haute performance ou version courante.` : ''}
+- Ne change jamais la marque, le modèle ni l'année. Si rien ne confirme une édition particulière, garde la version donnée.
+
+ÉTAPE 2 : ANNONCES COMPARABLES
+- Même marque, même modèle, même génération, MÊME VERSION EXACTE (étape 1) et MÊME ANNÉE (${v.year}). Seulement s'il y en a moins de 4, ajoute l'année ${+v.year - 1} ou ${+v.year + 1}.
+- Une édition spéciale ou limitée se compare SEULEMENT à la même édition, jamais à la version courante. S'il y en a moins de 3 au Québec, élargis au reste du Canada et indique la province dans "ville".
+- Motorisation et traction identiques ou les plus proches possible.
 - Kilométrage le plus proche possible de ${km} km.
 - Sources : concessionnaires, AutoHebdo, CarGurus, Kijiji Autos, AutoTrader. Prix affichés en dollars canadiens, avant taxes.
 - Rapporte les annonces telles qu'elles sont : n'invente rien, ne calcule aucun prix, ne fais aucune moyenne. Retiens 5 à 10 annonces.
 - "demande" : vitesse de revente de ce modèle au Québec (forte = se revend très vite, ex. RAV4, Civic, Tacoma; faible = lent, luxe qui se déprécie vite, VE).
 
 Termine par UN SEUL objet JSON valide, rien après :
-{"comparables":[{"titre":"","annee":0,"version":"","prix":0,"km":0,"ville":"","source":"","url":""}],"demande":"forte|normale|faible"}`;
+{"version_identifiee":"","edition_speciale":false,"comparables":[{"titre":"","annee":0,"version":"","prix":0,"km":0,"ville":"","source":"","url":""}],"demande":"forte|normale|faible"}`;
 
   let convo = [{ role: 'user', content: prompt }]; let j;
   for (let turn = 0; turn < 4; turn++) {
@@ -66,7 +72,8 @@ Termine par UN SEUL objet JSON valide, rien après :
       url: /^https?:\/\//.test(x.url || '') ? String(x.url) : '' }))
     .slice(0, 10);
   const demande = ['forte', 'normale', 'faible'].includes(out.demande) ? out.demande : 'normale';
-  return { comps, demande };
+  const version = String(out.version_identifiee || '').slice(0, 80);
+  return { comps, demande, version, special: out.edition_speciale === true };
 }
 
 /** Comparables (cache 7 jours ou recherche). Lève une erreur avec .status en cas d'échec. */
@@ -76,7 +83,8 @@ export async function getMarket({ vin, vehicle = {}, km }) {
   const sq = squishVin(vin);
   const kmN = Math.max(0, Math.round(+String(km ?? '').replace(/[^\d]/g, '') || 0));
   if (!vehicle.year || !vehicle.make || !vehicle.model) { const e = new Error('année, marque et modèle requis'); e.status = 400; throw e; }
-  const cacheKey = sq ? `market/${sq}-${Math.floor(kmN / 50000)}.json` : null;
+  // v2 : la version exacte (éditions spéciales) est identifiée par le NIV; les anciennes entrées ne sont plus réutilisées
+  const cacheKey = sq ? `market/v2/${sq}-${Math.floor(kmN / 50000)}.json` : null;
   const label = [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(' ');
   const t0 = Date.now();
   if (cacheKey && process.env.BLOB_READ_WRITE_TOKEN) {
@@ -87,8 +95,8 @@ export async function getMarket({ vin, vehicle = {}, km }) {
       return { ...hit, cached: true };
     }
   }
-  const m = await searchComparables(key, vehicle, kmN);
-  const payload = { comps: m.comps, demande: m.demande, fetchedAt: Date.now(), vehicle: label };
+  const m = await searchComparables(key, vehicle, kmN, String(vin || '').toUpperCase());
+  const payload = { comps: m.comps, demande: m.demande, version: m.version, special: m.special, fetchedAt: Date.now(), vehicle: label };
   // On ne met en cache qu'un résultat exploitable : sinon le prochain essai refait la recherche.
   if (cacheKey && process.env.BLOB_READ_WRITE_TOKEN && m.comps.length >= 3) {
     try { await put(cacheKey, JSON.stringify(payload), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); }
