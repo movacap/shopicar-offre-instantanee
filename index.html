@@ -81,6 +81,13 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .thumb svg{width:108px}
 .best{background:var(--acc);color:#fff;border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .best h2{font-size:22px;line-height:1.15;letter-spacing:-.03em}
+.best.official{gap:8px;padding:24px 20px}
+.best.official .tag{background:#fff;color:var(--acc);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:99px}
+.best.official h2{font-size:20px;margin-top:4px}
+.best.official .amt{font-family:var(--f-display);font-weight:700;font-size:60px;line-height:1;letter-spacing:-.045em;margin-top:4px}
+.best.official .amt sup{font-size:24px;margin-left:3px;font-weight:600}
+.best.official .gain{background:rgba(255,255,255,.18);font-weight:600;font-size:14px;padding:5px 11px;border-radius:99px}
+.best.official .cd{font-size:13.5px;color:rgba(255,255,255,.85)}
 .best p{margin:0;color:rgba(255,255,255,.88)}
 .best .btn.dark{color:var(--acc);margin-top:4px}
 .btn.big{padding:17px 18px;font-size:16.5px;border-radius:14px}
@@ -651,14 +658,22 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
   const expired = st.txt==='Offre expirée'; const firm=c.status==='offre'; const nu=!!c.estimate;
   const shown = c.finalOffer || c.offer; const diff=nu?c.offer-c.estimate:0;
   const intro = !nu||!firm||expired?'':`<h2 style="font-size:24px">Excellente nouvelle! Ta meilleure offre Shopicar est prête!</h2>`;
-  const story = !nu||!firm||expired?'':`<p style="margin:0">${diff>0?`Shopicar a travaillé pour toi et on a réussi à améliorer ton prix de <b class="num">${money(diff)}</b> par rapport à notre estimation initiale.`
+  const story = !nu||!firm||expired?'':`<p style="margin:0">${diff>0?`Shopicar a travaillé pour toi : ton prix a augmenté de <b class="num">${money(diff)}</b> par rapport à ton estimation initiale (${money(c.estimate)}).`
       : diff===0?`Ta meilleure offre est égale à notre estimation initiale.`
       : `Ta meilleure offre est de <b class="num">${money(-diff)}</b> de moins que notre estimation initiale (${money(c.estimate)}). L'estimation se base sur les annonces comparables; l'offre validée tient compte de l'état déclaré et de la demande réelle des acheteurs. Tu restes libre de refuser.`}</p>
     <p style="margin:0">Tu peux maintenant vendre ton véhicule à Shopicar!</p>`;
+  const official = nu&&firm&&!expired;
   return `${topbar(nu&&firm?'Ma meilleure offre':'Mon offre','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    ${intro}
+    ${official?`<div class="best official">
+      <span class="tag">✓ Offre officielle Shopicar</span>
+      <h2>Excellente nouvelle! Ta meilleure offre est prête</h2>
+      <div class="amt num">${amtHTML(shown)}</div>
+      ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton estimation</span>`:''}
+      <div class="cd num">Valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>
+      <button class="btn dark big" data-act="accept">Accepter mon offre et prendre rendez-vous</button>
+    </div>`:`${intro}
     <div class="offer">
       <span class="lbl">${nu?(['acceptee','planifiee'].includes(c.status)?'Offre acceptée*':'Meilleure offre Shopicar*'):firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
       <div class="amt num">${amtHTML(shown)}</div>
@@ -667,10 +682,10 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       ${c.status==='a_valider'?`<div class="small" style="color:#a3a3a3">Un acheteur Shopicar valide quelques points avant de rendre l'offre ferme, en général en moins de 2 h.</div>`:''}
       ${bonusLive(c)&&!expired?`<div class="bonus"><span>Accepte d'ici <b class="num" data-cd="${c.createdAt+24*3600000}" style="font-size:14px;font-family:var(--f-body)">${timeLeft(c.createdAt+24*3600000-Date.now())}</b></span><b>+${money(BONUS_24H)}</b></div>`:''}
       ${!nu&&c.finalOffer&&c.finalOffer>c.offer?`<div class="small" style="color:#66a9f3">Bonus 24 h inclus : +${money(c.finalOffer-c.offer)}</div>`:''}
-    </div>
-    ${story}
+    </div>`}
+    ${official&&diff>=0?'':story}
     ${expired?`<button class="btn pri" data-act="reeval">Réévaluer mon auto</button>`:''}
-    ${firm&&!expired?`<button class="btn pri" data-act="accept">${nu?'Accepter mon offre et prendre rendez-vous':'Accepter '+money(c.offer+(bonusLive(c)?BONUS_24H:0))}</button>`:''}
+    ${firm&&!expired&&!official?`<button class="btn pri" data-act="accept">${nu?'Accepter mon offre et prendre rendez-vous':'Accepter '+money(c.offer+(bonusLive(c)?BONUS_24H:0))}</button>`:''}
     ${['acceptee','planifiee'].includes(c.status)?`<button class="btn pri" data-act="open-accept">${c.status==='acceptee'?'Compléter mes documents':'Voir ma cueillette'}</button>`:''}
     ${nu&&!expired&&['offre','acceptee','planifiee'].includes(c.status)?`<button class="btn sec" data-act="conseiller">Parler à un conseiller Shopicar</button>`
       :['offre','a_valider'].includes(c.status)&&!expired?`<div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre un rendez-vous</button><button class="btn sec" data-act="rdv" data-t="appel">Planifier un appel</button></div>`:''}
