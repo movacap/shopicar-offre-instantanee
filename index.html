@@ -175,6 +175,14 @@ ul.clean.warnl li:before{background:#000}
 .livemsg{min-height:44px;display:flex;align-items:center;gap:10px;font-weight:500}
 .livemsg.good{color:var(--acc)}
 @media (prefers-reduced-motion:reduce){.jl-pulse:before,.jl-pulse:after,.jl-bar i,.live:before,.ladder .b.grow,.bump,.offer.flash{animation:none}}
+.clean.checks li{grid-template-columns:18px 1fr}
+.clean.checks li:before{content:"✓";width:auto;height:auto;background:none;border-radius:0;margin:0;color:var(--acc);font-weight:700}
+.clean.checks.onDark li{color:#e5e5e5}
+details.details summary{list-style:none;display:flex;justify-content:space-between;align-items:center;cursor:pointer;color:var(--acc);font-weight:600;font-size:14.5px}
+details.details summary::-webkit-details-marker{display:none}
+details.details .chev{transition:transform .2s;font-size:20px;line-height:1}
+details.details[open] .chev{transform:rotate(90deg)}
+details.details:not([open]){gap:0}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#000;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%}
 </style>
 </head>
@@ -187,7 +195,7 @@ ul.clean.warnl li:before{background:#000}
 
 <script>
 /* ============ CONFIG ============ */
-const FEE_MIN = 700, FEE_MAX = 1200;  // affichage seulement : le calcul est dans pricing.js (PRICING.FEE_*)
+const FEE_MIN = 700, FEE_MAX = 1200;  // anciens dossiers seulement; le calcul est sur le serveur (api/_lib/pricing.js)
 const FEE = FEE_MAX;         // anciens dossiers sans frais enregistré
 const BONUS_24H = 250;       // bonus si acceptation < 24 h
 const OFFER_HOURS = 48;      // validité de l'offre
@@ -198,14 +206,16 @@ const SHOW_BREAKDOWN = true; // afficher wholesale − frais au client
 const DEMO_OFFERS = (()=>{ try{ const q=new URLSearchParams(location.search).get('demo'); if(q==='1') localStorage.setItem('sc_demo','1'); if(q==='0') localStorage.removeItem('sc_demo'); return localStorage.getItem('sc_demo')==='1'; }catch(e){ return /[?&]demo=1/.test(location.search); } })();
 const LEAD_POLL_MS = 8000;
 /* Super Admin : ouvrir l'app avec ?admin=<clé> (gardé sur l'appareil), ?admin=0 pour revenir en vue client.
-   Seul le hash SHA-256 de la clé est dans le code. Montre la liste des autos comparables, cachée aux clients. */
+   Seul le hash SHA-256 de la clé est dans le code. La clé est envoyée au serveur (x-admin-key) pour recevoir le détail interne
+   (comparables, marge, wholesale, frais), qui n'est jamais envoyé au téléphone d'un client. */
 const ADMIN_HASH = 'e0ac910f1d6830f6ffd95ad74b286386e4b12f6c4f63fabd4d61fbfdb1e7f6d4';
 let IS_ADMIN = false;
+const adminKey = () => { try{ return IS_ADMIN ? (localStorage.getItem('sc_admin_key')||'') : ''; }catch(e){ return ''; } };
 async function initAdmin(){ try{
   const q=new URLSearchParams(location.search).get('admin');
-  if(q==='0') localStorage.removeItem('sc_admin');
+  if(q==='0'){ localStorage.removeItem('sc_admin'); localStorage.removeItem('sc_admin_key'); }
   else if(q){ const h=[...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(q)))].map(b=>b.toString(16).padStart(2,'0')).join('');
-    if(h===ADMIN_HASH) localStorage.setItem('sc_admin',h); }
+    if(h===ADMIN_HASH){ localStorage.setItem('sc_admin',h); localStorage.setItem('sc_admin_key',q); } }
   if(q!==null){ const u=new URL(location.href); u.searchParams.delete('admin'); history.replaceState(null,'',u.pathname+u.search); }
   IS_ADMIN = localStorage.getItem('sc_admin')===ADMIN_HASH;
 }catch(e){ IS_ADMIN=false; } if(IS_ADMIN) rerender(); }
@@ -376,7 +386,7 @@ function vHome(){
   <div class="wrap">
     <div class="card">
       <div class="feat"><div class="ic">1</div><div><b>Le NIV remplit tout</b><span class="muted">Année, modèle, version, moteur et transmission. Tu ne retapes rien.</span></div></div>
-      <div class="feat"><div class="ic">2</div><div><b>Prix transparent</b><span class="muted">Valeur wholesale calculée à partir des annonces comparables, moins le frais Shopicar (${money(FEE_MIN)} à ${money(FEE_MAX)}). Tu vois le calcul.</span></div></div>
+      <div class="feat"><div class="ic">2</div><div><b>Un prix basé sur le marché</b><span class="muted">Julia compare ton auto aux véhicules semblables à vendre au Québec, selon ton kilométrage et l'état que tu déclares.</span></div></div>
       <div class="feat"><div class="ic">3</div><div><b>Julia cherche ton meilleur prix</b><span class="muted">Suis l'évolution de ton offre en direct. Ta meilleure offre est valide ${OFFER_HOURS} h.</span></div></div>
       <div class="feat"><div class="ic">4</div><div><b>On s'occupe du reste</b><span class="muted">Cueillette chez toi, inspection de 10 minutes, paiement le jour même. On rembourse ton prêt directement.</span></div></div>
     </div>
@@ -458,12 +468,12 @@ function vQuiz(){ const st=S.step, a=S.draft.answers; const qs=visibleQs(st,a); 
     <button class="btn pri" id="quizNext" data-act="quiz-next" ${ok?'':'disabled'}>${st===STEPS.length-1?'Calculer mon offre':'Continuer'}</button>
   </div>`; }
 
-const LOAD_STEPS=['Lecture de tes réponses','Recherche d\'autos comparables à vendre au Québec','Ajustement à ton kilométrage et à l\'état','Calcul de ton offre'];
+const LOAD_STEPS=['Julia analyse ton véhicule…','Analyse des véhicules comparables…','Vérification des tendances du marché…','Ajustement selon le kilométrage et l\'état…','Finalisation de ton offre Shopicar…'];
 function vLoading(){ return `${topbar('Ton estimation')}
   <div class="load">
     <div class="jl-head"><div class="jl-pulse"><div class="julia-av">J</div></div>
       <h2 style="font-size:22px">Julia analyse ton véhicule…</h2>
-      <p class="muted" style="margin:0">On analyse les caractéristiques de ton véhicule et les données du marché pour établir ta première estimation.</p>
+      <p class="muted" style="margin:0">On analyse les caractéristiques de ton véhicule et les données du marché pour établir ton offre Shopicar.</p>
       <p class="small num" style="margin:0;font-weight:500">${esc(vTitle(S.draft.vehicle||{}))} · ${esc(S.draft.answers.km||'')} km</p></div>
     <div class="jl-bar"><i></i></div>
     ${LOAD_STEPS.map((t,i)=>`<div class="ld ${i<S.loadStage?'done':i===S.loadStage?'on':''}">${i<S.loadStage?'<span style="font-weight:800">✓</span>':i===S.loadStage?'<span class="spin"></span>':'<span></span>'}<span>${t}</span></div>`).join('')}
@@ -477,28 +487,56 @@ function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && 
 function bonusLive(c){ return !c.estimate && ['offre'].includes(c.status) && Date.now() < c.createdAt + 24*3600000; }
 const amtHTML = n => `${Math.round(n).toLocaleString('fr-CA')}<sup>$</sup>`;
 
-/* ---- détail du calcul (estimation) ---- */
-function breakdownHTML(c, totLbl){ const val=c.valuation||{}; if(!SHOW_BREAKDOWN||!val.wholesale_final) return '';
-  return `<div class="card"><h2>Comment on arrive à ${c.estimate?'ton estimation':'ce prix'}</h2>
+/* ---- détail du calcul ----
+   Client : offre avant ajustements, ajustements d'état réellement appliqués, offre. Jamais la marge, la valeur wholesale ni les frais
+   (ces données ne sont pas envoyées au téléphone du client, voir api/estimate.js).
+   Super Admin : détail interne complet (adminBreakdownHTML). */
+function clientDetailsHTML(c){ const val=c.valuation||{}; const amount=c.estimate||c.offer; const adj=Array.isArray(val.ajustements)&&val.base!=null?val.ajustements:null;
+  const km=Number(String(c.answers.km||'').replace(/\D/g,''));
+  const factors=`<ul class="clean"><li><span>Les véhicules semblables au tien à vendre au Québec.</span></li><li><span>Ton année, ta version${km?` et ton kilométrage (${km.toLocaleString('fr-CA')} km)`:' et ton kilométrage'}.</span></li><li><span>${adj&&adj.length?'L\'état et l\'équipement que tu as déclarés.':'L\'état que tu as déclaré : aucun ajustement.'}</span></li></ul>`;
+  return `<details class="card details"><summary><span>Voir les détails de mon estimation</span><span class="chev" aria-hidden="true">›</span></summary>
+    <h3>Comment ton offre est calculée</h3>
+    ${adj&&adj.length?`<div class="kv num">
+      <span class="k">Offre pour ton véhicule en bon état moyen, à ton kilométrage</span><span class="v">${money(val.base)}</span>
+      ${adj.map(a=>`<span class="k">${esc(a.libelle)}</span><span class="v" style="color:${a.montant<0?'var(--bad)':'var(--ok)'}">${a.montant>0?'+ ':'− '}${money(Math.abs(a.montant))}</span>`).join('')}
+      <span class="sep"></span>
+      <span class="k tot">Ton offre Shopicar</span><span class="v tot">${money(amount)}</span></div>`:''}
+    <p class="small" style="margin:8px 0 0;font-weight:600">Ce qui a influencé ton offre</p>${factors}
+    <p class="muted small" style="margin:0">Les ajustements viennent seulement de tes réponses. L'offre reste sous réserve de la validation du véhicule.</p>
+  </details>`; }
+function adminBreakdownHTML(c){ if(!IS_ADMIN) return ''; const v0=c.valuation||{}; const val=v0.internal||(v0.wholesale_final?v0:null); if(!val) return '';
+  return `<div class="card"><span class="stat info">Super Admin seulement</span><h2>Détail interne du calcul</h2>
       <div class="kv num">
-        ${val.recon&&val.detail_comparable?`<span class="k">Prix de détail des autos comparables, ajusté à ton kilométrage</span><span class="v">${money(val.detail_comparable)}</span>
-        <span class="k">Marge et remise en état du concessionnaire${val.spread_pct?` (${val.spread_pct} %)`:''}</span><span class="v" style="color:var(--bad)">− ${money(val.recon)}</span>`
-        :`${val.detail_comparable?`<span class="k muted">Pour comparaison : prix de détail en concession</span><span class="v muted">${money(val.detail_comparable)}</span>`:''}
-        <span class="k">Valeur wholesale, exemplaire en bon état moyen à ton kilométrage</span><span class="v">${money(val.wholesale_base||0)}</span>`}
+        ${val.recon&&val.detail_comparable?`<span class="k">Prix de détail des autos comparables, ajusté au kilométrage</span><span class="v">${money(val.detail_comparable)}</span>
+        <span class="k">Marge et remise en état du concessionnaire${val.spread_pct?` (${val.spread_pct} %)`:''}</span><span class="v" style="color:var(--bad)">− ${money(val.recon)}</span>`:''}
+        <span class="k">Valeur wholesale, exemplaire en bon état moyen</span><span class="v">${money(val.wholesale_base||0)}</span>
         ${(val.ajustements||[]).map(a=>`<span class="k">${esc(a.libelle)}</span><span class="v" style="color:${a.montant<0?'var(--bad)':'var(--ok)'}">${a.montant>0?'+':''}${money(a.montant)}</span>`).join('')}
         <span class="sep"></span>
-        <span class="k">Valeur wholesale de ton auto</span><span class="v">${money(val.wholesale_final||0)}</span>
-        <span class="k">Frais Shopicar</span><span class="v">− ${money(c.fee||FEE)}</span>
+        <span class="k">Valeur wholesale du véhicule</span><span class="v">${money(val.wholesale_final||0)}</span>
+        <span class="k">Frais Shopicar</span><span class="v">− ${money(val.fee||c.fee||FEE)}</span>
         <span class="sep"></span>
-        <span class="k tot">${totLbl||'Ton offre'}</span><span class="v tot">${money(c.estimate||c.offer)}</span>
+        <span class="k tot">Offre calculée</span><span class="v tot">${money(val.offer||c.estimate||c.offer)}</span>
       </div>
       ${val.methode_wholesale?`<p class="small" style="margin:0">${esc(val.methode_wholesale)}</p>`:''}
-      <p class="muted small" style="margin:0">Wholesale : ce qu'un concessionnaire paie pour ce véhicule dans un encan entre marchands ou en échange, avant remise en état. Calculé par Shopicar à partir des annonces comparables : les mêmes annonces et les mêmes réponses donnent toujours le même prix.</p>
     </div>
-    ${IS_ADMIN&&(val.comparables||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Autos comparables à vendre au Québec</h3>
+    ${(val.comparables||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Autos comparables à vendre au Québec</h3>
       <div class="kv num">${val.comparables.map(x=>`<span class="k">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(x.titre)}</a>`:esc(x.titre)}<br><span class="small">${Number(x.km||0).toLocaleString('fr-CA')} km · ${esc(x.ville||'')}${x.source?' · '+esc(x.source):''}</span></span><span class="v">${money(x.prix||0)}</span>`).join('')}</div>
       <p class="muted small" style="margin:0">Annonces trouvées au moment du calcul. Le prix de détail inclut la marge du vendeur.</p></div>`:''}
-    ${IS_ADMIN&&(val.facteurs||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Ce qui a compté</h3><ul class="clean">${val.facteurs.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}`; }
+    ${(val.facteurs||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Ce qui a compté</h3><ul class="clean">${val.facteurs.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}`; }
+
+/* ---- taxes en échange : information comparative, jamais ajoutée à l'offre ---- */
+const TAX_QC = 0.14975;
+function taxHTML(c, amount){ if(!amount) return '';
+  if(c.hideTax) return `<button class="btn ghost small" data-act="tax-show" style="margin-top:-6px">Tu prévois acheter un autre véhicule? Voir l'info sur les taxes</button>`;
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>Tu prévois acheter un autre véhicule?</h3><button class="btn ghost" data-act="tax-hide" style="width:auto;padding:0 2px;font-size:13px">Masquer</button></div>
+    <p class="muted" style="margin:0">Un échange admissible chez un concessionnaire pourrait te permettre d'économiser des taxes sur ton prochain achat.</p>
+    <div class="kv num"><span class="k">Valeur de reprise</span><span class="v">${money(amount)}</span><span class="k">Économie de taxes potentielle</span><span class="v">jusqu'à ${money(amount*TAX_QC)}</span></div>
+    <p class="muted small" style="margin:0">Calcul avec le taux combiné TPS/TVQ du Québec de 14,975 %. Cette économie n'est pas incluse dans ton offre Shopicar et n'est pas payée par Shopicar : une vente directe à Shopicar ne donne généralement pas droit à ce crédit. L'économie réelle dépend de l'admissibilité de la transaction, du prix du véhicule acheté et des règles fiscales applicables.</p>
+  </div>`; }
+const ADVANTAGES = `<div class="card"><ul class="clean checks">
+    <li><span>Vends sans publier d'annonce ni rencontrer des inconnus.</span></li>
+    <li><span>Évite les négociations interminables avec des acheteurs.</span></li>
+    <li><span>Profite d'un processus simple, rapide et accompagné.</span></li></ul></div>`;
 function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre</h3>
       <ul class="clean warnl">
         <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
@@ -512,29 +550,34 @@ function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre
 function vehHead(c){ const st=statusInfo(c); return `<div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted">${esc(c.vehicle.trim||'')}</div><span class="stat ${st.cls}" style="margin-top:6px">${st.txt}</span></div></div>`; }
 const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]).filter(x=>x!==NONE_INT).length;
 
-/* ---- 2. Première estimation ---- */
+/* ---- 2. Ton offre Shopicar (première estimation) ---- */
 function vEstimate(){ const c=S.current; if(!c) return vGarage(); const ph=c.photos||[];
   const dmg=!DMG_NONE(c.answers);
-  return `${topbar('Ton estimation','tab-garage')}
+  return `${topbar('Ton offre','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    <h2 style="font-size:24px">Ta première estimation est prête!</h2>
+    <h2 style="font-size:24px">Ton offre Shopicar est prête!</h2>
     <div class="offer">
-      <span class="lbl">Première estimation</span>
+      <span class="lbl">Ton offre Shopicar</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
-      <div class="small" style="color:#a3a3a3">Estimation seulement, pas une offre garantie : ton prix final peut être plus haut ou plus bas.</div>
+      <div class="small" style="color:#d4d4d4">Une offre basée sur les données du marché et les caractéristiques de ton véhicule.</div>
+      <ul class="clean checks onDark"><li><span>Estimation personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>Offre sous réserve de validation du véhicule</span></li></ul>
     </div>
-    <p style="margin:0">Ton véhicule a une valeur d'achat estimée à <b class="num">${money(c.estimate)}</b>.</p>
-    <p style="margin:0">Mais chez Shopicar, ce n'est que le début! Laisse Julia travailler pour t'obtenir notre meilleur prix d'achat.</p>
+    ${ADVANTAGES}
+    <p style="margin:0">Et chez Shopicar, ce n'est que le début! Laisse Julia travailler pour t'obtenir notre meilleur prix d'achat.</p>
     ${ph.length<4?`<div class="card" id="photoAsk"><h3>${ph.length?'Ajoute quelques photos de plus':'Ajoute des photos avant de continuer'}</h3>
       <p class="muted small" style="margin:0">Avant, arrière, deux côtés, tableau de bord allumé${dmg?', et une photo de chaque dommage déclaré':''}. Avec des photos, Shopicar peut valider ton prix plus vite.</p>
       <div class="photos">${ph.map((p,i)=>`<div class="ph"><img src="${p}" alt="Photo ${i+1}"><button data-act="rmphoto-car" data-i="${i}" aria-label="Retirer">×</button></div>`).join('')}
       ${ph.length<6?`<label class="add" for="photoFile">+ Ajouter<br>des photos</label>`:''}</div></div>`:''}
     <button class="btn pri" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
     ${!ph.length?`<button class="btn ghost" data-act="best-price-skip" style="margin-top:-8px">Continuer sans photos</button>`:''}
-    <button class="btn sec" data-act="julia">Une question ? Écris à Julia</button>
-    ${breakdownHTML(c,'Ton estimation')}
+    <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
+    <button class="btn sec" data-act="julia">Discuter avec Julia</button>
+    ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller demandé':'Rendez-vous demandé'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
+    ${clientDetailsHTML(c)}
+    ${taxHTML(c, c.estimate)}
     ${((c.valuation||{}).drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
+    ${adminBreakdownHTML(c)}
   </div>`; }
 
 /* ---- 3. Julia travaille pour toi (prix en direct) ---- */
@@ -595,9 +638,10 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       :['offre','a_valider'].includes(c.status)&&!expired?`<div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre un rendez-vous</button><button class="btn sec" data-act="rdv" data-t="appel">Planifier un appel</button></div>`:''}
     <button class="btn sec" data-act="julia">${nu?'Discuter avec Julia':'Continuer par texto avec Julia'}</button>
     ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller planifié':'Rendez-vous planifié'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
-    ${nu?conditionsHTML():''}
-    ${breakdownHTML(c, nu?'Ton estimation initiale':'Ton offre')}
-    ${nu?'':conditionsHTML()}
+    ${conditionsHTML()}
+    ${nu?taxHTML(c, shown):''}
+    ${nu?clientDetailsHTML(c):''}
+    ${adminBreakdownHTML(c)}
     ${((c.valuation||{}).drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
     <div class="card"><h3>Suivi du dossier</h3>${timeline(c)}</div>
     <p class="muted small num" style="text-align:center;margin:0">NIV ${esc(c.vin)} · ${esc(c.answers.km)} km · ${nu&&c.offerAt?'offre':'offre'} du ${new Date(c.offerAt||c.createdAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}</p>
@@ -688,6 +732,7 @@ document.addEventListener('click', async e=>{
   else if(a==='rmphoto-car'){ S.current.photos.splice(+el.dataset.i,1); Store.save(S.current); rerender(); }
   else if(a==='conseiller'){ openRdv('appel'); }
   else if(a==='notify'){ askNotify(S.current); }
+  else if(a==='tax-hide'||a==='tax-show'){ S.current.hideTax = a==='tax-hide'; Store.save(S.current); rerender(); }
   else if(a==='accept'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
       if(c.search&&c.search.leadToken){ const b=bestOffer(c); if(!b){ toast('Cette offre n\'est plus valide.'); return; }
         el.disabled=true; el.innerHTML='<span class="spin"></span> Confirmation…';
@@ -703,7 +748,7 @@ document.addEventListener('click', async e=>{
   else if(a==='rdv'){ openRdv(el.dataset.t); }
   else if(a==='rdv-slot'){ RD.slot=el.dataset.v; renderRdv(); }
   else if(a==='rdv-save'){ saveRdv(); }
-  else if(a==='close'){ $('#modal').innerHTML=''; }
+  else if(a==='close'){ if(el.classList.contains('sheet-bg') && e.target!==el) return; $('#modal').innerHTML=''; } // fond : fermer seulement si on touche le fond lui-même
   else if(a==='julia'){ openJulia(); }
   else if(a==='julia-novin'){ openJulia("Je n'ai pas mon NIV sous la main. Comment je fais ?"); }
   else if(a==='julia-send'){ sendJulia(); }
@@ -773,8 +818,6 @@ function answersText(a){ const L=[]; const add=(k,v)=>{ if(v!==undefined&&v!==''
   add('Titre / historique',a.titre); add('Clés',a.cles); add('Pneus inclus',a.pneus); add('Âge des pneus installés',a.pneusAge); add('Jantes',a.mags); add('Modifications',a.modifs); add('Intention de vente',a.quand); return L.join('\n'); }
 
 let loadTimer=null;
-let _pricing=null; const loadPricing=()=>(_pricing ||= import('/pricing.js'));
-const DEMANDE_TXT={forte:'se revend très vite',normale:'se revend dans un délai normal',faible:'se revend plus lentement'};
 async function photoFlags(d, v){ // Les photos ne changent jamais le prix : elles servent seulement à signaler un écart à l'acheteur.
   if(!d.photoBlobs.length) return [];
   try{ const s=await getSample(); const lim=s&&s.limits?await s.limits():null; if(!s||!lim||!lim.images) return [];
@@ -782,34 +825,24 @@ async function photoFlags(d, v){ // Les photos ne changent jamais le prix : elle
     return (parseJSON(r.text).drapeaux||[]).map(String).filter(Boolean).slice(0,5);
   }catch(e){ return []; } }
 async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.loadStage=0; go('loading');
-  loadTimer=setInterval(()=>{ if(S.loadStage<LOAD_STEPS.length-1){ S.loadStage++; if(S.screen==='loading') render(); } }, 4000);
-  let val=null, calc=null, err=null;
+  loadTimer=setInterval(()=>{ if(S.loadStage<LOAD_STEPS.length-1){ S.loadStage++; if(S.screen==='loading') render(); } }, 3500);
+  let val=null, est=null, err=null;
   try{
-    const [mkt, P, flags] = await Promise.all([
-      fetch('/api/market',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vin:d.vin, vehicle:v, km:a.km})})
-        .then(async r=>{ const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok){ const e=new Error(j.error||'erreur'); e.code=r.status===429?'rate_limited':/ANTHROPIC_API_KEY/.test(j.error||'')?'no_key':'unavailable'; throw e; } return j; }),
-      loadPricing(),
+    const headers={'content-type':'application/json'}; const ak=adminKey(); if(ak) headers['x-admin-key']=ak;
+    const [e, flags] = await Promise.all([
+      fetch('/api/estimate',{method:'POST',headers,body:JSON.stringify({vin:d.vin, vehicle:v, answers:a})})
+        .then(async r=>{ const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok){ const er=new Error(j.error||'erreur'); er.code=r.status===429?'rate_limited':/ANTHROPIC_API_KEY/.test(j.error||'')?'no_key':'unavailable'; throw er; } return j; }),
       photoFlags(d, v),
     ]);
-    calc=P.computeOffer({ market:mkt, vehicle:v, answers:a });
-    if(!calc) throw new Error('aucune annonce comparable trouvée');
-    const drapeaux=[...flags];
-    if(!calc.enough) drapeaux.push(`Seulement ${calc.used.length} annonce(s) comparable(s) trouvée(s) : prix à confirmer par un acheteur.`);
+    est=e; const drapeaux=[...flags];
+    if(!est.enough) drapeaux.push('Peu de données de marché pour ce modèle : prix à confirmer par un acheteur.');
     if(a.accidents==='Je ne sais pas') drapeaux.push('Historique d\'accidents à confirmer avec le rapport Carfax.');
-    val={ comparables:calc.used.map(x=>({titre:x.titre,prix:x.prix,km:x.km,ville:x.ville,source:x.source,url:x.url})),
-      detail_comparable:calc.retail, recon:calc.spread.amount, spread_pct:calc.spread.pct, demande:mkt.demande,
-      wholesale_base:calc.wholesale_base, ajustements:calc.ajustements, wholesale_final:calc.wholesale_final,
-      market_at:mkt.fetchedAt, confiance: calc.enough ? (calc.used.length>=5?'haute':'moyenne') : 'faible',
-      methode_wholesale:`Prix de détail = médiane de ${calc.used.length} annonce(s) au Québec, chacune ajustée à ton kilométrage${calc.excluded?` (${calc.excluded} annonce(s) trop loin du marché retirée(s))`:''}. Ce modèle ${DEMANDE_TXT[mkt.demande]||DEMANDE_TXT.normale} : le concessionnaire garde ${calc.spread.pct} % pour sa marge et la remise en état.`,
-      facteurs:[`${calc.used.length} annonce(s) comparable(s) au Québec, prix ajustés à tes ${Number(a.km).toLocaleString('fr-CA')} km.`,
-        `Écart détail → wholesale de ${calc.spread.pct} % : ce modèle ${DEMANDE_TXT[mkt.demande]||DEMANDE_TXT.normale}.`,
-        calc.ajustements.length?`Ajustements selon tes réponses : ${calc.ajustements.map(x=>x.libelle.toLowerCase()).join(', ')}.`:'Aucun ajustement d\'état selon tes réponses.'],
-      drapeaux };
+    val={ base:est.base, ajustements:est.ajustements||[], enough:!!est.enough, drapeaux, internal: est.internal||null };
   }catch(e){ err=e; }
   clearInterval(loadTimer);
-  if(!val||!val.wholesale_final){ go('quiz', {error: err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
-  const fee=calc.fee, offer=calc.offer;
-  const t=a.titre||[]; const review = val.confiance==='faible' || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
+  if(!val||!est||!est.estimate){ go('quiz', {error: err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
+  const offer=est.estimate, fee=(est.internal&&est.internal.fee)||null;
+  const t=a.titre||[]; const review = !est.enough || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
   const now=Date.now();
   // L'offre calculée devient la première estimation (non garantie). Les règles de calcul ne changent pas.
   const car={ id:d.replaces||d.id, vin:d.vin, vehicle:v, answers:Object.assign({},a), photos:d.photos.slice(0,6), valuation:val, estimate:offer, offer, fee, review,
@@ -829,20 +862,18 @@ function bestSteps(c){ let m=-Infinity; return validOffers(c).slice().sort((a,b)
 async function leadApi(body){ const r=await fetch('/api/lead',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok){ const e=new Error(j.error||'erreur'); e.status=r.status; throw e; } return j; }
 let starting=false;
+/* Dossier 360inspek (réseau Shopicar) : créé une seule fois, au premier besoin (meilleur prix, rendez-vous ou conseiller). */
+async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search.leadToken) return c.search.leadToken;
+  const photos = await Promise.all(((BLOBS[c.id]&&BLOBS[c.id].length)?BLOBS[c.id]:[]).slice(0,8).map(blobToB64));
+  if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
+  const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers:c.answers, estimate:c.estimate, photos, valuation:{ drapeaux:(c.valuation||{}).drapeaux||[] } }});
+  c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
 async function startSearch(c){ if(starting) return;
-  if(!c.search){
-    if(!DEMO_OFFERS){ starting=true; const btn=document.querySelector('[data-act="best-price"]'); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
-      try{
-        const photos = await Promise.all(((BLOBS[c.id]&&BLOBS[c.id].length)?BLOBS[c.id]:[]).slice(0,8).map(blobToB64));
-        if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
-        const v=c.valuation||{};
-        const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers:c.answers, estimate:c.estimate, fee:c.fee, photos,
-          valuation:{ detail_comparable:v.detail_comparable, wholesale_final:v.wholesale_final, comparables:v.comparables, drapeaux:v.drapeaux } }});
-        c.search={ status:'running', startedAt:Date.now(), demo:false, notify:false, offers:[], leadToken:j.token };
-      }catch(e){ starting=false; toast("Impossible d'envoyer ton dossier pour l'instant. Réessaie dans un instant."); rerender(); return; }
-      starting=false;
-    } else c.search={ status:'running', startedAt:Date.now(), demo:true, notify:false, offers:[] };
-  }
+  starting=true; const btn=document.querySelector('[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
+  try{ await ensureLead(c); }catch(e){ starting=false; toast("Impossible d'envoyer ton dossier pour l'instant. Réessaie dans un instant."); rerender(); return; }
+  starting=false;
+  if(!c.search) c.search={ status:'idle', demo:DEMO_OFFERS, notify:false, offers:[] };
+  if(c.search.status==='idle'){ c.search.status='running'; c.search.startedAt=Date.now(); }
   c.status='recherche'; await Store.save(c); S.liveShown=null; go('search'); if(c.search.leadToken) pollLead(c); }
 function feedPoll(c){ const s=c.search; const now=Date.now(); const added=[]; let changed=false;
   if(s.demo){ // DÉMO : offres simulées sur une ligne de temps fixe (reprend au bon endroit si on quitte et revient)
@@ -915,15 +946,19 @@ setInterval(()=>{ S.cars.forEach(c=>{ if(!c.search || !c.search.demo || c.status
 const RD={type:'',date:'',slot:''};
 function openRdv(t){ RD.type=t; RD.date=''; RD.slot=''; renderRdv(); }
 function renderRdv(){ const tmr=new Date(Date.now()+86400000).toISOString().slice(0,10); const slots=RD.type==='appel'?['9 h','11 h','13 h','15 h','17 h','19 h']:['9 h 30','11 h','13 h 30','15 h','16 h 30','18 h'];
-  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet" onclick="event.stopPropagation()"><div class="hd"><h2>${RD.type==='appel'?(S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'):'Prendre un rendez-vous'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>${RD.type==='appel'?(S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'):'Prendre un rendez-vous'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
   <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?(S.current&&S.current.estimate?`Choisis le moment qui te convient : un conseiller Shopicar te rappelle${S.current.answers.cell?' au '+esc(S.current.answers.cell):''} pour répondre à tes questions.`:'Un acheteur Shopicar te rappelle pour répondre à tes questions sur l\'offre.'):'Viens montrer ton auto à notre centre ou à un garage partenaire. L\'inspection prend 10 minutes.'}</p>
   <div class="field"><label for="rdd">Date</label><input id="rdd" type="date" class="inp" min="${tmr}" value="${RD.date}"></div>
   <div class="q"><span class="ql">Heure</span><div class="chips">${slots.map(s=>`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}">${s}</button>`).join('')}</div></div>
   <button class="btn pri" data-act="rdv-save" ${RD.date&&RD.slot?'':'disabled'}>Confirmer</button></div></div></div>`;
   $('#rdd').addEventListener('input',e=>{ RD.date=e.target.value; renderRdv(); }); }
-async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label: dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot};
-  if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:c.rdv.label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
-  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller te rappelle à l\'heure choisie.':'Rendez-vous confirmé.'); rerender(); }
+async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); const label=dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot;
+  if(c.estimate && !DEMO_OFFERS){ const b=$('[data-act="rdv-save"]'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span> Envoi…'; }
+    try{ const tok=await ensureLead(c); await leadApi({action:RD.type==='appel'?'callback':'rdv', token:tok, when:label}); }
+    catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); renderRdv(); return; } }
+  else if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
+  c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label};
+  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller te rappelle à l\'heure choisie.':(c.estimate?'Demande de rendez-vous envoyée. Un conseiller te confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
 
 /* ============ JULIA ============ */
 function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.';
@@ -933,7 +968,7 @@ function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas en
   return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}. Offre Shopicar : ${money(c.finalOffer||c.offer)} (statut : ${statusInfo(c).txt}), valide jusqu'au ${new Date(c.expiresAt).toLocaleString('fr-CA')}. Calcul : wholesale ${money(c.valuation.wholesale_final)} moins frais Shopicar ${money(c.fee||FEE)}. Bonus de ${money(BONUS_24H)} si acceptée dans les 24 h suivant l'offre.`; }
 function openJulia(prefill){ if(!S.chat.length) S.chat.push({role:'assistant',content:`Salut${S.current&&S.current.answers.prenom?' '+S.current.answers.prenom:''} ! Moi c'est Julia de Shopicar. Je peux t'aider avec ton offre, tes documents ou ta cueillette. Qu'est-ce que je peux faire pour toi ?`});
   renderJulia(); if(prefill){ $('#jin').value=prefill; sendJulia(); } }
-function renderJulia(typing){ $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet" onclick="event.stopPropagation()" style="height:86%">
+function renderJulia(typing){ $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet" style="height:86%">
   <div class="hd"><div style="display:flex;gap:10px;align-items:center"><div class="julia-av">J</div><div><b>Julia</b><div class="muted small">Shopicar · répond par texto</div></div></div><button class="x" data-act="close" aria-label="Fermer">×</button></div>
   <div class="bd" id="jbd"><div class="chat">${S.chat.map(m=>`<div class="msg ${m.role==='user'?'u':'j'}">${esc(m.content)}</div>`).join('')}${typing?'<div class="msg j"><span class="spin" style="display:inline-block;width:16px;height:16px;border-width:2px"></span></div>':''}</div></div>
   <div class="chatbar"><input id="jin" class="inp" placeholder="Écris à Julia…" autocomplete="off"><button class="btn pri" data-act="julia-send">Envoyer</button></div></div></div>`;
@@ -941,7 +976,7 @@ function renderJulia(typing){ $('#modal').innerHTML=`<div class="sheet-bg" data-
 let jBusy=false;
 async function sendJulia(){ const inp=$('#jin'); const t=(inp&&inp.value||'').trim(); if(!t||jBusy) return; S.chat.push({role:'user',content:t}); jBusy=true; renderJulia(true);
   const sys=`Tu es Julia, conseillère de Shopicar, entreprise québécoise qui achète les véhicules des particuliers. Tu écris comme par texto : 1 à 3 phrases, chaleureuse, français québécois neutre, tutoiement, pas d'emoji en excès.
-Règles : ${S.current&&S.current.estimate?'l\'estimation est basée sur la valeur wholesale moins le frais Shopicar; ensuite Shopicar cherche le meilleur prix et seules les offres validées par Shopicar comptent. Ce n\'est pas une enchère et tu ne nommes jamais d\'acheteur ou de concessionnaire;':'l\'offre est ferme et sans négociation, basée sur la valeur wholesale moins le frais Shopicar ('+money(FEE_MIN)+' à '+money(FEE_MAX)+' selon la valeur, montant exact dans le dossier);'} ne change jamais un montant et ne promets rien hors des conditions (Carfax conforme, état confirmé par inspection de 10 min, aucune dette non déclarée au RDPRM). Si le client veut discuter du prix ou parler à quelqu'un, propose un conseiller (bouton « ${S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'} »). Sans NIV : il est au bas du pare-brise côté conducteur, sur le montant de la porte conducteur, sur le certificat d'immatriculation SAAQ ou la carte d'assurance; on peut aussi prendre une photo dans l'app. Paiement par virement le jour de la cueillette; on rembourse le prêteur directement.
+Règles : ${!(S.current&&!S.current.estimate)?'l\'offre est basée sur les données du marché (véhicules semblables à vendre au Québec) et les caractéristiques du véhicule; ne parle jamais de marge, de valeur wholesale, de frais internes ni du modèle d\'affaires de Shopicar; ensuite Shopicar cherche le meilleur prix et seules les offres validées par Shopicar comptent. Ce n\'est pas une enchère et tu ne nommes jamais d\'acheteur ou de concessionnaire;':'l\'offre est ferme et sans négociation, basée sur la valeur wholesale moins le frais Shopicar ('+money(FEE_MIN)+' à '+money(FEE_MAX)+' selon la valeur, montant exact dans le dossier);'} ne change jamais un montant et ne promets rien hors des conditions (Carfax conforme, état confirmé par inspection de 10 min, aucune dette non déclarée au RDPRM). Si le client veut discuter du prix ou parler à quelqu'un, propose un conseiller (bouton « ${S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'} »). Sans NIV : il est au bas du pare-brise côté conducteur, sur le montant de la porte conducteur, sur le certificat d'immatriculation SAAQ ou la carte d'assurance; on peut aussi prendre une photo dans l'app. Paiement par virement le jour de la cueillette; on rembourse le prêteur directement.
 ${juliaContext()}`;
   const msgs=S.chat.slice(-12).map(m=>({role:m.role,content:m.content})); while(msgs.length&&msgs[0].role!=='user') msgs.shift();
   if(msgs.length) msgs[0]={role:'user',content:`[Contexte pour Julia, ne pas citer]\n${sys}\n\n[Message du client]\n${msgs[0].content}`};
