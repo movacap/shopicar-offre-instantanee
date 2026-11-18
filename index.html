@@ -55,6 +55,27 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .inp:focus{border-color:var(--acc);outline:none}
 .vin-inp{font-family:ui-monospace,Menlo,monospace;letter-spacing:.12em;text-transform:uppercase;font-size:18px;text-align:center}
 .vin-meta{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+.stp{gap:16px}.stp.ok{border-color:#cfe3fb}
+.stp-h{display:flex;gap:12px;align-items:flex-start}
+.stp-n{flex:0 0 32px;height:32px;border-radius:50%;background:#000;color:#fff;display:grid;place-items:center;font-weight:700;font-size:15px}
+.stp-n.ok{background:var(--acc)}
+.stp-s{font-size:12px;font-weight:600;padding:4px 10px;border-radius:99px;background:#f2f2f2;color:#737373;white-space:nowrap}
+.stp-s.ok{background:var(--acc-soft);color:var(--acc)}
+.stp-q{display:flex;flex-direction:column;gap:8px;padding-top:14px;border-top:1px solid #f0f0f0}
+.stp-prog{height:6px;border-radius:9px;background:#ebebeb;overflow:hidden;margin-top:10px}.stp-prog i{display:block;height:100%;background:var(--acc);transition:width .4s}
+.doc{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid #ececec;border-radius:14px}
+.doc.ok{background:#f7fbff;border-color:#cfe3fb}
+.doc-i{flex:0 0 36px;height:36px;border-radius:10px;background:#f2f2f2;display:grid;place-items:center;font-size:17px}
+.doc.ok .doc-i{background:var(--acc);color:#fff;font-weight:700;font-size:15px}
+.doc b{font-size:14.5px;display:block}
+.doc-b.blk{background:#000;color:#fff;border:1px solid #000}
+.doc-b{flex:0 0 auto;width:auto!important;padding:10px 14px!important;font-size:14px!important}
+.days{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.day{display:flex;flex-direction:column;align-items:center;gap:1px;border:1px solid #e5e5e5;background:#fff;border-radius:12px;padding:8px 0}
+.day small{font-size:11px;color:#737373}.day b{font-size:18px}
+.day.on{background:#000;border-color:#000;color:#fff}.day.on small{color:#d4d4d4}
+.pay{display:flex;flex-direction:column;gap:10px}.pay>div{display:flex;gap:12px;align-items:center;font-size:14.5px}
+.pay>div b{flex:0 0 24px;height:24px;border-radius:50%;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;font-size:12px}
 .chips{display:flex;flex-wrap:wrap;gap:8px}
 .chip{border:1px solid #e5e5e5;background:#fff;border-radius:99px;padding:9px 15px;font-size:14px;font-weight:500;text-align:left}
 .chip.on{border-color:#000;background:#000;color:#fff;font-weight:500}
@@ -739,27 +760,39 @@ function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','p
   return `<div class="tl">${labels.map((l,i)=>`<div class="s ${i<idx||(i===idx&&i===0)?'done':i===idx?'cur':''}"><div class="dot">${i<idx||(i===idx&&i===0)?'✓':i+1}</div><div><b>${l[0]}</b><div class="muted small">${l[1]}</div></div></div>`).join('')}</div>`; }
 
 function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
-  const need=[['immat','Certificat d\'immatriculation (SAAQ)'],['permis','Permis de conduire'], ...(fin?[['pret','État de compte du prêteur']]:[])];
+  const need=[['immat','Certificat d\'immatriculation','Le document de la SAAQ'],['permis','Permis de conduire','Le recto suffit'], ...(fin?[['pret','État de compte du prêteur','Pour rembourser ton prêt']]:[])];
   const docsOk=need.every(n=>docs[n[0]]); const pkOk=pk.date&&pk.slot&&pk.lieu&&(pk.lieu!=='À mon adresse'||(pk.adresse||'').trim().length>5);
-  const tmr=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const done=[docsOk,pkOk].filter(Boolean).length;
+  const days=[]; for(let i=1;days.length<6;i++){ const d=new Date(Date.now()+i*86400000); if(d.getDay()===0) continue; days.push(d); }
+  const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  const dayLbl=d=>{ const w=d.toLocaleDateString('fr-CA',{weekday:'short'}).replace('.',''); return `<small>${w}</small><b>${d.getDate()}</b><small>${d.toLocaleDateString('fr-CA',{month:'short'}).replace('.','')}</small>`; };
+  const head=(n,ok,t,sub)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':'À faire'}</span></div>`;
+  const sec=(t,body)=>`<div class="stp-q"><span class="ql">${t}</span>${body}</div>`;
   return `${topbar('Prochaines étapes','open-offer')}
   <div class="wrap">
     <div class="offer"><span class="lbl">Offre acceptée</span><div class="amt num">${Math.round(c.finalOffer||c.offer).toLocaleString('fr-CA')}<sup>$</sup></div>
       ${fin?`<div class="small" style="color:#d4d4d4">On rembourse ${esc(c.answers.preteur||'ton prêteur')} (environ ${money(Number(String(c.answers.solde).replace(/\D/g,''))||0)}). Tu reçois la différence.</div>`:''}</div>
-    <div class="card"><h2>1. Documents</h2><p class="muted small" style="margin:0">Une photo claire suffit.</p>
-      ${need.map(n=>`<div class="row" style="align-items:center"><div><b style="font-size:14.5px">${n[1]}</b>${docs[n[0]]?`<div class="small" style="color:var(--ok)">✓ ${esc(docs[n[0]])}</div>`:''}</div>
-        <label class="btn sec" style="flex:0 0 auto;width:auto;padding:10px 14px;font-size:14px" for="doc_${n[0]}">${docs[n[0]]?'Changer':'Téléverser'}</label>
+    <div><h2 style="font-size:22px">Plus que 2 étapes pour être payé</h2>
+      <div class="stp-prog"><i style="width:${done*50}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/2 complétées · ça prend environ 2 minutes</p></div>
+
+    <div class="card stp ${docsOk?'ok':''}">${head(1,docsOk,'Tes documents','Prends une photo claire de chaque document.')}
+      ${need.map(n=>`<div class="doc ${docs[n[0]]?'ok':''}"><span class="doc-i">${docs[n[0]]?'✓':'📄'}</span><div style="flex:1;min-width:0"><b>${n[1]}</b><div class="small ${docs[n[0]]?'':'muted'}" style="${docs[n[0]]?'color:var(--ok)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${docs[n[0]]?'Reçu · '+esc(docs[n[0]]):n[2]}</div></div>
+        <label class="btn ${docs[n[0]]?'sec':'blk'} doc-b" for="doc_${n[0]}">${docs[n[0]]?'Changer':'Ajouter'}</label>
         <input type="file" id="doc_${n[0]}" class="file-hidden" accept="image/*,application/pdf" data-doc="${n[0]}"></div>`).join('')}
     </div>
-    <div class="card"><h2>2. Cueillette</h2>
-      <div class="q"><span class="ql">Où ?</span><div class="chips">${['À mon adresse','Garage partenaire près de chez moi'].map(o=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${o}</button>`).join('')}</div></div>
-      ${pk.lieu==='À mon adresse'?`<div class="field"><label for="pkadr">Adresse</label><input id="pkadr" class="inp" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville"></div>`:''}
-      <div class="field"><label for="pkd">Date</label><input id="pkd" type="date" class="inp" min="${tmr}" data-pk="date" value="${esc(pk.date||'')}"></div>
-      <div class="q"><span class="ql">Plage horaire</span><div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div></div>
+
+    <div class="card stp ${pkOk?'ok':''}">${head(2,pkOk,'Ta cueillette','On vient chercher ton auto, sans frais.')}
+      ${sec('Où?',`<div class="chips">${['À mon adresse','Garage partenaire près de chez moi'].map(o=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${o}</button>`).join('')}</div>
+      ${pk.lieu==='À mon adresse'?`<input id="pkadr" class="inp" style="margin-top:10px" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville">`:''}`)}
+      ${sec('Quel jour?',`<div class="days">${days.map(d=>`<button class="day ${pk.date===iso(d)?'on':''}" data-act="pk" data-k="date" data-v="${iso(d)}">${dayLbl(d)}</button>`).join('')}</div>`)}
+      ${sec('À quelle heure?',`<div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div>`)}
     </div>
-    <div class="card"><h2>3. Paiement</h2><p class="muted" style="margin:0">Virement le jour de la cueillette, dès l'inspection de 10 minutes terminée.</p></div>
-    <button class="btn pri" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?'Mettre à jour':'Confirmer la cueillette'}</button>
-    ${!docsOk||!pkOk?`<p class="muted small" style="text-align:center;margin:0">Il manque ${[!docsOk&&'des documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
+
+    <div class="card stp">${head(3,c.status==='payee','Ton paiement','Tu es payé le jour même.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+      <div class="pay"><div><b>1</b><span>On arrive à l'heure choisie</span></div><div><b>2</b><span>Inspection rapide de 10 minutes</span></div><div><b>3</b><span>Virement de ${money(c.finalOffer||c.offer)}${fin?' (moins le solde du prêt)':''} le jour même</span></div></div>
+    </div>
+    <button class="btn pri big" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?'Mettre à jour ma cueillette':'Confirmer ma cueillette'}</button>
+    ${!docsOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!docsOk&&'tes documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
   </div>`; }
 
 function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt);
