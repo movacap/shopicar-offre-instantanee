@@ -468,12 +468,12 @@ function vQuiz(){ const st=S.step, a=S.draft.answers; const qs=visibleQs(st,a); 
     <button class="btn pri" id="quizNext" data-act="quiz-next" ${ok?'':'disabled'}>${st===STEPS.length-1?'Calculer mon offre':'Continuer'}</button>
   </div>`; }
 
-const LOAD_STEPS=['Julia analyse ton véhicule…','Analyse des véhicules comparables…','Vérification des tendances du marché…','Ajustement selon le kilométrage et l\'état…','Finalisation de ton offre Shopicar…'];
+const LOAD_STEPS=['Julia analyse ton véhicule…','Analyse des véhicules comparables…','Vérification des tendances du marché…','Ajustement selon le kilométrage et l\'état…','Finalisation de ton estimation…'];
 function vLoading(){ return `${topbar('Ton estimation')}
   <div class="load">
     <div class="jl-head"><div class="jl-pulse"><div class="julia-av">J</div></div>
       <h2 style="font-size:22px">Julia analyse ton véhicule…</h2>
-      <p class="muted" style="margin:0">On analyse les caractéristiques de ton véhicule et les données du marché pour établir ton offre Shopicar.</p>
+      <p class="muted" style="margin:0">On analyse les caractéristiques de ton véhicule et les données du marché pour établir ta première estimation.</p>
       <p class="small num" style="margin:0;font-weight:500">${esc(vTitle(S.draft.vehicle||{}))} · ${esc(S.draft.answers.km||'')} km</p></div>
     <div class="jl-bar"><i></i></div>
     ${LOAD_STEPS.map((t,i)=>`<div class="ld ${i<S.loadStage?'done':i===S.loadStage?'on':''}">${i<S.loadStage?'<span style="font-weight:800">✓</span>':i===S.loadStage?'<span class="spin"></span>':'<span></span>'}<span>${t}</span></div>`).join('')}
@@ -495,14 +495,14 @@ function clientDetailsHTML(c){ const val=c.valuation||{}; const amount=c.estimat
   const km=Number(String(c.answers.km||'').replace(/\D/g,''));
   const factors=`<ul class="clean"><li><span>Les véhicules semblables au tien à vendre au Québec.</span></li><li><span>Ton année, ta version${km?` et ton kilométrage (${km.toLocaleString('fr-CA')} km)`:' et ton kilométrage'}.</span></li><li><span>${adj&&adj.length?'L\'état et l\'équipement que tu as déclarés.':'L\'état que tu as déclaré : aucun ajustement.'}</span></li></ul>`;
   return `<details class="card details"><summary><span>Voir les détails de mon estimation</span><span class="chev" aria-hidden="true">›</span></summary>
-    <h3>Comment ton offre est calculée</h3>
+    <h3>Comment ton estimation est calculée</h3>
     ${adj&&adj.length?`<div class="kv num">
-      <span class="k">Offre pour ton véhicule en bon état moyen, à ton kilométrage</span><span class="v">${money(val.base)}</span>
+      <span class="k">Estimation pour ton véhicule en bon état moyen, à ton kilométrage</span><span class="v">${money(val.base)}</span>
       ${adj.map(a=>`<span class="k">${esc(a.libelle)}</span><span class="v" style="color:${a.montant<0?'var(--bad)':'var(--ok)'}">${a.montant>0?'+ ':'− '}${money(Math.abs(a.montant))}</span>`).join('')}
       <span class="sep"></span>
-      <span class="k tot">Ton offre Shopicar</span><span class="v tot">${money(amount)}</span></div>`:''}
-    <p class="small" style="margin:8px 0 0;font-weight:600">Ce qui a influencé ton offre</p>${factors}
-    <p class="muted small" style="margin:0">Les ajustements viennent seulement de tes réponses. L'offre reste sous réserve de la validation du véhicule.</p>
+      <span class="k tot">Ton estimation</span><span class="v tot">${money(amount)}</span></div>`:''}
+    <p class="small" style="margin:8px 0 0;font-weight:600">Ce qui a influencé ton estimation</p>${factors}
+    <p class="muted small" style="margin:0">Les ajustements viennent seulement de tes réponses. C'est une estimation : l'offre finale reste sous réserve de la validation du véhicule.</p>
   </details>`; }
 function adminBreakdownHTML(c){ if(!IS_ADMIN) return ''; const v0=c.valuation||{}; const val=v0.internal||(v0.wholesale_final?v0:null); if(!val) return '';
   return `<div class="card"><span class="stat info">Super Admin seulement</span><h2>Détail interne du calcul</h2>
@@ -531,7 +531,7 @@ function taxHTML(c, amount){ if(!amount) return '';
   return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>Tu prévois acheter un autre véhicule?</h3><button class="btn ghost" data-act="tax-hide" style="width:auto;padding:0 2px;font-size:13px">Masquer</button></div>
     <p class="muted" style="margin:0">Un échange admissible chez un concessionnaire pourrait te permettre d'économiser des taxes sur ton prochain achat.</p>
     <div class="kv num"><span class="k">Valeur de reprise</span><span class="v">${money(amount)}</span><span class="k">Économie de taxes potentielle</span><span class="v">jusqu'à ${money(amount*TAX_QC)}</span></div>
-    <p class="muted small" style="margin:0">Calcul avec le taux combiné TPS/TVQ du Québec de 14,975 %. Cette économie n'est pas incluse dans ton offre Shopicar et n'est pas payée par Shopicar : une vente directe à Shopicar ne donne généralement pas droit à ce crédit. L'économie réelle dépend de l'admissibilité de la transaction, du prix du véhicule acheté et des règles fiscales applicables.</p>
+    <p class="muted small" style="margin:0">Calcul avec le taux combiné TPS/TVQ du Québec de 14,975 %. Cette économie n'est pas incluse dans ton estimation ni dans une offre Shopicar, et n'est pas payée par Shopicar : une vente directe à Shopicar ne donne généralement pas droit à ce crédit. L'économie réelle dépend de l'admissibilité de la transaction, du prix du véhicule acheté et des règles fiscales applicables.</p>
   </div>`; }
 const ADVANTAGES = `<div class="card"><ul class="clean checks">
     <li><span>Vends sans publier d'annonce ni rencontrer des inconnus.</span></li>
@@ -550,18 +550,18 @@ function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre
 function vehHead(c){ const st=statusInfo(c); return `<div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted">${esc(c.vehicle.trim||'')}</div><span class="stat ${st.cls}" style="margin-top:6px">${st.txt}</span></div></div>`; }
 const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]).filter(x=>x!==NONE_INT).length;
 
-/* ---- 2. Ton offre Shopicar (première estimation) ---- */
+/* ---- 2. Première estimation (pas une offre : les offres viennent ensuite de Shopicar) ---- */
 function vEstimate(){ const c=S.current; if(!c) return vGarage(); const ph=c.photos||[];
   const dmg=!DMG_NONE(c.answers);
-  return `${topbar('Ton offre','tab-garage')}
+  return `${topbar('Ton estimation','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    <h2 style="font-size:24px">Ton offre Shopicar est prête!</h2>
+    <h2 style="font-size:24px">Ta première estimation est prête!</h2>
     <div class="offer">
-      <span class="lbl">Ton offre Shopicar</span>
+      <span class="lbl">Ta première estimation</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
-      <div class="small" style="color:#d4d4d4">Une offre basée sur les données du marché et les caractéristiques de ton véhicule.</div>
-      <ul class="clean checks onDark"><li><span>Estimation personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>Offre sous réserve de validation du véhicule</span></li></ul>
+      <div class="small" style="color:#d4d4d4">Une estimation basée sur les données du marché et les caractéristiques de ton véhicule.</div>
+      <ul class="clean checks onDark"><li><span>Estimation personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>Estimation seulement, pas une offre garantie : ton prix final peut être plus haut ou plus bas</span></li></ul>
     </div>
     ${ADVANTAGES}
     <p style="margin:0">Et chez Shopicar, ce n'est que le début! Laisse Julia travailler pour t'obtenir notre meilleur prix d'achat.</p>
