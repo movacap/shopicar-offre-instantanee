@@ -197,6 +197,18 @@ const SHOW_BREAKDOWN = true; // afficher wholesale − frais au client
    Démo : ouvrir l'app avec ?demo=1 (?demo=0 pour revenir) simule des offres (+300, +400, +300, +500 $) sans rien envoyer à 360inspek. */
 const DEMO_OFFERS = (()=>{ try{ const q=new URLSearchParams(location.search).get('demo'); if(q==='1') localStorage.setItem('sc_demo','1'); if(q==='0') localStorage.removeItem('sc_demo'); return localStorage.getItem('sc_demo')==='1'; }catch(e){ return /[?&]demo=1/.test(location.search); } })();
 const LEAD_POLL_MS = 8000;
+/* Super Admin : ouvrir l'app avec ?admin=<clé> (gardé sur l'appareil), ?admin=0 pour revenir en vue client.
+   Seul le hash SHA-256 de la clé est dans le code. Montre la liste des autos comparables, cachée aux clients. */
+const ADMIN_HASH = 'e0ac910f1d6830f6ffd95ad74b286386e4b12f6c4f63fabd4d61fbfdb1e7f6d4';
+let IS_ADMIN = false;
+async function initAdmin(){ try{
+  const q=new URLSearchParams(location.search).get('admin');
+  if(q==='0') localStorage.removeItem('sc_admin');
+  else if(q){ const h=[...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(q)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+    if(h===ADMIN_HASH) localStorage.setItem('sc_admin',h); }
+  if(q!==null){ const u=new URL(location.href); u.searchParams.delete('admin'); history.replaceState(null,'',u.pathname+u.search); }
+  IS_ADMIN = localStorage.getItem('sc_admin')===ADMIN_HASH;
+}catch(e){ IS_ADMIN=false; } if(IS_ADMIN) rerender(); }
 const DEMO_STEPS = [{t:6,add:300},{t:14,add:400},{t:22,add:300},{t:31,add:500}]; // secondes après le début de la recherche
 const DEMO_DONE_T = 38;
 
@@ -483,7 +495,7 @@ function breakdownHTML(c, totLbl){ const val=c.valuation||{}; if(!SHOW_BREAKDOWN
       ${val.methode_wholesale?`<p class="small" style="margin:0">${esc(val.methode_wholesale)}</p>`:''}
       <p class="muted small" style="margin:0">Wholesale : ce qu'un concessionnaire paie pour ce véhicule dans un encan entre marchands ou en échange, avant remise en état. Calculé par Shopicar à partir des annonces comparables : les mêmes annonces et les mêmes réponses donnent toujours le même prix.</p>
     </div>
-    ${(val.comparables||[]).length?`<div class="card"><h3>Autos comparables à vendre au Québec</h3>
+    ${IS_ADMIN&&(val.comparables||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Autos comparables à vendre au Québec</h3>
       <div class="kv num">${val.comparables.map(x=>`<span class="k">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(x.titre)}</a>`:esc(x.titre)}<br><span class="small">${Number(x.km||0).toLocaleString('fr-CA')} km · ${esc(x.ville||'')}${x.source?' · '+esc(x.source):''}</span></span><span class="v">${money(x.prix||0)}</span>`).join('')}</div>
       <p class="muted small" style="margin:0">Annonces trouvées au moment du calcul. Le prix de détail inclut la marge du vendeur.</p></div>`:''}
     ${(val.facteurs||[]).length?`<div class="card"><h3>Ce qui a compté</h3><ul class="clean">${val.facteurs.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}`; }
@@ -953,7 +965,7 @@ async function openFromLink(){ const tok=new URLSearchParams(location.search).ge
       S.cars.push(c); await Store.save(c);
     }catch(e){ toast('Ce lien n\'est plus valide.'); return; } }
   S.current=c; await pollLead(c); go(screenFor(c)); }
-render(); loadGarage(); openFromLink();
+render(); loadGarage(); initAdmin(); openFromLink();
 </script>
 </body>
 </html>
