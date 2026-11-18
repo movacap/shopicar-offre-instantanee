@@ -21,6 +21,15 @@ Projet indépendant : aucun lien avec HomPilot ni avec l'infrastructure de Julia
 2. Ajouter la variable d'environnement `ANTHROPIC_API_KEY`.
 3. Déployer.
 
+## Parcours client (estimation → meilleur prix)
+1. « Julia analyse ton véhicule… » pendant le vrai calcul (pricing.js, inchangé).
+2. Première estimation (non garantie), demande de photos, bouton « Obtenir mon meilleur prix Shopicar ».
+3. « Julia travaille pour toi! » : meilleure offre validée en direct (montant animé, jauge en escalier, message de hausse). Une offre plus basse ne fait jamais baisser la meilleure offre valide; les offres expirées ou retirées ne comptent plus.
+4. Meilleure offre finale (validité 48 h, conditions), puis Accepter et prendre rendez-vous / Parler à un conseiller / Discuter avec Julia.
+5. Notification sur l'appareil (avec permission) quand le prix monte et que l'app est en arrière-plan.
+
+**TEMPORAIRE : `DEMO_OFFERS = true` dans index.html simule les offres (+300, +400, +300, +500 $).** Avant le lancement public : mettre `false` et brancher la vraie source d'offres validées dans `feedPoll()`.
+
 ## À brancher pour la production
 - Stockage : le garage est sauvegardé sur l'appareil (localStorage). Prochaine étape : une base Supabase dédiée + connexion Google/Facebook ou code SMS.
 - Prix : l'AI ne fait que trouver les annonces (rapportées telles quelles, mises en cache 7 jours). Le prix est calculé par `pricing.js` : la même auto avec les mêmes réponses obtient toujours la même offre. Les photos ne changent jamais le prix, elles signalent seulement un écart à l'acheteur. Pour une offre réellement ferme, ajouter une source wholesale (Canadian Black Book, Manheim MMR) et l'historique des transactions Shopicar pour calibrer `SPREAD_PCT`.
