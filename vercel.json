@@ -1,3 +1,3 @@
 {
-  "functions": { "api/ai.js": { "maxDuration": 90 } }
+  "functions": { "api/ai.js": { "maxDuration": 90 }, "api/market.js": { "maxDuration": 120 } }
 }

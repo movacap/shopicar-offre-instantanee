@@ -6,9 +6,11 @@ Projet indépendant : aucun lien avec HomPilot ni avec l'infrastructure de Julia
 
 ## Structure
 - `index.html` : toute l'app (HTML/CSS/JS, aucune compilation)
-- `api/ai.js` : fonction serverless qui appelle l'API Anthropic (décodage NIV, lecture de photo, évaluation wholesale, chat « Julia » de l'app)
+- `api/ai.js` : fonction serverless qui appelle l'API Anthropic (décodage NIV, lecture de photo, chat « Julia » de l'app)
+- `api/market.js` : annonces comparables au Québec (recherche web AI), mises en cache 7 jours dans Vercel Blob (store privé `shopicar-market-cache`), clé = squish VIN + tranche de 50 000 km
+- `pricing.js` : calcul de l'offre 100 % déterministe (aucune AI) : médiane des comparables ajustées au km, écart détail→wholesale selon la demande/l'âge/le km, barème fixe d'état selon les réponses, frais Shopicar
 
-## Paramètres (haut du script dans index.html)
+## Paramètres (objet `PRICING` dans pricing.js)
 - `FEE_MIN` / `FEE_MAX` = 700 / 1200 : frais Shopicar, linéaire selon la valeur wholesale entre `FEE_LOW_AT` (10 000 $) et `FEE_HIGH_AT` (40 000 $), arrondi à 50 $
 - `BONUS_24H` = 250 : bonus si acceptée en moins de 24 h
 - `OFFER_HOURS` = 48 : validité de l'offre
@@ -21,6 +23,6 @@ Projet indépendant : aucun lien avec HomPilot ni avec l'infrastructure de Julia
 
 ## À brancher pour la production
 - Stockage : le garage est sauvegardé sur l'appareil (localStorage). Prochaine étape : une base Supabase dédiée + connexion Google/Facebook ou code SMS.
-- Prix : l'AI cherche 3 à 8 annonces comparables au Québec (recherche web de l'API Anthropic, version Vercel seulement), évalue directement le prix wholesale réel (encan entre marchands / valeur d'échange) à partir des signaux de marché et de l'écart détail→wholesale propre au segment, ajuste pour l'état, puis retire le frais Shopicar. Le prix de détail est affiché pour référence seulement. Pour une offre réellement ferme, l'alimenter avec une source de marché (Canadian Black Book, Manheim MMR) et l'historique des transactions Shopicar.
+- Prix : l'AI ne fait que trouver les annonces (rapportées telles quelles, mises en cache 7 jours). Le prix est calculé par `pricing.js` : la même auto avec les mêmes réponses obtient toujours la même offre. Les photos ne changent jamais le prix, elles signalent seulement un écart à l'acheteur. Pour une offre réellement ferme, ajouter une source wholesale (Canadian Black Book, Manheim MMR) et l'historique des transactions Shopicar pour calibrer `SPREAD_PCT`.
 - Carfax : appel API à l'acceptation pour valider les déclarations.
 - Protection de `/api/ai` : limite de débit (ex. Vercel Firewall) avant le lancement public.

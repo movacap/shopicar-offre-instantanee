@@ -155,10 +155,7 @@ ul.clean.warnl li:before{background:var(--warn)}
 
 <script>
 /* ============ CONFIG ============ */
-// Frais Shopicar : 700 $ à 1 200 $, selon la valeur wholesale (linéaire entre FEE_LOW_AT et FEE_HIGH_AT, arrondi à 50 $)
-const FEE_MIN = 700, FEE_MAX = 1200;
-const FEE_LOW_AT = 10000, FEE_HIGH_AT = 40000;
-function feeFor(w){ const t=Math.min(1, Math.max(0, (w-FEE_LOW_AT)/(FEE_HIGH_AT-FEE_LOW_AT))); return Math.round((FEE_MIN+t*(FEE_MAX-FEE_MIN))/50)*50; }
+const FEE_MIN = 700, FEE_MAX = 1200;  // affichage seulement : le calcul est dans pricing.js (PRICING.FEE_*)
 const FEE = FEE_MAX;         // anciens dossiers sans frais enregistré
 const BONUS_24H = 250;       // bonus si acceptation < 24 h
 const OFFER_HOURS = 48;      // validité de l'offre
@@ -325,7 +322,7 @@ function vHome(){
   <div class="wrap">
     <div class="card">
       <div class="feat"><div class="ic">1</div><div><b>Le NIV remplit tout</b><span class="muted">Année, modèle, version, moteur et transmission. Tu ne retapes rien.</span></div></div>
-      <div class="feat"><div class="ic">2</div><div><b>Prix transparent</b><span class="muted">Valeur wholesale calculée par l'AI, moins le frais Shopicar (${money(FEE_MIN)} à ${money(FEE_MAX)}). Tu vois le calcul.</span></div></div>
+      <div class="feat"><div class="ic">2</div><div><b>Prix transparent</b><span class="muted">Valeur wholesale calculée à partir des annonces comparables, moins le frais Shopicar (${money(FEE_MIN)} à ${money(FEE_MAX)}). Tu vois le calcul.</span></div></div>
       <div class="feat"><div class="ic">3</div><div><b>Offre valide ${OFFER_HOURS} h</b><span class="muted">Accepte en moins de 24 h et reçois ${money(BONUS_24H)} de plus.</span></div></div>
       <div class="feat"><div class="ic">4</div><div><b>On s'occupe du reste</b><span class="muted">Cueillette chez toi, inspection de 10 minutes, paiement le jour même. On rembourse ton prêt directement.</span></div></div>
     </div>
@@ -443,7 +440,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const v=c.vehicle
     ${SHOW_BREAKDOWN?`<div class="card"><h2>Comment on arrive à ce prix</h2>
       <div class="kv num">
         ${val.recon&&val.detail_comparable?`<span class="k">Prix de détail des autos comparables, ajusté à ton kilométrage</span><span class="v">${money(val.detail_comparable)}</span>
-        <span class="k">Marge et remise en état du concessionnaire</span><span class="v" style="color:var(--bad)">− ${money(val.recon)}</span>`
+        <span class="k">Marge et remise en état du concessionnaire${val.spread_pct?` (${val.spread_pct} %)`:''}</span><span class="v" style="color:var(--bad)">− ${money(val.recon)}</span>`
         :`${val.detail_comparable?`<span class="k muted">Pour comparaison : prix de détail en concession</span><span class="v muted">${money(val.detail_comparable)}</span>`:''}
         <span class="k">Valeur wholesale, exemplaire en bon état moyen à ton kilométrage</span><span class="v">${money(val.wholesale_base||0)}</span>`}
         ${(val.ajustements||[]).map(a=>`<span class="k">${esc(a.libelle)}</span><span class="v" style="color:${a.montant<0?'var(--bad)':'var(--ok)'}">${a.montant>0?'+':''}${money(a.montant)}</span>`).join('')}
@@ -454,7 +451,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const v=c.vehicle
         <span class="k tot">Ton offre</span><span class="v tot">${money(c.offer)}</span>
       </div>
       ${val.methode_wholesale?`<p class="small" style="margin:0">${esc(val.methode_wholesale)}</p>`:''}
-      <p class="muted small" style="margin:0">Wholesale : ce qu'un concessionnaire paie pour ce véhicule dans un encan entre marchands ou en échange, avant remise en état. Calculé par l'AI de Shopicar.</p>
+      <p class="muted small" style="margin:0">Wholesale : ce qu'un concessionnaire paie pour ce véhicule dans un encan entre marchands ou en échange, avant remise en état. Calculé par Shopicar à partir des annonces comparables : les mêmes annonces et les mêmes réponses donnent toujours le même prix.</p>
     </div>`:''}
     ${(val.comparables||[]).length?`<div class="card"><h3>Autos comparables à vendre au Québec</h3>
       <div class="kv num">${val.comparables.map(x=>`<span class="k">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(x.titre)}</a>`:esc(x.titre)}<br><span class="small">${Number(x.km||0).toLocaleString('fr-CA')} km · ${esc(x.ville||'')}${x.source?' · '+esc(x.source):''}</span></span><span class="v">${money(x.prix||0)}</span>`).join('')}</div>
@@ -624,48 +621,42 @@ function answersText(a){ const L=[]; const add=(k,v)=>{ if(v!==undefined&&v!==''
   add('Titre / historique',a.titre); add('Clés',a.cles); add('Pneus inclus',a.pneus); add('Âge des pneus installés',a.pneusAge); add('Jantes',a.mags); add('Modifications',a.modifs); add('Intention de vente',a.quand); return L.join('\n'); }
 
 let loadTimer=null;
+let _pricing=null; const loadPricing=()=>(_pricing ||= import('/pricing.js'));
+const DEMANDE_TXT={forte:'se revend très vite',normale:'se revend dans un délai normal',faible:'se revend plus lentement'};
+async function photoFlags(d, v){ // Les photos ne changent jamais le prix : elles servent seulement à signaler un écart à l'acheteur.
+  if(!d.photoBlobs.length) return [];
+  try{ const s=await getSample(); const lim=s&&s.limits?await s.limits():null; if(!s||!lim||!lim.images) return [];
+    const r=await s(`Photos d'un ${v.year} ${v.make} ${v.model} vendu par un particulier. Déclarations du vendeur :\n${answersText(d.answers)}\n\nCompare les photos aux déclarations. Liste SEULEMENT les écarts clairement visibles (dommage non déclaré, voyant allumé, autre véhicule, etc.), en phrases courtes en français. Réponds par UN SEUL objet JSON : {"drapeaux":[]}`, {modelTier:'default', images:d.photoBlobs.slice(0,4)});
+    return (parseJSON(r.text).drapeaux||[]).map(String).filter(Boolean).slice(0,5);
+  }catch(e){ return []; } }
 async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.loadStage=0; go('loading');
   loadTimer=setInterval(()=>{ if(S.loadStage<LOAD_STEPS.length-1){ S.loadStage++; if(S.screen==='loading') render(); } }, 4000);
-  const today=new Date().toLocaleDateString('fr-CA',{year:'numeric',month:'long',day:'numeric'});
-  const prompt=`Tu es le moteur d'évaluation de Shopicar, acheteur de véhicules d'occasion de particuliers au Québec (Canada). Date : ${today}.
-
-VÉHICULE
-${v.year} ${v.make} ${v.model} ${v.trim||''} | ${v.body||''} | ${v.engine||''} | ${v.drivetrain||''} | NIV ${d.vin}
-
-DÉCLARATIONS DU VENDEUR
-${answersText(a)}
-${d.photoBlobs.length?`\n${d.photoBlobs.length} photo(s) jointe(s) : vérifie qu'elles concordent avec les déclarations et signale tout écart dans "drapeaux".`:''}
-
-MÉTHODE (respecte-la à la lettre)
-1. Si tu as l'outil de recherche web, cherche des annonces ACTUELLES au Québec (concessionnaires, AutoHebdo, CarGurus, Kijiji Autos) du même modèle, même génération, version proche, kilométrage le plus proche possible de ${a.km} km. Retiens 3 à 8 comparables avec prix, km, ville, source et URL. Sinon, utilise ta connaissance du marché québécois et laisse "comparables" vide.
-2. "detail_comparable" (pour référence seulement) : le prix de détail affiché typique d'un exemplaire en BON état moyen, au kilométrage de CE véhicule (${a.km} km).
-3. "wholesale_base" : LE VRAI PRIX WHOLESALE au Québec aujourd'hui, c'est-à-dire ce qu'un concessionnaire paierait réellement pour un exemplaire en BON état moyen à ${a.km} km, dans un encan entre marchands (OPENLANE/ADESA, Manheim Canada) ou comme valeur d'échange (ACV), avant remise en état. Évalue-le directement; ne fais PAS « détail moins un montant fixe ». Appuie-toi, dans cet ordre, sur :
-   a) des signaux wholesale réels trouvés en recherche : valeurs d'échange / trade-in (Canadian Black Book, estimateurs d'échange AutoHebdo, Clutch, Canada Drives, CarGurus « instant offer »), résultats d'encan publics (Bring a Trailer, Cars & Bids pour les véhicules de collection ou exotiques), prix des ventes entre particuliers sur Kijiji/Marketplace (le wholesale est en général sous le privé);
-   b) l'écart réel détail→wholesale pour CE segment, qui varie avec le prix, l'âge, le kilométrage et la vitesse de revente : un modèle très en demande qui se revend vite (ex. RAV4, Civic, Tacoma) a un écart serré; un modèle lent, de luxe, un VE qui se déprécie vite, une auto très vieille ou très kilométrée ont un écart plus large. Pour une auto bon marché, le concessionnaire veut quand même un profit minimum en dollars.
-   Corrige pour l'écart de km avec les comparables, une seule fois. Explique en 1 ou 2 phrases dans "methode_wholesale" (en français, tutoiement) d'où vient ce chiffre.
-4. "ajustements" : SEULEMENT ce qui distingue ce véhicule d'un exemplaire en bon état moyen vendu en encan : dommages de carrosserie ou de vitre, rouille, intérieur, odeur, voyants, accidents, titre, clés manquantes, pneus usés, modifications. Montants = ce que ça coûte à un concessionnaire de corriger (ou la perte de valeur wholesale). Un seul ensemble de pneus est la norme : ne pénalise PAS l'absence de pneus d'hiver; un 2e ensemble en bon état vaut un bonus. Ne mets AUCUN ajustement pour le kilométrage (déjà dans l'étape 3).
-5. Ne sois ni optimiste ni prudent : vise le prix wholesale réellement payé sur le marché. N'enlève AUCUN frais Shopicar : Shopicar retire elle-même son frais (${FEE_MIN} $ à ${FEE_MAX} $).
-
-Termine ta réponse par UN SEUL objet JSON valide, montants en nombres entiers, rien après :
-{"comparables":[{"titre":"2023 Toyota RAV4 Prime XSE","prix":0,"km":0,"ville":"","source":"","url":""}],"detail_comparable":0,"wholesale_base":0,"demande":"forte|normale|faible","methode_wholesale":"","ajustements":[{"libelle":"texte court en français","montant":0}],"confiance":"haute|moyenne|faible","facteurs":["3 à 5 phrases courtes, en français, tutoiement, qui expliquent le prix au vendeur"],"drapeaux":["points à valider par un acheteur, liste vide si rien"]}`;
-  let val=null, err=null;
-  try{ const s=await getSample(); if(!s){ const e=new Error('x'); e.code='not_granted'; throw e; }
-    let opts={modelTier:'complex', web:true}; try{ const lim=s.limits?await s.limits():null; if(d.photoBlobs.length && lim && lim.images) opts.images=d.photoBlobs.slice(0,4); }catch(x){}
-    const r=await s(prompt, opts); val=parseJSON(r.text);
-    val.comparables=(val.comparables||[]).filter(x=>x&&x.titre&&+x.prix>0).map(x=>({titre:String(x.titre),prix:Math.round(+x.prix),km:Math.round(+x.km||0),ville:String(x.ville||''),source:String(x.source||''),url:/^https?:\/\//.test(x.url||'')?x.url:''})).slice(0,8);
-    val.detail_comparable=Math.round(+val.detail_comparable||0);
-    val.wholesale_base=Math.round(+val.wholesale_base||0);
-    if(!val.wholesale_base) throw new Error('valeur wholesale nulle');
-    val.methode_wholesale=String(val.methode_wholesale||'').slice(0,400);
-    // Garde-fou : un wholesale au-dessus du détail est incohérent → validation par un acheteur
-    if(val.detail_comparable && val.wholesale_base>=val.detail_comparable){ val.drapeaux=[...(val.drapeaux||[]), "Valeur wholesale estimée au-dessus du prix de détail : à valider."]; val.confiance='faible'; }
-    val.ajustements=(val.ajustements||[]).map(x=>({libelle:String(x.libelle||''),montant:Math.round(+x.montant||0)})).filter(x=>x.montant!==0 && !/kilom/i.test(x.libelle));
-    val.wholesale_final=val.wholesale_base+val.ajustements.reduce((s,x)=>s+x.montant,0);
+  let val=null, calc=null, err=null;
+  try{
+    const [mkt, P, flags] = await Promise.all([
+      fetch('/api/market',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({vin:d.vin, vehicle:v, km:a.km})})
+        .then(async r=>{ const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok){ const e=new Error(j.error||'erreur'); e.code=r.status===429?'rate_limited':/ANTHROPIC_API_KEY/.test(j.error||'')?'no_key':'unavailable'; throw e; } return j; }),
+      loadPricing(),
+      photoFlags(d, v),
+    ]);
+    calc=P.computeOffer({ market:mkt, vehicle:v, answers:a });
+    if(!calc) throw new Error('aucune annonce comparable trouvée');
+    const drapeaux=[...flags];
+    if(!calc.enough) drapeaux.push(`Seulement ${calc.used.length} annonce(s) comparable(s) trouvée(s) : prix à confirmer par un acheteur.`);
+    if(a.accidents==='Je ne sais pas') drapeaux.push('Historique d\'accidents à confirmer avec le rapport Carfax.');
+    val={ comparables:calc.used.map(x=>({titre:x.titre,prix:x.prix,km:x.km,ville:x.ville,source:x.source,url:x.url})),
+      detail_comparable:calc.retail, recon:calc.spread.amount, spread_pct:calc.spread.pct, demande:mkt.demande,
+      wholesale_base:calc.wholesale_base, ajustements:calc.ajustements, wholesale_final:calc.wholesale_final,
+      market_at:mkt.fetchedAt, confiance: calc.enough ? (calc.used.length>=5?'haute':'moyenne') : 'faible',
+      methode_wholesale:`Prix de détail = médiane de ${calc.used.length} annonce(s) au Québec, chacune ajustée à ton kilométrage${calc.excluded?` (${calc.excluded} annonce(s) trop loin du marché retirée(s))`:''}. Ce modèle ${DEMANDE_TXT[mkt.demande]||DEMANDE_TXT.normale} : le concessionnaire garde ${calc.spread.pct} % pour sa marge et la remise en état.`,
+      facteurs:[`${calc.used.length} annonce(s) comparable(s) au Québec, prix ajustés à tes ${Number(a.km).toLocaleString('fr-CA')} km.`,
+        `Écart détail → wholesale de ${calc.spread.pct} % : ce modèle ${DEMANDE_TXT[mkt.demande]||DEMANDE_TXT.normale}.`,
+        calc.ajustements.length?`Ajustements selon tes réponses : ${calc.ajustements.map(x=>x.libelle.toLowerCase()).join(', ')}.`:'Aucun ajustement d\'état selon tes réponses.'],
+      drapeaux };
   }catch(e){ err=e; }
   clearInterval(loadTimer);
-  if(!val||!val.wholesale_final){ go('quiz', {error: err && err.code==='not_granted' ? "Le calcul AI n'est pas disponible ici. Ouvre l'app dans Claude pour obtenir ton offre." : err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
-  const fee=feeFor(val.wholesale_final);
-  const offer=Math.max(0, Math.floor((val.wholesale_final - fee)/25)*25);
+  if(!val||!val.wholesale_final){ go('quiz', {error: err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
+  const fee=calc.fee, offer=calc.offer;
   const t=a.titre||[]; const review = val.confiance==='faible' || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
   const now=Date.now();
   const car={ id:d.replaces||d.id, vin:d.vin, vehicle:v, answers:Object.assign({},a), photos:d.photos.slice(0,3), valuation:val, offer, fee,
