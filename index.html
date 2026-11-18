@@ -79,6 +79,11 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .thumb{width:120px;height:78px;border-radius:12px;background:var(--soft);display:grid;place-items:center;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover}
 .thumb svg{width:108px}
+.thumb.mono{background:#0a0a0a;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:10px 12px;gap:1px;position:relative}
+.thumb.mono .mk{font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#a3a3a3;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb.mono .md{font-family:var(--f-display);font-weight:700;letter-spacing:-.035em;line-height:1.05;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.thumb.mono .yr{font-size:11px;color:#737373;font-variant-numeric:tabular-nums}
+.thumb.mono i{position:absolute;right:10px;bottom:10px;width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.3)}
 .kv{display:grid;grid-template-columns:1fr auto;gap:8px 12px;font-size:14.5px}
 .kv .k{color:var(--muted)}
 .kv .v{font-weight:500;text-align:right;color:var(--ink)}
@@ -293,22 +298,12 @@ const WMI={ '1HG':'Honda','2HG':'Honda','2HK':'Honda','5FN':'Honda','5J6':'Honda
 function localDecode(v){ return { make: WMI[v.slice(0,3)] || '', year: vinYear(v) }; }
 
 /* ============ VISUEL AUTO ============ */
-/* Illustration minimaliste : contour fin du véhicule de profil (VUS ou berline selon la carrosserie), noir sur fond neutre,
-   avec une pastille de la couleur déclarée. Aucun remplissage ni détail superflu. */
-const COLORS={'Noir':'#111111','Blanc':'#ffffff','Gris':'#6b7280','Argent':'#c7ccd3','Bleu':'#3982F7','Rouge':'#d1393f','Vert':'#2f7a57','Autre':'#9ca3af'};
-const CAR_SHAPES={
-  suv:{ body:'M16 62v-6c0-5 3-8 9-9l27-4c9-12 19-19 34-20l54-1c11 0 18 5 25 14l7 9c8 2 12 6 12 12v5h-15a17 17 0 0 0-34 0H69a17 17 0 0 0-34 0z',
-        glass:'M59 43c8-10 16-14.5 28-15l51-.5c8 0 14 3.5 20 11.5l3 4z', pillar:'M113 28v15', w:[52,152] },
-  car:{ body:'M12 62v-5c0-4 4-6 10-7l28-4c12-9 24-15 40-15.5l32-.5c14 0 24 5 34 13l20 4c7 1.5 12 5 12 10v5h-15a17 17 0 0 0-34 0H67a17 17 0 0 0-34 0z',
-        glass:'M61 46c10-8 19-11.5 30-12l31-.5c10 0 17 3.5 25 11l1 1.5z', pillar:'M108 34v12', w:[50,156] },
-};
-function carSVG(color, body){ const sh=/berline|coup|hatch|d[ée]capot|familiale/i.test(body||'')?CAR_SHAPES.car:CAR_SHAPES.suv; const c=COLORS[color];
-  const wheel=x=>`<circle cx="${x}" cy="63" r="12"/><circle cx="${x}" cy="63" r="4"/>`;
-  return `<svg viewBox="0 0 200 86" aria-hidden="true"><g fill="none" stroke="#0a0a0a" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
-  <path d="${sh.body}"/><path d="${sh.glass}" stroke-width="1.2"/><path d="${sh.pillar}" stroke-width="1.2"/>${wheel(sh.w[0])}${wheel(sh.w[1])}</g>
-  <line x1="18" y1="79" x2="182" y2="79" stroke="#0a0a0a" stroke-opacity=".08" stroke-width="1"/>
-  ${c?`<circle cx="186" cy="12" r="5" fill="${c}" stroke="${color==='Blanc'?'#d4d4d8':'none'}" stroke-width="1"/>`:''}</svg>`; }
-function carThumb(car){ const p=car.photos && car.photos[0]; return `<div class="thumb">${p?`<img src="${p}" alt="">`:carSVG(car.answers && car.answers.couleur, car.vehicle && car.vehicle.body)}</div>`; }
+/* Vignette sans photo : typographique (marque, modèle, année) sur fond noir, avec une pastille de la couleur déclarée.
+   Dès que le client ajoute une photo, elle remplace la vignette. */
+const COLORS={'Noir':'#3f3f46','Blanc':'#ffffff','Gris':'#6b7280','Argent':'#c7ccd3','Bleu':'#3982F7','Rouge':'#d1393f','Vert':'#2f7a57','Autre':'#9ca3af'};
+function monoThumb(v, color){ v=v||{}; const md=String(v.model||'Ton auto'); const fs=md.length>12?12.5:md.length>8?17:md.length>5?21:26;
+  return `<div class="thumb mono"><span class="mk">${esc(v.make||'')}</span><span class="md" style="font-size:${fs}px">${esc(md)}</span><span class="yr">${esc(v.year||'')}</span>${COLORS[color]?`<i style="background:${COLORS[color]}"></i>`:''}</div>`; }
+function carThumb(car){ const p=car.photos && car.photos[0]; return p?`<div class="thumb"><img src="${p}" alt=""></div>`:monoThumb(car.vehicle, car.answers && car.answers.couleur); }
 function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
 
 /* ============ QUESTIONNAIRE ============ */
@@ -687,7 +682,7 @@ function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdA
   return `${topbar('Mon garage')}
   <div class="wrap">
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
-    ${S.loaded&&!cars.length?`<div class="card empty">${carSVG('Argent')}<h2>Ton garage est vide</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
+    ${S.loaded&&!cars.length?`<div class="card empty"><h2>Ton garage est vide</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
     ${cars.map(c=>{ const st=statusInfo(c); return `<div class="card gcar" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
       <div class="bot"><span class="stat ${st.cls}">${st.txt}</span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
