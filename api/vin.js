@@ -75,7 +75,7 @@ export default async function handler(req, res) {
     };
     // Édition spéciale confirmée par une source : elle remplace la version NHTSA (le client peut encore corriger)
     const ref = await refineVersion(vin, vehicle);
-    if (ref && ref.version && ref.special) { vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec ton NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
+    if (ref && ref.version && ref.special) { ref.version = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec ton NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
     console.log('[vin] ok', { vin, v: `${year} ${vehicle.make} ${model} ${vehicle.trim}`, ref });
     return res.status(200).json({ found: true, vehicle });
   } catch (e) {
