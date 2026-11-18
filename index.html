@@ -293,14 +293,22 @@ const WMI={ '1HG':'Honda','2HG':'Honda','2HK':'Honda','5FN':'Honda','5J6':'Honda
 function localDecode(v){ return { make: WMI[v.slice(0,3)] || '', year: vinYear(v) }; }
 
 /* ============ VISUEL AUTO ============ */
-const COLORS={'Noir':'#1d222b','Blanc':'#f4f6f9','Gris':'#7c8594','Argent':'#b9c0ca','Bleu':'#2f6fd6','Rouge':'#c73640','Vert':'#2e7d5b','Autre':'#8b95a7'};
-function carSVG(color){ const c=COLORS[color]||'#8b95a7'; const st=color==='Blanc'?'#c9d0db':'none';
-  return `<svg viewBox="0 0 224 96" aria-hidden="true"><ellipse cx="112" cy="84" rx="100" ry="6" fill="#000" opacity=".08"/>
-  <path d="M12 66 L18 47 Q22 40 34 39 L62 38 L84 21 Q89 17 98 17 L152 17 Q162 17 168 23 L186 38 L202 41 Q212 43 212 53 L212 66 Z" fill="${c}" stroke="${st}" stroke-width="1.5"/>
-  <path d="M71 38 L90 23 L124 23 L124 38 Z" fill="#e5e5e5" opacity=".9"/><path d="M130 23 L156 23 Q163 23 167 28 L177 38 L130 38 Z" fill="#e5e5e5" opacity=".9"/>
-  <rect x="196" y="47" width="12" height="5" rx="2" fill="#ffd36b"/><rect x="14" y="51" width="9" height="5" rx="2" fill="#e35151"/>
-  <circle cx="54" cy="68" r="15" fill="#151a22"/><circle cx="54" cy="68" r="7" fill="#9aa4b4"/><circle cx="172" cy="68" r="15" fill="#151a22"/><circle cx="172" cy="68" r="7" fill="#9aa4b4"/></svg>`; }
-function carThumb(car){ const p=car.photos && car.photos[0]; return `<div class="thumb">${p?`<img src="${p}" alt="">`:carSVG(car.answers && car.answers.couleur)}</div>`; }
+/* Illustration minimaliste : contour fin du véhicule de profil (VUS ou berline selon la carrosserie), noir sur fond neutre,
+   avec une pastille de la couleur déclarée. Aucun remplissage ni détail superflu. */
+const COLORS={'Noir':'#111111','Blanc':'#ffffff','Gris':'#6b7280','Argent':'#c7ccd3','Bleu':'#3982F7','Rouge':'#d1393f','Vert':'#2f7a57','Autre':'#9ca3af'};
+const CAR_SHAPES={
+  suv:{ body:'M16 62v-6c0-5 3-8 9-9l27-4c9-12 19-19 34-20l54-1c11 0 18 5 25 14l7 9c8 2 12 6 12 12v5h-15a17 17 0 0 0-34 0H69a17 17 0 0 0-34 0z',
+        glass:'M59 43c8-10 16-14.5 28-15l51-.5c8 0 14 3.5 20 11.5l3 4z', pillar:'M113 28v15', w:[52,152] },
+  car:{ body:'M12 62v-5c0-4 4-6 10-7l28-4c12-9 24-15 40-15.5l32-.5c14 0 24 5 34 13l20 4c7 1.5 12 5 12 10v5h-15a17 17 0 0 0-34 0H67a17 17 0 0 0-34 0z',
+        glass:'M61 46c10-8 19-11.5 30-12l31-.5c10 0 17 3.5 25 11l1 1.5z', pillar:'M108 34v12', w:[50,156] },
+};
+function carSVG(color, body){ const sh=/berline|coup|hatch|d[ée]capot|familiale/i.test(body||'')?CAR_SHAPES.car:CAR_SHAPES.suv; const c=COLORS[color];
+  const wheel=x=>`<circle cx="${x}" cy="63" r="12"/><circle cx="${x}" cy="63" r="4"/>`;
+  return `<svg viewBox="0 0 200 86" aria-hidden="true"><g fill="none" stroke="#0a0a0a" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+  <path d="${sh.body}"/><path d="${sh.glass}" stroke-width="1.2"/><path d="${sh.pillar}" stroke-width="1.2"/>${wheel(sh.w[0])}${wheel(sh.w[1])}</g>
+  <line x1="18" y1="79" x2="182" y2="79" stroke="#0a0a0a" stroke-opacity=".08" stroke-width="1"/>
+  ${c?`<circle cx="186" cy="12" r="5" fill="${c}" stroke="${color==='Blanc'?'#d4d4d8':'none'}" stroke-width="1"/>`:''}</svg>`; }
+function carThumb(car){ const p=car.photos && car.photos[0]; return `<div class="thumb">${p?`<img src="${p}" alt="">`:carSVG(car.answers && car.answers.couleur, car.vehicle && car.vehicle.body)}</div>`; }
 function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
 
 /* ============ QUESTIONNAIRE ============ */
@@ -426,7 +434,7 @@ function vConfirm(){ const d=S.draft, v=d.vehicle||{};
   <div class="wrap">
     <div class="card">
       <span class="stat ${v.confiance==='faible'?'warn':'ok'}">${v.confiance==='faible'?'À vérifier':'Trouvé avec ton NIV'}</span>
-      <div class="veh">${carThumb({answers:d.answers,photos:[]})}<div><div class="t">${esc(vTitle(v))||'Véhicule'}</div><div class="muted">${esc(v.trim||'')}</div><div class="muted small num">NIV ${esc(d.vin)}</div></div></div>
+      <div class="veh">${carThumb({answers:d.answers,photos:[],vehicle:v})}<div><div class="t">${esc(vTitle(v))||'Véhicule'}</div><div class="muted">${esc(v.trim||'')}</div><div class="muted small num">NIV ${esc(d.vin)}</div></div></div>
       <div class="kv">
         ${v.body?`<span class="k">Carrosserie</span><span class="v">${esc(v.body)}</span>`:''}
         ${v.engine?`<span class="k">Moteur</span><span class="v">${esc(v.engine)}</span>`:''}
@@ -679,7 +687,7 @@ function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdA
   return `${topbar('Mon garage')}
   <div class="wrap">
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
-    ${S.loaded&&!cars.length?`<div class="card empty">${carSVG('Gris')}<h2>Ton garage est vide</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
+    ${S.loaded&&!cars.length?`<div class="card empty">${carSVG('Argent')}<h2>Ton garage est vide</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
     ${cars.map(c=>{ const st=statusInfo(c); return `<div class="card gcar" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
       <div class="bot"><span class="stat ${st.cls}">${st.txt}</span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
