@@ -81,13 +81,15 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .thumb svg{width:108px}
 .best{background:var(--acc);color:#fff;border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .best h2{font-size:22px;line-height:1.15;letter-spacing:-.03em}
-.best.official{gap:8px;padding:24px 20px}
-.best.official .tag{background:#fff;color:var(--acc);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:99px}
+.best.official{gap:8px;padding:24px 20px;background:#000}
+.best.official .tag{background:var(--acc);color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:99px}
 .best.official h2{font-size:20px;margin-top:4px}
 .best.official .amt{font-family:var(--f-display);font-weight:700;font-size:60px;line-height:1;letter-spacing:-.045em;margin-top:4px}
 .best.official .amt sup{font-size:24px;margin-left:3px;font-weight:600}
-.best.official .gain{background:rgba(255,255,255,.18);font-weight:600;font-size:14px;padding:5px 11px;border-radius:99px}
-.best.official .cd{font-size:13.5px;color:rgba(255,255,255,.85)}
+.best.official .amt sup{color:var(--acc)}
+.best.official .btn.pri{margin-top:6px}
+.best.official .gain{background:rgba(255,255,255,.12);color:#fff;font-weight:600;font-size:14px;padding:5px 11px;border-radius:99px}
+.best.official .cd{font-size:13.5px;color:#a3a3a3}.best.official .cd b{color:#fff}
 .best p{margin:0;color:rgba(255,255,255,.88)}
 .best .btn.dark{color:var(--acc);margin-top:4px}
 .btn.big{padding:17px 18px;font-size:16.5px;border-radius:14px}
@@ -672,7 +674,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       <div class="amt num">${amtHTML(shown)}</div>
       ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton estimation</span>`:''}
       <div class="cd num">Valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>
-      <button class="btn dark big" data-act="accept">Accepter mon offre et prendre rendez-vous</button>
+      <button class="btn pri big" data-act="accept">Accepter mon offre et prendre rendez-vous</button>
     </div>`:`${intro}
     <div class="offer">
       <span class="lbl">${nu?(['acceptee','planifiee'].includes(c.status)?'Offre acceptée*':'Meilleure offre Shopicar*'):firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
