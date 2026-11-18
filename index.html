@@ -79,6 +79,13 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .thumb{width:120px;height:78px;border-radius:12px;background:var(--soft);display:grid;place-items:center;overflow:hidden}
 .thumb img{width:100%;height:100%;object-fit:cover}
 .thumb svg{width:108px}
+.slots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.slot{aspect-ratio:4/3;border:1px dashed #d4d4d4;border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;font-size:12px;color:var(--muted);position:relative;overflow:hidden;padding:4px;text-align:center;line-height:1.2}
+.slot b{font-size:20px;font-weight:300;color:var(--ink);line-height:1}
+.slot.on{border:0;background:var(--soft)}
+.slot.on img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot.on span{position:absolute;left:5px;bottom:5px;background:rgba(0,0,0,.65);color:#fff;font-size:10.5px;padding:2px 7px;border-radius:99px;max-width:calc(100% - 10px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot .rm{position:absolute;top:4px;right:4px;border:0;background:rgba(0,0,0,.6);color:#fff;border-radius:99px;width:22px;height:22px;font-size:13px;line-height:1}
 .thumb.mono{background:#0a0a0a;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;padding:10px 12px;gap:1px;position:relative}
 .thumb.mono .mk{font-size:9.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#a3a3a3;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .thumb.mono .md{font-family:var(--f-display);font-weight:700;letter-spacing:-.035em;line-height:1.05;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -197,6 +204,7 @@ details.details:not([open]){gap:0}
 <div id="tabs"></div>
 <input type="file" id="scanFile" class="file-hidden" accept="image/*" capture="environment">
 <input type="file" id="photoFile" class="file-hidden" accept="image/*" multiple>
+<input type="file" id="slotFile" class="file-hidden" accept="image/*">
 
 <script>
 /* ============ CONFIG ============ */
@@ -336,8 +344,7 @@ const STEPS=[
   {id:'mags', label:'Jantes', type:'single', req:true, opts:['D\'origine','Après-marché']},
   {id:'modifs', label:'Modifications', type:'multi', req:true, none:NONE_MOD, opts:[NONE_MOD,'Suspension','Échappement','Performance','Wrap / esthétique','Système de son']}
  ]},
- {title:'Photos et contact', qs:[
-  {id:'photos', label:'Photos (facultatif)', type:'photos', req:false, hint:"Avant, arrière, deux côtés, tableau de bord allumé. L'AI s'en sert pour confirmer l'état et réduire les conditions."},
+ {title:'Contact', qs:[
   {id:'quand', label:'Quand veux-tu vendre ?', type:'single', req:true, opts:['Cette semaine','D\'ici 3 mois','Je veux juste savoir']},
   {id:'prenom', label:'Prénom', type:'text', req:true, ph:'Ton prénom'},
   {id:'cell', label:'Cellulaire', type:'tel', req:true, ph:'514 555-0123', hint:"Ton offre est sauvegardée dans ton garage. Julia te texte seulement pour ton dossier."}
@@ -551,10 +558,27 @@ function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre
       <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te faire une offre ajustée. Tu restes libre de refuser.</p>
     </div>`; }
 function vehHead(c){ const st=statusInfo(c); return `<div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted">${esc(c.vehicle.trim||'')}</div><span class="stat ${st.cls}" style="margin-top:6px">${st.txt}</span></div></div>`; }
+/* Photos guidées : 6 obligatoires + au moins 1 photo de dommage quand un dommage est déclaré (2 au plus). */
+const PHOTO_SLOTS=[['avant','Avant'],['gauche','Côté gauche'],['droit','Côté droit'],['arriere','Arrière'],['dash','Tableau de bord','Tableau'],['interieur','Intérieur']];
+const DMG_MAX=2;
+const needsDamagePhotos = a => !DMG_NONE(a) || (a.rouille && a.rouille!=='Aucune');
+const slotCount = c => PHOTO_SLOTS.filter(([k])=>c.slots&&c.slots[k]).length;
+const photosDone = c => slotCount(c)===PHOTO_SLOTS.length && (!needsDamagePhotos(c.answers) || (c.dmg||[]).length>=1);
+function syncPhotos(c){ c.photos=[...PHOTO_SLOTS.map(([k])=>c.slots&&c.slots[k]).filter(Boolean), ...(c.dmg||[])]; }
+function photoSlotsHTML(c){ const dmg=needsDamagePhotos(c.answers); const n=slotCount(c);
+  const tile=(key,label,img,rm,short)=> img
+    ? `<div class="slot on"><img src="${img}" alt="${esc(label)}"><span>${esc(short||label)}</span><button class="rm" data-act="${rm}" data-slot="${key}" aria-label="Retirer">×</button></div>`
+    : `<button class="slot" data-act="slot-add" data-slot="${key}"><b>+</b><span>${esc(label)}</span></button>`;
+  return `<div class="card" id="photoAsk">
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
+    <div class="slots">${PHOTO_SLOTS.map(([k,l,sh])=>tile(k,l,c.slots&&c.slots[k],'slot-rm',sh)).join('')}</div>
+    ${dmg?`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px"><h3>Dommages déclarés</h3><span class="small num" style="color:${(c.dmg||[]).length?'var(--acc)':'var(--muted)'};font-weight:600">${(c.dmg||[]).length?'✓':'1 min.'}</span></div>
+    <div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>`:''}
+  </div>`; }
 const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]).filter(x=>x!==NONE_INT).length;
 
 /* ---- 2. Première estimation (pas une offre : les offres viennent ensuite de Shopicar) ---- */
-function vEstimate(){ const c=S.current; if(!c) return vGarage(); const ph=c.photos||[];
+function vEstimate(){ const c=S.current; if(!c) return vGarage();
   const dmg=!DMG_NONE(c.answers);
   return `${topbar('Ton estimation','tab-garage')}
   <div class="wrap">
@@ -567,13 +591,9 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage(); const ph=c.pho
       <ul class="clean checks onDark"><li><span>Estimation personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>Estimation seulement, pas une offre garantie : ton prix final peut être plus haut ou plus bas</span></li></ul>
     </div>
     ${ADVANTAGES}
-    <p style="margin:0">Et chez Shopicar, ce n'est que le début! Laisse Julia travailler pour t'obtenir notre meilleur prix d'achat.</p>
-    ${ph.length<4?`<div class="card" id="photoAsk"><h3>${ph.length?'Ajoute quelques photos de plus':'Ajoute des photos avant de continuer'}</h3>
-      <p class="muted small" style="margin:0">Avant, arrière, deux côtés, tableau de bord allumé${dmg?', et une photo de chaque dommage déclaré':''}. Avec des photos, Shopicar peut valider ton prix plus vite.</p>
-      <div class="photos">${ph.map((p,i)=>`<div class="ph"><img src="${p}" alt="Photo ${i+1}"><button data-act="rmphoto-car" data-i="${i}" aria-label="Retirer">×</button></div>`).join('')}
-      ${ph.length<6?`<label class="add" for="photoFile">+ Ajouter<br>des photos</label>`:''}</div></div>`:''}
-    <button class="btn pri" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
-    ${!ph.length?`<button class="btn ghost" data-act="best-price-skip" style="margin-top:-8px">Continuer sans photos</button>`:''}
+    ${photoSlotsHTML(c)}
+    <button class="btn pri" data-act="best-price" ${photosDone(c)?'':'disabled'}>Obtenir mon meilleur prix Shopicar</button>
+    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">Ajoute les 6 photos${needsDamagePhotos(c.answers)?' et une photo des dommages':''} pour continuer.</p>`}
     <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
     <button class="btn sec" data-act="julia">Discuter avec Julia</button>
     ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller demandé':'Rendez-vous demandé'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
@@ -730,9 +750,10 @@ document.addEventListener('click', async e=>{
   else if(a==='quiz-next'){ if(S.step<STEPS.length-1){ S.step++; go('quiz'); } else runValuation(); }
   else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); S.liveShown=null; go(screenFor(S.current)); }
   else if(a==='open-offer'){ go('offer'); }
-  else if(a==='best-price'){ const c=S.current; if(!(c.photos||[]).length){ document.getElementById('photoAsk')?.scrollIntoView({behavior:'smooth',block:'center'}); toast('Ajoute quelques photos, ou continue sans photos.'); return; } startSearch(c); }
-  else if(a==='best-price-skip'){ startSearch(S.current); }
-  else if(a==='rmphoto-car'){ S.current.photos.splice(+el.dataset.i,1); Store.save(S.current); rerender(); }
+  else if(a==='best-price'){ const c=S.current; if(!photosDone(c)){ document.getElementById('photoAsk')?.scrollIntoView({behavior:'smooth',block:'center'}); toast('Ajoute les 6 photos pour continuer.'); return; } startSearch(c); }
+  else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; $('#slotFile').click(); }
+  else if(a==='slot-rm'){ const c=S.current; delete c.slots[el.dataset.slot]; if(BLOBS[c.id]) delete BLOBS[c.id].slots[el.dataset.slot]; syncPhotos(c); Store.save(c); rerender(); }
+  else if(a==='dmg-rm'){ const c=S.current; const i=+el.dataset.slot; c.dmg.splice(i,1); if(BLOBS[c.id]) BLOBS[c.id].dmg.splice(i,1); syncPhotos(c); Store.save(c); rerender(); }
   else if(a==='conseiller'){ openRdv('appel'); }
   else if(a==='notify'){ askNotify(S.current); }
   else if(a==='tax-hide'||a==='tax-show'){ S.current.hideTax = a==='tax-hide'; Store.save(S.current); rerender(); }
@@ -765,12 +786,17 @@ function draw(im,max){ const r=Math.min(1,max/Math.max(im.width,im.height)); con
 const toBlob=(c,q)=>new Promise(r=>c.toBlob(r,'image/jpeg',q));
 
 $('#photoFile').addEventListener('change', async e=>{
-  if(S.screen==='estimate' && S.current){ const c=S.current; c.photos=c.photos||[]; const files=[...e.target.files].slice(0, 6-c.photos.length); e.target.value='';
-    for(const f of files){ try{ const {im,u}=await loadImg(f); c.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); (BLOBS[c.id] ||= []).push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
-    await Store.save(c); rerender(); return; }
   const files=[...e.target.files].slice(0, 6-S.draft.photos.length); e.target.value='';
   for(const f of files){ try{ const {im,u}=await loadImg(f); S.draft.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); S.draft.photoBlobs.push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
   rerender(); });
+
+$('#slotFile').addEventListener('change', async e=>{ const f=e.target.files[0]; e.target.value=''; const c=S.current; const key=S.slotTarget; if(!f||!c||!key) return;
+  try{ const {im,u}=await loadImg(f); const thumb=draw(im,320).toDataURL('image/jpeg',.6); const blob=await toBlob(draw(im,1024),.8); URL.revokeObjectURL(u);
+    const B=(BLOBS[c.id] ||= {slots:{},dmg:[]}); if(Array.isArray(B)){ BLOBS[c.id]={slots:{},dmg:[]}; }
+    if(key==='dmg'){ c.dmg=c.dmg||[]; if(c.dmg.length<DMG_MAX){ c.dmg.push(thumb); BLOBS[c.id].dmg.push(blob); } }
+    else { c.slots=c.slots||{}; c.slots[key]=thumb; BLOBS[c.id].slots[key]=blob; }
+    syncPhotos(c); await Store.save(c); rerender();
+  }catch(err){ toast('Photo illisible. Réessaie.'); } });
 
 /* ============ SCAN NIV ============ */
 let zxingP=null;
@@ -852,7 +878,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
     status:'estimation', createdAt:now, expiresAt:now+OFFER_HOURS*3600000 };
   await Store.save(car);
   const i=S.cars.findIndex(c=>c.id===car.id); if(i>=0) S.cars[i]=car; else S.cars.push(car);
-  BLOBS[car.id]=d.photoBlobs.slice(); S.current=car; S.draft=null; go('estimate'); }
+  BLOBS[car.id]={slots:{},dmg:[]}; S.current=car; S.draft=null; go('estimate'); }
 
 /* ============ MEILLEUR PRIX : OFFRES VALIDÉES EN DIRECT ============
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
@@ -867,7 +893,10 @@ async function leadApi(body){ const r=await fetch('/api/lead',{method:'POST',hea
 let starting=false;
 /* Dossier 360inspek (réseau Shopicar) : créé une seule fois, au premier besoin (meilleur prix, rendez-vous ou conseiller). */
 async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search.leadToken) return c.search.leadToken;
-  const photos = await Promise.all(((BLOBS[c.id]&&BLOBS[c.id].length)?BLOBS[c.id]:[]).slice(0,8).map(blobToB64));
+  // Photos dans l'ordre : avant, côtés, arrière, tableau de bord, intérieur, dommages (pleine grandeur si encore en mémoire, sinon vignettes)
+  const B=BLOBS[c.id]&&!Array.isArray(BLOBS[c.id])?BLOBS[c.id]:{slots:{},dmg:[]};
+  const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
+  for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
   const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers:c.answers, estimate:c.estimate, photos, valuation:{ drapeaux:(c.valuation||{}).drapeaux||[] } }});
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
