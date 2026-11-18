@@ -33,7 +33,11 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .pill-top{font-size:12px;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);padding:5px 10px;border-radius:99px}
 .wrap{padding:20px;display:flex;flex-direction:column;gap:14px}
 .hero{background:#000;color:#fff;padding:12px 20px 32px;display:flex;flex-direction:column;gap:14px}
-.hero h1{font-size:32px;line-height:1.08;font-weight:700;letter-spacing:-.035em}
+.steps3{display:flex;flex-direction:column;gap:22px;padding:8px 4px}
+.s3{display:flex;gap:16px;align-items:center}
+.s3>span{flex:0 0 32px;height:32px;border-radius:50%;border:1.5px solid #000;display:grid;place-items:center;font-weight:600;font-size:14px}
+.s3 b{display:block;font-size:16px}.s3 small{display:block;color:#737373;font-size:14px;margin-top:2px}
+.hero h1{font-size:36px;line-height:1.08;font-weight:700;letter-spacing:-.035em}
 .hero p{margin:0;color:#a3a3a3}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px}
 .card h2{font-size:17px}
@@ -458,17 +462,14 @@ function vHome(){
   const active=S.cars.filter(c=>['estimation','recherche','offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
   return `${topbar()}
   <div class="hero">
-    <h1>Vends ton auto à Shopicar. Ton estimation en 3 minutes.</h1>
-    <p>Scanne ton NIV, réponds à quelques questions, reçois ton estimation. Ensuite, Julia travaille pour t'obtenir notre meilleur prix. Sans visite chez un concessionnaire.</p>
-    <button class="btn pri" data-act="start">Scanner ou entrer mon NIV</button>
+    <h1>Vends ton auto.<br>Simplement.</h1>
+    <p>Ton estimation en 3 minutes. Julia trouve ensuite ton meilleur prix.</p>
+    <button class="btn pri big" data-act="start">Scanner ou entrer mon NIV</button>
     ${active?`<button class="btn dark" data-act="tab-garage">Mon garage · ${active} auto${active>1?'s':''}</button>`:''}
   </div>
   <div class="wrap">
-    <div class="card">
-      <div class="feat"><div class="ic">1</div><div><b>Le NIV remplit tout</b><span class="muted">Année, modèle, version, moteur et transmission. Tu ne retapes rien.</span></div></div>
-      <div class="feat"><div class="ic">2</div><div><b>Un prix basé sur le marché</b><span class="muted">Julia compare ton auto aux véhicules semblables à vendre au Québec, selon ton kilométrage et l'état que tu déclares.</span></div></div>
-      <div class="feat"><div class="ic">3</div><div><b>Julia cherche ton meilleur prix</b><span class="muted">Suis l'évolution de ton offre en direct. Ta meilleure offre est valide ${OFFER_HOURS} h.</span></div></div>
-      <div class="feat"><div class="ic">4</div><div><b>On s'occupe du reste</b><span class="muted">Cueillette chez toi, inspection de 10 minutes, paiement le jour même. On rembourse ton prêt directement.</span></div></div>
+    <div class="steps3">
+      ${[['Scanne ton NIV','Tout se remplit seul.'],['Reçois ton estimation','Basée sur le marché du Québec.'],['Julia trouve ton meilleur prix','Paiement le jour de la cueillette.']].map(([t,d],i)=>`<div class="s3"><span>${i+1}</span><div><b>${t}</b><small>${d}</small></div></div>`).join('')}
     </div>
     <button class="btn ghost" data-act="julia-novin">Je n'ai pas mon NIV sous la main</button>
   </div>`; }
