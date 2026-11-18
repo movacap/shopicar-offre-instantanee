@@ -204,6 +204,14 @@ ul.clean.warnl li:before{background:#000}
 @keyframes flash{0%{box-shadow:0 0 0 0 rgba(0,111,235,.65)}100%{box-shadow:0 0 0 18px rgba(0,111,235,0)}}
 .livemsg{min-height:44px;display:flex;align-items:center;gap:10px;font-weight:500}
 .livemsg.good{color:var(--acc)}
+.jlive{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:center;background:var(--soft);border-radius:18px;padding:16px;transition:background .3s,color .3s}
+.jlive .txt{display:flex;flex-direction:column;gap:2px}
+.jlive b{font-size:17px;font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.jlive #liveSub{font-size:13.5px;color:var(--muted);transition:opacity .25s;min-height:20px}
+.jlive .jl-bar{grid-column:1/-1;margin-top:4px}
+.jlive.good{background:var(--acc);color:#fff}
+.jlive.good #liveSub{color:rgba(255,255,255,.88)}
+.jlive.good .jl-bar{background:rgba(255,255,255,.3)}.jlive.good .jl-bar i{background:#fff}
 @media (prefers-reduced-motion:reduce){.jl-pulse:before,.jl-pulse:after,.jl-bar i,.live:before,.ladder .b.grow,.bump,.offer.flash{animation:none}}
 .clean.checks li{grid-template-columns:18px 1fr}
 .clean.checks li:before{content:"✓";width:auto;height:auto;background:none;border-radius:0;margin:0;color:var(--acc);font-weight:700}
@@ -632,20 +640,28 @@ function ladderHTML(c, growLast){ const steps=bestSteps(c); const vals=[c.estima
   const lo=Math.min(...vals), hi=Math.max(...vals); const h=v=> hi===lo?34:Math.round(22+78*(v-lo)/(hi-lo));
   return `<div class="ladder" aria-hidden="true">${vals.map((v,i)=>`<i class="b ${i===0?'est':''} ${i&&i===vals.length-1?'last':''} ${growLast&&i&&i===vals.length-1?'grow':''}" style="height:${h(v)}%"></i>`).join('')}</div>
     <div class="ladder-lbl num"><span>Estimation ${money(c.estimate)}</span><span>${steps.length?steps.length+' offre'+(steps.length>1?'s':'')+' validée'+(steps.length>1?'s':''):'En attente d\'offres'}</span></div>`; }
+/* Bloc « Julia travaille » : avatar animé, message en gros, sous-message qui change, barre de progression animée (aucun faux prix) */
+const LIVE_SUBS=['Recherche du meilleur prix d\'achat pour ton véhicule…','Chaque offre est validée par Shopicar avant de s\'afficher.','On te texte dès que ton prix augmente.'];
+function juliaLiveHTML(b){ return `<div class="jlive" id="liveMsg">
+    <div class="jl-pulse sm"><div class="julia-av">J</div></div>
+    <div class="txt"><b id="liveText">${b?'Julia continue de travailler pour toi':'Julia poursuit ses recherches…'}</b><span id="liveSub">${LIVE_SUBS[0]}</span></div>
+    <div class="jl-bar"><i></i></div></div>`; }
+let subTimer=null, subIdx=0;
+setInterval(()=>{ const el=$('#liveSub'); if(!el||$('#liveMsg').classList.contains('good')) return; subIdx=(subIdx+1)%LIVE_SUBS.length; el.style.opacity=0; setTimeout(()=>{ if(!$('#liveMsg')?.classList.contains('good')) el.textContent=LIVE_SUBS[subIdx]; el.style.opacity=1; },250); }, 3500);
 function vSearch(){ const c=S.current; if(!c) return vGarage(); const b=bestOffer(c); const s=c.search||{};
   const canNotify='Notification' in window && Notification.permission!=='denied';
   return `${topbar('Julia travaille','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
     <div><h2 style="font-size:24px">Julia travaille pour toi!</h2>
-    <p class="muted" style="margin:6px 0 0">Shopicar recherche en ce moment le meilleur prix d'achat possible pour ton véhicule. Suis l'évolution de ton offre en direct.</p></div>
+    <p class="muted" style="margin:6px 0 0">Suis l'évolution de ton offre en direct.</p></div>
+    ${juliaLiveHTML(b)}
     <div class="offer" id="liveCard">
       <div class="tophd"><span class="lbl" id="liveLbl">${b?'Meilleure offre validée':'Estimation initiale'}</span><span class="live">En direct</span></div>
       <div class="amt num" id="liveAmt">${amtHTML(b?b.amount:c.estimate)}</div>
       <div class="small" id="liveGain" style="color:#66a9f3;min-height:20px">${b&&b.amount>c.estimate?`+${money(b.amount-c.estimate)} par rapport à ton estimation`:''}</div>
       <div id="liveLadder">${ladderHTML(c)}</div>
     </div>
-    <div class="livemsg" id="liveMsg">${b?'Julia continue de travailler pour t\'obtenir notre meilleur prix.':'<span class="spin"></span><span>Julia poursuit ses recherches…</span>'}</div>
     ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton prix augmente. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
     ${!s.leadToken&&canNotify?`<div class="card"><h3>Pas besoin d'attendre ici</h3>
       <p class="muted small" style="margin:0">${s.notify&&Notification.permission==='granted'?'C\'est noté : tu seras avisé sur cet appareil dès qu\'une meilleure offre est validée. Garde l\'onglet ouvert en arrière-plan.':'On peut t\'aviser sur cet appareil dès qu\'une meilleure offre est validée. Ton dossier reste aussi dans Mon garage.'}</p>
@@ -989,8 +1005,8 @@ function animateRise(c, prevAmt){ const b=bestOffer(c); if(!b) return; const car
     $('#liveLadder').innerHTML=ladderHTML(c, true);
     card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
     const chip=document.createElement('div'); chip.className='bump num'; chip.textContent='+'+money(b.amount-prevAmt); card.appendChild(chip); setTimeout(()=>chip.remove(),1900);
-    const m=$('#liveMsg'); m.className='livemsg good'; m.innerHTML='<span>Bonne nouvelle! Ton prix Shopicar vient d\'augmenter!</span>';
-    clearTimeout(msgTimer); msgTimer=setTimeout(()=>{ const m=$('#liveMsg'); if(m){ m.className='livemsg'; m.innerHTML= c.status==='recherche'?'<span>Julia continue de travailler pour t\'obtenir notre meilleur prix.</span>':'<span>Recherche terminée.</span>'; } }, 3000);
+    const m=$('#liveMsg'); m.classList.add('good'); $('#liveText').textContent='Bonne nouvelle! Ton prix Shopicar vient d\'augmenter!'; $('#liveSub').textContent='+'+money(b.amount-prevAmt)+' grâce à une nouvelle offre validée.';
+    clearTimeout(msgTimer); msgTimer=setTimeout(()=>{ const m=$('#liveMsg'); if(m){ m.classList.remove('good'); $('#liveText').textContent= c.status==='recherche'?'Julia continue de travailler pour toi':'Recherche terminée'; $('#liveSub').textContent=LIVE_SUBS[0]; } }, 3500);
   } else { $('#liveLadder').innerHTML=ladderHTML(c); }
 }
 function notifyRise(c){ try{ if(c.search.notify && 'Notification' in window && Notification.permission==='granted'){
