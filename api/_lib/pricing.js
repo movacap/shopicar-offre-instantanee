@@ -11,6 +11,10 @@ export const PRICING = {
   OUTLIER_PCT: 20,             // annonces à plus de 20 % de la médiane retirées
   // Écart détail → wholesale (marge, remise en état, certification, frais de vente du concessionnaire)
   SPREAD_PCT: { forte: 12, normale: 15, faible: 19 },
+  // Autos récentes (4 ans ou moins) : les concessionnaires paient plus près du détail (ex. Model Y 2023 payé 41 500 $ pour ~43 000 $ au détail)
+  SPREAD_RECENT_YEARS: 4, SPREAD_PCT_RECENT: { forte: 8, normale: 10, faible: 13 },
+  // Offres réelles des acheteurs du réseau (360inspek) : elles priment sur le calcul détail → wholesale dès qu'il y en a assez
+  BIDS_MIN: 3, BIDS_BLEND_MIN: 2,
   SPREAD_OLD_YEARS: 8, SPREAD_OLD_PCT: 2,       // +2 points dès 8 ans
   SPREAD_HIGH_KM: 200000, SPREAD_HIGH_KM_PCT: 2, // +2 points dès 200 000 km
   SPREAD_MIN: 3000,            // profit minimum en dollars, même pour une auto bon marché
@@ -45,10 +49,27 @@ export function retailFromComps(comps, subject, P = PRICING) {
   return { retail: r(median(used.map((c) => c.ajuste)), 100), used, excluded: valid.length - used.length };
 }
 
+/** Valeur wholesale tirée des offres réelles des acheteurs : chaque offre ajustée à l'année et au km du véhicule, puis médiane. */
+export function wholesaleFromBids(bids, subject, P = PRICING) {
+  const year = +subject.year || 0, km = +subject.km || 0;
+  const adj = (bids || []).filter((b) => +b.amount > 2000).map((b) => {
+    const prix = +b.amount;
+    const yearAdj = b.year && year ? (year - +b.year) * (P.YEAR_PCT / 100) * prix : 0;
+    let kmAdj = 0;
+    if (+b.km > 0 && km > 0) { const cap = (P.KM_ADJ_CAP_PCT / 100) * prix; kmAdj = Math.max(-cap, Math.min(cap, ((+b.km - km) / 10000) * (P.KM_PCT_PER_10K / 100) * prix)); }
+    return { ...b, ajuste: Math.round(prix + yearAdj + kmAdj) };
+  });
+  if (!adj.length) return { wholesale: 0, used: [] };
+  const m = median(adj.map((b) => b.ajuste));
+  const used = adj.length >= 3 ? adj.filter((b) => Math.abs(b.ajuste - m) <= (P.OUTLIER_PCT / 100) * m) : adj;
+  return { wholesale: used.length ? r(median(used.map((b) => b.ajuste)), 50) : 0, used };
+}
+
 /** Écart détail → wholesale selon la demande, l'âge et le kilométrage. */
 export function spreadFor(retail, { demande, year, km }, P = PRICING, now = new Date()) {
-  let pct = P.SPREAD_PCT[demande] ?? P.SPREAD_PCT.normale;
   const age = year ? now.getFullYear() - +year : 0;
+  const table = year && age <= P.SPREAD_RECENT_YEARS ? P.SPREAD_PCT_RECENT : P.SPREAD_PCT;
+  let pct = table[demande] ?? table.normale;
   if (age >= P.SPREAD_OLD_YEARS) pct += P.SPREAD_OLD_PCT;
   if (+km >= P.SPREAD_HIGH_KM) pct += P.SPREAD_HIGH_KM_PCT;
   const amount = r(Math.max(P.SPREAD_MIN, (pct / 100) * retail), 50);
@@ -105,12 +126,17 @@ export function feeFor(w, P = PRICING) {
 export function computeOffer({ market, vehicle, answers }, P = PRICING, now = new Date()) {
   const km = +answers.km || 0;
   const { retail, used, excluded } = retailFromComps(market.comps, { year: vehicle.year, km }, P);
-  if (!retail) return null;
-  const spread = spreadFor(retail, { demande: market.demande, year: vehicle.year, km }, P, now);
-  const wholesale_base = r(retail - spread.amount, 50);
+  const bids = wholesaleFromBids(market.bids, { year: vehicle.year, km }, P);
+  const nb = bids.used.length;
+  if (!retail && nb < P.BIDS_MIN) return null;
+  const spread = retail ? spreadFor(retail, { demande: market.demande, year: vehicle.year, km }, P, now) : { pct: 0, amount: 0 };
+  const fromComps = retail ? r(retail - spread.amount, 50) : 0;
+  // Source : offres réelles (3+), moyenne offres réelles + comparables (2), sinon comparables seulement
+  const source = nb >= P.BIDS_MIN ? 'offres' : nb >= P.BIDS_BLEND_MIN && fromComps ? 'mixte' : 'comparables';
+  const wholesale_base = source === 'offres' ? bids.wholesale : source === 'mixte' ? r((bids.wholesale + fromComps) / 2, 50) : fromComps;
   const ajustements = conditionAdjustments(answers, wholesale_base);
   const wholesale_final = Math.max(0, wholesale_base + ajustements.reduce((s, x) => s + x.montant, 0));
   const fee = feeFor(wholesale_final, P);
   const offer = Math.max(0, Math.floor((wholesale_final - fee) / 25) * 25);
-  return { retail, used, excluded, spread, wholesale_base, ajustements, wholesale_final, fee, offer, enough: used.length >= P.MIN_COMPS };
+  return { retail, used, excluded, spread, wholesale_comps: fromComps, bids: bids.used, wholesale_bids: bids.wholesale, source, wholesale_base, ajustements, wholesale_final, fee, offer, enough: used.length >= P.MIN_COMPS || nb >= P.BIDS_MIN };
 }

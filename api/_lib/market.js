@@ -42,7 +42,7 @@ ${car} | ${v.body || ''} | ${v.engine || ''} | ${v.drivetrain || ''} | environ $
 - Kilométrage le plus proche possible de ${km} km.
 - Sources : concessionnaires, AutoHebdo, CarGurus, Kijiji Autos, AutoTrader. Prix affichés en dollars canadiens, avant taxes.
 - Rapporte les annonces telles qu'elles sont : n'invente rien, ne calcule aucun prix, ne fais aucune moyenne. Retiens 5 à 10 annonces.
-- "demande" : vitesse de revente de ce modèle au Québec (forte = se revend très vite, ex. RAV4, Civic, Tacoma; faible = lent, luxe qui se déprécie vite, VE).
+- "demande" : vitesse de revente de ce modèle au Québec (forte = se revend très vite, ex. RAV4, Civic, Tacoma; faible = lent, ex. luxe qui se déprécie vite, modèle peu demandé). Un véhicule électrique populaire et récent (ex. Tesla Model Y, Model 3) n'est PAS « faible ».
 
 Termine par UN SEUL objet JSON valide, rien après :
 {"version_identifiee":"","edition_speciale":false,"comparables":[{"titre":"","annee":0,"version":"","prix":0,"km":0,"ville":"","source":"","url":""}],"demande":"forte|normale|faible"}`;
@@ -84,7 +84,7 @@ export async function getMarket({ vin, vehicle = {}, km }) {
   const kmN = Math.max(0, Math.round(+String(km ?? '').replace(/[^\d]/g, '') || 0));
   if (!vehicle.year || !vehicle.make || !vehicle.model) { const e = new Error('année, marque et modèle requis'); e.status = 400; throw e; }
   // v2 : la version exacte (éditions spéciales) est identifiée par le NIV; les anciennes entrées ne sont plus réutilisées
-  const cacheKey = sq ? `market/v2/${sq}-${Math.floor(kmN / 50000)}.json` : null;
+  const cacheKey = sq ? `market/v3/${sq}-${Math.floor(kmN / 50000)}.json` : null;
   const label = [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(' ');
   const t0 = Date.now();
   if (cacheKey && process.env.BLOB_READ_WRITE_TOKEN) {

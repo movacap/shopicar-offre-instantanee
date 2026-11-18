@@ -45,6 +45,17 @@ Termine par UN SEUL objet JSON : {"version":"nom court de la version, en frança
   } catch (e) { console.warn('[vin] version', e?.message || e); return null; }
 }
 
+/* Tesla : la NHTSA ne donne souvent pas la version. Le 8e caractère du NIV identifie les moteurs (code Tesla public) :
+   A/D = 1 moteur arrière (RWD), B/E = 2 moteurs (Long Range / AWD), C/F = 2 moteurs Performance. Model S/X exclus (codes différents). */
+function teslaVersion(vin, model) {
+  if (!/model\s*[3y]/i.test(model || '')) return null;
+  const c = vin[7];
+  if ('AD'.includes(c)) return { trim: 'RWD', drivetrain: 'Propulsion' };
+  if ('BE'.includes(c)) return { trim: 'Long Range AWD', drivetrain: 'Traction intégrale' };
+  if ('CF'.includes(c)) return { trim: 'Performance AWD', drivetrain: 'Traction intégrale' };
+  return null;
+}
+
 const clean = (s) => { const t = String(s ?? '').trim(); return !t || /^(not applicable|null|0)$/i.test(t) ? '' : t; };
 
 export default async function handler(req, res) {
@@ -73,9 +84,12 @@ export default async function handler(req, res) {
       transmission: tr ? (/manual/i.test(tr) ? 'Manuelle' : 'Automatique') : '',
       confiance: trim ? 'haute' : 'moyenne', notes: trim ? '' : 'Version non précisée par le NIV : confirme-la ci-dessous.', source: 'nhtsa',
     };
+    if (/tesla/i.test(make) && !vehicle.trim) { const t = teslaVersion(vin, model); if (t) { vehicle.trim = t.trim; vehicle.drivetrain = t.drivetrain; vehicle.confiance = 'haute'; vehicle.notes = ''; } }
     // Édition spéciale confirmée par une source : elle remplace la version NHTSA (le client peut encore corriger)
     const ref = await refineVersion(vin, vehicle);
     if (ref && ref.version && ref.special) { ref.version = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec ton NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
+    // Version courante confirmée par une source : seulement si la NHTSA n'en donne aucune
+    else if (ref && ref.version && !vehicle.trim) { vehicle.trim = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.confiance = 'haute'; vehicle.notes = ''; }
     console.log('[vin] ok', { vin, v: `${year} ${vehicle.make} ${model} ${vehicle.trim}`, ref });
     return res.status(200).json({ found: true, vehicle });
   } catch (e) {
