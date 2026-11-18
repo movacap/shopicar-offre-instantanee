@@ -290,7 +290,9 @@ const SHOW_BREAKDOWN = true; // afficher wholesale − frais au client
 /* Offres validées qui font monter le prix en direct : elles viennent de 360inspek (réseau Shopicar, agent.shopicar.com),
    où l'équipe envoie les offres d'achat depuis la fiche du véhicule (api/lead.js → fonction « shopicar-lead »).
    Démo : ouvrir l'app avec ?demo=1 (?demo=0 pour revenir) simule des offres (+300, +400, +300, +500 $) sans rien envoyer à 360inspek. */
-const DEMO_OFFERS = (()=>{ try{ const q=new URLSearchParams(location.search).get('demo'); if(q==='1') localStorage.setItem('sc_demo','1'); if(q==='0') localStorage.removeItem('sc_demo'); return localStorage.getItem('sc_demo')==='1'; }catch(e){ return /[?&]demo=1/.test(location.search); } })();
+/* Phase privée : démo ACTIVE PAR DÉFAUT sur ai.shopicar.com (?demo=0 la coupe sur l'appareil). À RETIRER (DEMO_DEFAULT_HOSTS = []) avant d'ouvrir au public. */
+const DEMO_DEFAULT_HOSTS = ['ai.shopicar.com'];
+const DEMO_OFFERS = (()=>{ const def=DEMO_DEFAULT_HOSTS.includes(location.hostname); try{ const q=new URLSearchParams(location.search).get('demo'); if(q==='1') localStorage.setItem('sc_demo','1'); if(q==='0') localStorage.setItem('sc_demo','0'); const v=localStorage.getItem('sc_demo'); return v==='1' || (v===null && def); }catch(e){ return /[?&]demo=1/.test(location.search) || (def && !/[?&]demo=0/.test(location.search)); } })();
 const LEAD_POLL_MS = 8000;
 /* Super Admin : ouvrir l'app avec ?admin=<clé> (gardé sur l'appareil), ?admin=0 pour revenir en vue client.
    Seul le hash SHA-256 de la clé est dans le code. La clé est envoyée au serveur (x-admin-key) pour recevoir le détail interne

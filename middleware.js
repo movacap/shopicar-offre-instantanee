@@ -1,6 +1,6 @@
 // Accès protégé par mot de passe (Vercel Routing Middleware) : toute l'app et ses API.
 // Le mot de passe n'est pas dans le code : seulement son empreinte SHA-256. Après la bonne saisie, un témoin d'un an garde l'accès sur l'appareil.
-// Pour retirer la protection : supprimer ce fichier.
+// Pour retirer la protection : supprimer ce fichier ET vider DEMO_DEFAULT_HOSTS dans index.html (démo active par défaut sur ai.shopicar.com).
 const COOKIE = 'sc_acces';
 
 export const config = { matcher: ['/((?!favicon.png|logo-blanc.png).*)'] };
