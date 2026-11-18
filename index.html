@@ -498,7 +498,7 @@ function breakdownHTML(c, totLbl){ const val=c.valuation||{}; if(!SHOW_BREAKDOWN
     ${IS_ADMIN&&(val.comparables||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Autos comparables à vendre au Québec</h3>
       <div class="kv num">${val.comparables.map(x=>`<span class="k">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="color:var(--acc)">${esc(x.titre)}</a>`:esc(x.titre)}<br><span class="small">${Number(x.km||0).toLocaleString('fr-CA')} km · ${esc(x.ville||'')}${x.source?' · '+esc(x.source):''}</span></span><span class="v">${money(x.prix||0)}</span>`).join('')}</div>
       <p class="muted small" style="margin:0">Annonces trouvées au moment du calcul. Le prix de détail inclut la marge du vendeur.</p></div>`:''}
-    ${(val.facteurs||[]).length?`<div class="card"><h3>Ce qui a compté</h3><ul class="clean">${val.facteurs.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}`; }
+    ${IS_ADMIN&&(val.facteurs||[]).length?`<div class="card"><span class="stat info">Super Admin seulement</span><h3>Ce qui a compté</h3><ul class="clean">${val.facteurs.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}`; }
 function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre</h3>
       <ul class="clean warnl">
         <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
