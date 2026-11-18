@@ -570,7 +570,9 @@ function photoSlotsHTML(c){ const dmg=needsDamagePhotos(c.answers); const n=slot
     ? `<div class="slot on"><img src="${img}" alt="${esc(label)}"><span>${esc(short||label)}</span><button class="rm" data-act="${rm}" data-slot="${key}" aria-label="Retirer">×</button></div>`
     : `<button class="slot" data-act="slot-add" data-slot="${key}"><b>+</b><span>${esc(label)}</span></button>`;
   return `<div class="card" id="photoAsk">
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
+    <div><h2 style="font-size:19px">Obtiens le meilleur prix Shopicar</h2>
+      <p class="muted" style="margin:4px 0 0">Ajoute quelques photos de ton auto et laisse Julia travailler pour toi.</p></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:2px"><h3>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
     <div class="slots">${PHOTO_SLOTS.map(([k,l,sh])=>tile(k,l,c.slots&&c.slots[k],'slot-rm',sh)).join('')}</div>
     ${dmg?`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px"><h3>Dommages déclarés</h3><span class="small num" style="color:${(c.dmg||[]).length?'var(--acc)':'var(--muted)'};font-weight:600">${(c.dmg||[]).length?'✓':'1 min.'}</span></div>
     <div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>`:''}
