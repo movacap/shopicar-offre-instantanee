@@ -922,7 +922,9 @@ $('#scanFile').addEventListener('change', async e=>{ const f=e.target.files[0]; 
     URL.revokeObjectURL(u);
   }catch(err){}
   S.busy=false;
-  if(vin && vin.length===17){ S.draft.vin=vin; toast(vinCheck(vin)?'NIV lu : '+vin:'NIV lu, vérifie-le : '+vin); }
+  // NIV lu et valide : on décode tout de suite et on passe à l'écran du véhicule (pas besoin de « Continuer »)
+  if(vin && vin.length===17 && vinCheck(vin)){ S.draft.vin=vin; rerender(); toast('NIV lu : '+vin); decodeVin(); return; }
+  if(vin && vin.length===17){ S.draft.vin=vin; toast('NIV lu, vérifie-le : '+vin); }
   else S.error="On n'a pas pu lire le NIV sur la photo. Rapproche-toi de l'étiquette, évite les reflets, ou tape-le.";
   rerender(); });
 
