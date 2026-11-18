@@ -8,6 +8,43 @@ const BODY = [
   [/sport utility|SUV|MPV/i, 'VUS'], [/sedan|saloon/i, 'Berline'], [/pickup/i, 'Camionnette'],
   [/hatchback/i, 'Hatchback'], [/coupe/i, 'Coupé'], [/convertible/i, 'Décapotable'], [/minivan/i, 'Fourgonnette'], [/van/i, 'Fourgon'], [/wagon/i, 'Familiale'],
 ];
+import { get, put } from '@vercel/blob';
+
+/* Version exacte : la NHTSA ne distingue pas toujours les éditions spéciales (ex. une MINI JCW GP sort « Hardtop JCW »).
+   On cherche le début du NIV (positions 1-8 + année) sur le web, sans jamais changer la marque, le modèle ni l'année.
+   On ne garde la version que si une source la confirme. Résultat gardé 30 jours par début de NIV (Vercel Blob privé). */
+const REFINE_TTL = 30 * 24 * 3600 * 1000;
+async function refineVersion(vin, v) {
+  const key = (process.env.ANTHROPIC_API_KEY || '').trim(); if (!key) return null;
+  const path = `vin-version/v1/${vin.slice(0, 8)}${vin[9]}.json`;
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    try { const r = await get(path, { access: 'private', useCache: false }); if (r && r.stream) { const hit = await new Response(r.stream).json(); if (Date.now() - hit.at < REFINE_TTL) return hit.v; } } catch (e) { /* pas en cache */ }
+  }
+  const prompt = `NIV : ${vin}. Décodage officiel NHTSA : ${v.year} ${v.make} ${v.model} ${v.trim || ''}.
+Cherche sur le web les 8 premiers caractères « ${vin.slice(0, 8)} » avec l'année ${v.year} pour trouver la VERSION EXACTE : édition spéciale ou limitée (ex. John Cooper Works GP, Type R, Raptor, TRD Pro, Shelby, GT3), ou version courante.
+Ne change jamais la marque, le modèle ni l'année. N'invente rien : si aucune source ne confirme, réponds avec la version donnée et "confirme": false.
+Termine par UN SEUL objet JSON : {"version":"nom court de la version, en français si possible","edition_speciale":true|false,"confirme":true|false,"source":"url"}`;
+  try {
+    let convo = [{ role: 'user', content: prompt }], j;
+    for (let t = 0; t < 3; t++) {
+      const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', signal: AbortSignal.timeout(35000),
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model: 'claude-sonnet-5-5', max_tokens: 1500, messages: convo, tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }] }),
+      });
+      j = await r.json(); if (!r.ok) throw new Error(j?.error?.message || r.status);
+      if (j.stop_reason !== 'pause_turn') break;
+      convo = [...convo, { role: 'assistant', content: j.content }];
+    }
+    const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const a = text.lastIndexOf('{'), b = text.lastIndexOf('}');
+    const out = JSON.parse(text.slice(a, b + 1));
+    const res = out.confirme === true && out.version && /^https?:\/\//.test(out.source || '') ? { version: String(out.version).slice(0, 60), special: out.edition_speciale === true, source: out.source } : { version: null };
+    if (process.env.BLOB_READ_WRITE_TOKEN) { try { await put(path, JSON.stringify({ at: Date.now(), v: res }), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); } catch (e) { /* cache facultatif */ } }
+    return res;
+  } catch (e) { console.warn('[vin] version', e?.message || e); return null; }
+}
+
 const clean = (s) => { const t = String(s ?? '').trim(); return !t || /^(not applicable|null|0)$/i.test(t) ? '' : t; };
 
 export default async function handler(req, res) {
@@ -36,7 +73,10 @@ export default async function handler(req, res) {
       transmission: tr ? (/manual/i.test(tr) ? 'Manuelle' : 'Automatique') : '',
       confiance: trim ? 'haute' : 'moyenne', notes: trim ? '' : 'Version non précisée par le NIV : confirme-la ci-dessous.', source: 'nhtsa',
     };
-    console.log('[vin] ok', { vin, v: `${year} ${vehicle.make} ${model} ${trim}` });
+    // Édition spéciale confirmée par une source : elle remplace la version NHTSA (le client peut encore corriger)
+    const ref = await refineVersion(vin, vehicle);
+    if (ref && ref.version && ref.special) { vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec ton NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
+    console.log('[vin] ok', { vin, v: `${year} ${vehicle.make} ${model} ${vehicle.trim}`, ref });
     return res.status(200).json({ found: true, vehicle });
   } catch (e) {
     console.error('[vin] erreur', e?.message || e);

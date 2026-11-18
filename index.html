@@ -452,7 +452,7 @@ function vVin(){ const d=S.draft; const v=d.vin; const len=v.length; const ok=le
         <input id="vin" class="inp vin-inp" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(v)}" placeholder="1HGCV1F3XLA000000"></div>
       <div class="vin-meta"><span id="vinHint" style="color:${ok?'var(--ok)':len===17?'var(--bad)':'var(--muted)'}">${hint}</span><span>Lettres I, O, Q exclues</span></div>
       ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
-      <button class="btn pri" id="vinGo" data-act="decode" ${len===17?'':'disabled'}>${S.busy==='decode'?'<span class="spin"></span> Décodage…':'Continuer'}</button>
+      <button class="btn pri" id="vinGo" data-act="decode" ${len===17?'':'disabled'}>${S.busy==='decode'?'<span class="spin"></span> Julia identifie ta version…':'Continuer'}</button>
     </div>
     <button class="btn ghost" data-act="julia-novin">Pas de NIV ? Écris à Julia</button>
   </div>`; }
