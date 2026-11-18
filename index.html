@@ -221,6 +221,13 @@ details.details summary::-webkit-details-marker{display:none}
 details.details .chev{transition:transform .2s;font-size:20px;line-height:1}
 details.details[open] .chev{transform:rotate(90deg)}
 details.details:not([open]){gap:0}
+.sticky-cta{position:fixed;left:0;right:0;bottom:var(--tabs-h,64px);z-index:6;background:rgba(255,255,255,.94);backdrop-filter:saturate(180%) blur(16px);-webkit-backdrop-filter:saturate(180%) blur(16px);border-top:1px solid var(--line);padding:10px 16px}
+.sticky-cta .in{max-width:520px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.sticky-cta .amt-s{display:flex;flex-direction:column;line-height:1.15;flex:0 0 auto}
+.sticky-cta .amt-s span{font-size:11.5px;color:var(--muted);font-weight:500}
+.sticky-cta .amt-s b{font-family:var(--f-display);font-size:20px;letter-spacing:-.03em}
+.sticky-cta .btn{flex:1;padding:14px 12px}
+#app:has(.sticky-cta){padding-bottom:180px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#000;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%}
 </style>
 </head>
@@ -406,7 +413,7 @@ function render(){
   else if(s==='offer') app.innerHTML=vOffer();
   else if(s==='accept') app.innerHTML=vAccept();
   else if(s==='garage') app.innerHTML=vGarage();
-  renderTabs(); bindInputs();
+  renderTabs(); setTabsH(); bindInputs();
 }
 function topbar(title, back){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<img class="logo" src="/logo-blanc.png" alt="Shopicar">`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}<span class="pill-top">Québec</span></div>`; }
 
@@ -691,7 +698,8 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton estimation</span>`:''}
       <div class="cd num">Valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>
       <button class="btn pri big" data-act="accept">Accepter mon offre et prendre rendez-vous</button>
-    </div>`:`${intro}
+    </div>
+    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>Ton offre</span><b>${money(shown)}</b></div><button class="btn pri" data-act="accept">Accepter et prendre RDV</button></div></div>`:`${intro}
     <div class="offer">
       <span class="lbl">${nu?(['acceptee','planifiee'].includes(c.status)?'Offre acceptée*':'Meilleure offre Shopicar*'):firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
       <div class="amt num">${amtHTML(shown)}</div>
@@ -760,6 +768,8 @@ function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdA
     ${S.loaded&&Store.mode!=='db'?`<p class="muted small" style="text-align:center;margin:0">Garage sauvegardé sur cet appareil.</p>`:''}
   </div>`; }
 
+function setTabsH(){ const t=document.querySelector('#tabs .tabs'); if(t) document.documentElement.style.setProperty('--tabs-h', t.offsetHeight+'px'); }
+addEventListener('resize', setTabsH);
 function renderTabs(){ const t=S.screen==='garage'?'garage':'sell'; const n=S.cars.filter(c=>c.status==='offre'&&Date.now()<c.expiresAt).length;
   $('#tabs').innerHTML=`<nav class="tabs"><div class="in">
    <button class="tab ${t==='sell'?'on':''}" data-act="tab-sell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-6a2 2 0 012-1.4h10A2 2 0 0119 7l2 6v5h-3m-12 0H3v-5m3 5a2 2 0 104 0m4 0a2 2 0 104 0M3 13h18"/></svg>Vendre</button>
