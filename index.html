@@ -604,13 +604,18 @@ $('#scanFile').addEventListener('change', async e=>{ const f=e.target.files[0]; 
 async function decodeVin(){ const d=S.draft; const v=d.vin; if(v.length!==17) return; if(S.busy) return;
   const loc=localDecode(v); const cs=vinCheck(v); S.busy='decode'; S.error=null; rerender();
   let veh=null;
-  try{
+  // 1) Base officielle NHTSA : la vraie marque, le vrai modèle, la vraie version. Aucune devinette.
+  try{ const r=await fetch('/api/vin?vin='+encodeURIComponent(v)); const j=await r.json(); if(r.ok && j.found && j.vehicle) veh=j.vehicle; }catch(err){ console.warn('[vin]',err); }
+  // 2) Repli AI seulement si la NHTSA ne connaît pas le NIV; la marque du WMI a priorité sur l'AI.
+  if(!veh) try{
     const t=await ask(`Décode ce NIV (VIN) nord-américain : ${v}
 Indices déjà calculés : fabricant probable selon le WMI = ${loc.make||'inconnu'}, année modèle selon le 10e caractère = ${loc.year||'inconnue'}, chiffre de contrôle ${cs?'valide':'INVALIDE'}.
 Utilise ta connaissance des structures de NIV (WMI, VDS positions 4 à 8, usine) pour identifier le véhicule le plus précisément possible, tel que vendu au Canada.
 Réponds UNIQUEMENT en JSON, en français pour les champs descriptifs :
 {"year":nombre,"make":"","model":"","trim":"version probable ou vide","body":"VUS, berline, camionnette, etc.","engine":"ex. 2.0 L 4 cyl. turbo","drivetrain":"Traction intégrale / Traction avant / Propulsion / 4x4","transmission":"Automatique ou Manuelle","confiance":"haute|moyenne|faible","notes":"une phrase si la version est incertaine, sinon vide"}`, {modelTier:'default'});
     veh=parseJSON(t);
+    if(loc.make && veh.make && veh.make.toLowerCase()!==loc.make.toLowerCase()){ veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Modèle non confirmé : entre le modèle et la version ci-dessous." }; }
+    else { veh.confiance='faible'; veh.notes=(veh.notes?veh.notes+' ':'')+"Modèle estimé, à confirmer."; }
   }catch(err){
     if(!loc.make && !loc.year){ S.busy=false; S.error = err.code==='not_granted' ? "Le décodage AI n'est pas disponible ici. Ouvre l'app dans Claude, ou entre ton véhicule à l'étape suivante." : "Décodage impossible pour l'instant. Réessaie dans un instant."; }
     veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Décodage partiel : complète le modèle et la version." };

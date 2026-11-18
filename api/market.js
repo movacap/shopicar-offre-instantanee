@@ -77,18 +77,20 @@ export default async function handler(req, res) {
   const kmN = Math.max(0, Math.round(+km || 0));
   if (!vehicle.year || !vehicle.make || !vehicle.model) return res.status(400).json({ error: 'année, marque et modèle requis' });
   const cacheKey = sq ? `market/${sq}-${Math.floor(kmN / 50000)}.json` : null;
+  const label = [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(' ');
   const t0 = Date.now();
 
   if (cacheKey && process.env.BLOB_READ_WRITE_TOKEN) {
     const hit = await readCache(cacheKey);
-    if (hit && Date.now() - hit.fetchedAt < TTL_MS && Array.isArray(hit.comps)) {
+    // Le cache n'est valide que pour le même véhicule décodé : un ancien mauvais décodage ne doit pas resservir.
+    if (hit && Date.now() - hit.fetchedAt < TTL_MS && Array.isArray(hit.comps) && String(hit.vehicle || '').toLowerCase() === label.toLowerCase()) {
       console.log('[market] cache', { cacheKey, comps: hit.comps.length });
       return res.status(200).json({ ...hit, cached: true });
     }
   }
   try {
     const m = await searchComparables(key, vehicle, kmN);
-    const payload = { comps: m.comps, demande: m.demande, fetchedAt: Date.now(), vehicle: [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(' ') };
+    const payload = { comps: m.comps, demande: m.demande, fetchedAt: Date.now(), vehicle: label };
     // On ne met en cache qu'un résultat exploitable : sinon le prochain essai refait la recherche.
     if (cacheKey && process.env.BLOB_READ_WRITE_TOKEN && m.comps.length >= 3) {
       try { await put(cacheKey, JSON.stringify(payload), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); }
