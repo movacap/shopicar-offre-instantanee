@@ -590,7 +590,7 @@ function photoSlotsHTML(c){ const dmg=needsDamagePhotos(c.answers); const n=slot
   return `<div class="card" id="photoAsk">
     <div style="display:flex;justify-content:space-between;align-items:baseline"><h3>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
     <div class="slots">${PHOTO_SLOTS.map(([k,l,sh])=>tile(k,l,c.slots&&c.slots[k],'slot-rm',sh)).join('')}</div>
-    ${dmg?`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px"><h3>Dommages déclarés</h3><span class="small num" style="color:${(c.dmg||[]).length?'var(--acc)':'var(--muted)'};font-weight:600">${(c.dmg||[]).length?'✓':'1 min.'}</span></div>
+    ${dmg&&n===PHOTO_SLOTS.length?`<div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:4px"><h3>Dommages déclarés</h3><span class="small num" style="color:${(c.dmg||[]).length?'var(--acc)':'var(--muted)'};font-weight:600">${(c.dmg||[]).length?'✓':'1 min.'}</span></div>
     <div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>`:''}
   </div>`; }
 const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]).filter(x=>x!==NONE_INT).length;
@@ -612,11 +612,11 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
       <h2>Obtiens le meilleur prix Shopicar</h2>
       <p>Ajoute quelques photos de ton auto et laisse Julia travailler pour toi.</p>
-      <button class="btn dark big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':`Ajouter mes photos · ${slotCount(c)}/6`}</button>
+      <button class="btn dark big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':slotCount(c)<6?`Ajouter mes photos · ${slotCount(c)}/6`:'Ajouter la photo des dommages'}</button>
     </div>
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
-    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">Ajoute les 6 photos${needsDamagePhotos(c.answers)?' et une photo des dommages':''} pour continuer.</p>`}
+    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages déclarés pour continuer.'}</p>`}
     <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
     <button class="btn sec" data-act="julia">Discuter avec Julia</button>
     ${ADVANTAGES}
