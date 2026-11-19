@@ -89,6 +89,7 @@ a.btn,a.btn:visited{text-decoration:none}
 .btn.more .mi{flex:0 0 34px;height:34px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font-size:18px;font-weight:700}
 .btn.more .mt{flex:1;display:flex;flex-direction:column;gap:2px}.btn.more .mt b{font-size:16.5px}.btn.more .mt span{font-size:13px;color:#a3a3a3;font-weight:400}
 .btn.more .mc{font-size:24px;color:#a3a3a3}
+.btn.more.lite{background:#fff;color:var(--ink,#0a0a0a);border:1.5px solid var(--acc)}.btn.more.lite .mi{color:#fff}.btn.more.lite .mt b{font-size:15.5px}.btn.more.lite .mt span{color:#737373}.btn.more.lite .mc{color:var(--acc)}
 .card.guard{border-color:var(--acc)}
 .stepk{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin-bottom:2px}
 .dmg-i{width:40px!important;height:40px!important;flex-basis:40px!important;font-size:18px!important}
@@ -716,7 +717,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
     ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}`:''}
-    ${fast&&more?`<button class="btn ghost" data-act="want-more-undo">Finalement, l'offre initiale de ${money(c.estimate)} me convient</button>`:''}
+    ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Un conseiller valide ton dossier et te confirme ton offre ferme</span></span><span class="mc">›</span></button>`:''}
     <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
     <button class="btn sec" data-act="julia">Discuter avec Julia</button>
     ${ADVANTAGES}
@@ -989,7 +990,7 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ startSearch(S.current, 'initial'); }
   else if(a==='want-more'){ S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
-  else if(a==='want-more-undo'){ S.current.wantMore=false; await Store.save(S.current); go('estimate'); }
+  else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; await Store.save(c); startSearch(c, 'initial'); }
   else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
   else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
       if(!(n>=500)){ toast('Indique le montant que tu aimerais obtenir.'); return; }
@@ -1161,7 +1162,7 @@ async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
 async function startSearch(c, intent){ if(starting) return;
   starting=true; c.intent = intent || 'meilleur_prix';
-  const btn=document.querySelector(intent==='initial'?'[data-act="initial-ok"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
+  const btn=document.querySelector(intent==='initial'?'[data-act="initial-ok"],[data-act="want-more-undo"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
   const had = !!(c.search&&c.search.leadToken);
   try{ const tok=await ensureLead(c);
     // Dossier déjà créé (ex. rendez-vous demandé avant) : on avise quand même l'équipe de l'intention du client.
