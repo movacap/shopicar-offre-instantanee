@@ -107,5 +107,5 @@ export async function getMarket({ vin, vehicle = {}, km }) {
 }
 
 /* Super Admin : clé envoyée dans l'en-tête x-admin-key, comparée par son hash SHA-256. */
-export const ADMIN_HASH = 'e0ac910f1d6830f6ffd95ad74b286386e4b12f6c4f63fabd4d61fbfdb1e7f6d4';
+export const ADMIN_HASH = '764cbe90fec6987e00d7f9e28429e9530cdfa4af07e9269e3eddca939837598e';
 export const isAdmin = (req) => { const k = String(req.headers['x-admin-key'] || ''); return !!k && createHash('sha256').update(k).digest('hex') === ADMIN_HASH; };

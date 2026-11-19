@@ -325,7 +325,7 @@ const LEAD_POLL_MS = 8000;
 /* Super Admin : ouvrir l'app avec ?admin=<clé> (gardé sur l'appareil), ?admin=0 pour revenir en vue client.
    Seul le hash SHA-256 de la clé est dans le code. La clé est envoyée au serveur (x-admin-key) pour recevoir le détail interne
    (comparables, marge, wholesale, frais), qui n'est jamais envoyé au téléphone d'un client. */
-const ADMIN_HASH = 'e0ac910f1d6830f6ffd95ad74b286386e4b12f6c4f63fabd4d61fbfdb1e7f6d4';
+const ADMIN_HASH = '764cbe90fec6987e00d7f9e28429e9530cdfa4af07e9269e3eddca939837598e';
 let IS_ADMIN = false;
 const adminKey = () => { try{ return IS_ADMIN ? (localStorage.getItem('sc_admin_key')||'') : ''; }catch(e){ return ''; } };
 async function initAdmin(){ try{
