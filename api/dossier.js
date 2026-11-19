@@ -1,7 +1,7 @@
 // Sauvegarde des dossiers de l'app dans la base Shopicar (Supabase djvaddbeeascwteetdeq, fonction offer-dossier).
 // Le secret partagé (OFFER_DB_SECRET) reste côté serveur. Chaque dossier a en plus sa propre clé, gardée sur l'appareil du client.
 const FN = 'https://djvaddbeeascwteetdeq.supabase.co/functions/v1/offer-dossier';
-const ACTIONS = new Set(['save', 'file', 'file-rm']);
+const ACTIONS = new Set(['save', 'file', 'file-rm', 'garage']);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non permise' });

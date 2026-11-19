@@ -148,6 +148,8 @@ a.btn,a.btn:visited{text-decoration:none}
 .slot b{font-size:20px;font-weight:300;color:var(--ink);line-height:1}
 .slot:not(.on){border:1.5px dashed var(--acc);background:var(--acc-soft);color:var(--acc);font-weight:600;gap:2px}
 .slot:not(.on) b{color:var(--acc);font-size:22px;font-weight:400}
+.acct{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;padding:2px 2px 0}
+.gcar.arch{opacity:.6}
 .card.focus{border:2px solid var(--acc);box-shadow:0 6px 24px rgba(0,111,235,.14)}
 .offer-mini{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#000;color:#fff;border-radius:14px;padding:12px 16px}
 .offer-mini span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#a3a3a3}
@@ -375,7 +377,8 @@ const Store = {
     }catch(e){ this.toLocal(); } }
     if(this.mode==='local'){ try{ return JSON.parse(localStorage.getItem('sc_cars')||'[]'); }catch(e){ return []; } }
     return this.mem.slice(); },
-  save(car){ if(car&&car.estimate) Cloud.key(car); const clean=JSON.parse(JSON.stringify(car)); Cloud.save(car);
+  async remove(id){ await this.init(); if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]').filter(c=>c.id!==id); localStorage.setItem('sc_cars', JSON.stringify(all)); }catch(e){} } this.mem=this.mem.filter(c=>c.id!==id); },
+  save(car, quiet){ if(car&&car.estimate) Cloud.key(car); const clean=JSON.parse(JSON.stringify(car)); if(!quiet) Cloud.save(car);
     this.chain = this.chain.then(async()=>{ await this.init();
       if(this.mode==='db'){ try{ await this.col().doc(clean.id).set(clean); return; }catch(e){ this.toLocal(); } }
       if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]'); const i=all.findIndex(c=>c.id===clean.id); if(i>=0) all[i]=clean; else all.push(clean); localStorage.setItem('sc_cars', JSON.stringify(all)); return; }catch(e){ this.mode='memory'; } }
@@ -398,9 +401,10 @@ const Cloud = {
     return this.run(c, ()=>this.call({action:'save', id:c.id, key:this.key(c), demo:!!DEMO_OFFERS, verify_token:vt, car:this.payload(c)}).then(()=>{ if(!c.dbSaved){ c.dbSaved=true; Store.save(c); } })); },
   save(c){ if(!c||!c.estimate) return; clearTimeout(this.t[c.id]); this.t[c.id]=setTimeout(()=>{ delete this.t[c.id]; this.push(c); }, 700); },
   flush(c){ if(this.t[c.id]){ clearTimeout(this.t[c.id]); delete this.t[c.id]; return this.push(c); } if(!c.dbSaved) return this.push(c); },
+  vt(c){ const pv=PV.get(); return pv&&pv.phone===phoneE164((c.answers||{}).cell)?pv.token:undefined; },
   file(c, kind, slot, blob, mime, name){ if(!c||!c.estimate||!blob) return; this.flush(c);
-    return this.run(c, async()=>this.call({action:'file', id:c.id, key:this.key(c), kind, slot, name:name||'', mime, data:await blobToB64(blob)})); },
-  rm(c, kind, slot){ if(!c||!c.estimate) return; this.flush(c); return this.run(c, ()=>this.call({action:'file-rm', id:c.id, key:this.key(c), kind, slot:slot||''})); },
+    return this.run(c, async()=>this.call({action:'file', id:c.id, key:this.key(c), verify_token:this.vt(c), kind, slot, name:name||'', mime, data:await blobToB64(blob)})); },
+  rm(c, kind, slot){ if(!c||!c.estimate) return; this.flush(c); return this.run(c, ()=>this.call({action:'file-rm', id:c.id, key:this.key(c), verify_token:this.vt(c), kind, slot:slot||''})); },
   dmgAll(c){ const B=BLOBS[c.id]; this.rm(c,'dommage'); ((B&&B.dmg)||[]).forEach((bl,i)=>this.file(c,'dommage','d'+i,bl,'image/jpeg','dommage-'+(i+1)+'.jpg')); }
 };
 
@@ -416,15 +420,23 @@ const OTP_ERR = { code_invalide:'Code incorrect.', code_expire:'Ce code est expi
   trop_de_codes:'Trop de codes demandés. Réessaie dans 15 minutes.', sms:'Impossible d\'envoyer le texto. Vérifie ton numéro.', numero_invalide:'Ce numéro de cellulaire n\'est pas valide.' };
 let OTP = {};
 async function verifyApi(body){ const r=await fetch('/api/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); const j=await r.json().catch(()=>({})); return {ok:r.ok, j}; }
-function openOtp(){ OTP={ phone:phoneE164(S.draft.answers.cell), busy:false, sending:true, err:'', info:'', code:'' }; renderOtp(); otpSend(false); }
+function openOtp(){ OTP={ mode:'offer', phone:phoneE164(S.draft.answers.cell), busy:false, sending:true, err:'', info:'', code:'' }; renderOtp(); otpSend(false); }
+function openLogin(){ OTP={ mode:'login', phone:null, busy:false, sending:false, err:'', info:'', code:'' }; renderOtp(); }
 function renderOtp(){ const busy=OTP.busy||OTP.sending;
+  if(OTP.mode==='login' && !OTP.phone){ $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet">
+    <div class="hd"><h2>Me connecter</h2><button class="btn ghost" data-act="close" style="width:auto;padding:0 4px" aria-label="Fermer">✕</button></div>
+    <div class="bd"><p style="margin:0">Entre ton cellulaire : on te texte un code pour retrouver ton garage et tes autos sur cet appareil.</p>
+      <input id="loginCell" class="inp num" type="tel" inputmode="tel" autocomplete="tel" placeholder="514 555-0123" value="${esc(OTP.cellDraft||'')}">
+      ${OTP.err?`<p class="small" style="margin:0;color:var(--bad)">${esc(OTP.err)}</p>`:''}
+      <button class="btn pri big" data-act="login-send">Recevoir mon code</button></div></div></div>`;
+    setTimeout(()=>$('#loginCell')?.focus(),60); return; }
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet">
     <div class="hd"><h2>Confirme ton cellulaire</h2><button class="btn ghost" data-act="close" style="width:auto;padding:0 4px" aria-label="Fermer">✕</button></div>
     <div class="bd">
       <p style="margin:0">${OTP.sending?'Envoi du code par texto…':`On t'a texté un code à 6 chiffres au <b class="num">${esc(fmtCell(OTP.phone))}</b>.`}</p>
       <input id="otpIn" class="inp num" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" value="${esc(OTP.code)}" style="font-size:28px;letter-spacing:.4em;text-align:center">
       ${OTP.err?`<p class="small" style="margin:0;color:var(--bad)">${esc(OTP.err)}</p>`:OTP.info?`<p class="small" style="margin:0;color:var(--ok)">${esc(OTP.info)}</p>`:''}
-      <button class="btn pri big" data-act="otp-check" ${busy||OTP.code.length!==6?'disabled':''}>${OTP.busy?'<span class="spin"></span> Vérification…':'Confirmer et voir mon offre'}</button>
+      <button class="btn pri big" data-act="otp-check" ${busy||OTP.code.length!==6?'disabled':''}>${OTP.busy?'<span class="spin"></span> Vérification…':OTP.mode==='login'?'Me connecter':'Confirmer et voir mon offre'}</button>
       <div class="row"><button class="btn sec" data-act="otp-resend" ${busy?'disabled':''}>Renvoyer le code</button><button class="btn sec" data-act="otp-edit">Modifier mon numéro</button></div>
       <p class="muted small" style="margin:0">On confirme ton numéro pour t'envoyer ton offre et protéger ton dossier. Aucun texto publicitaire.</p>
     </div></div></div>`;
@@ -439,10 +451,33 @@ async function otpSend(resend){ OTP.sending=true; OTP.err=''; OTP.info=''; rende
   if($('#otpIn')) renderOtp(); }
 async function otpCheck(){ if(OTP.busy||OTP.code.length!==6) return; OTP.busy=true; OTP.err=''; renderOtp();
   try{ const {ok,j}=await verifyApi({action:'check', phone:OTP.phone, code:OTP.code}); OTP.busy=false;
-    if(ok&&j.token){ PV.set({phone:OTP.phone, token:j.token, at:Date.now()}); $('#modal').innerHTML=''; runValuation(); return; }
+    if(ok&&j.token){ PV.set({phone:OTP.phone, token:j.token, at:Date.now()}); $('#modal').innerHTML='';
+      if(OTP.mode==='login'){ toast('Connecté. Ton garage est à jour.'); go('garage'); syncGarage(true); } else { runValuation(); syncGarage(false); } return; }
     OTP.err=(OTP_ERR[j.error]||'Vérification impossible. Réessaie.')+(j.error==='code_invalide'&&j.restants!=null?` Il te reste ${j.restants} essai${j.restants>1?'s':''}.`:''); OTP.code=''; }
   catch(e){ OTP.busy=false; OTP.err='Vérification impossible. Réessaie.'; }
   if($('#modal').innerHTML) renderOtp(); }
+
+/* ============ COMPTE (cellulaire confirmé) ============
+   Après le code texto, le garage se remplit avec toutes les autos de ce cellulaire (base Shopicar, action « garage »),
+   sur n'importe quel appareil. Les photos reviennent en liens temporaires (7 jours), rafraîchis à chaque synchronisation. */
+let syncing=false;
+async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) return; syncing=true;
+  try{ const j=await Cloud.call({action:'garage', phone:pv.phone, verify_token:pv.token});
+    let added=0;
+    for(const r of (j.cars||[])){ if(!r.state||!r.state.estimate) continue;
+      const imgs={ slots:r.slots||{}, dmg:r.dmg||[] }; const photos=[...PHOTO_SLOTS.map(([k])=>imgs.slots[k]).filter(Boolean), ...imgs.dmg];
+      const local=S.cars.find(c=>c.id===r.id);
+      if(!local){ const car=Object.assign({}, r.state, { id:r.id, archived:!!r.archived, slots:imgs.slots, dmg:imgs.dmg, photos, docs:Object.assign({}, r.state.docs||{}, r.docs||{}), dbSaved:true, fromAccount:true });
+        S.cars.push(car); await Store.save(car, true); added++; if(car.search&&car.search.leadToken&&['recherche','offre'].includes(car.status)) pollLead(car); }
+      else if(local.fromAccount || !Object.keys(local.slots||{}).length){ // liens des photos rafraîchis
+        local.slots=Object.assign({}, local.slots, imgs.slots); if(imgs.dmg.length) local.dmg=imgs.dmg; syncPhotos(local); await Store.save(local, true); } }
+    if(show && added) toast(`${added} auto${added>1?'s':''} ajoutée${added>1?'s':''} à ton garage.`);
+    if(['garage','home'].includes(S.screen)) rerender();
+  }catch(e){ if(/non_connecte/.test(e.message)){ try{ localStorage.removeItem('sc_phone_ok'); }catch(_){} if(S.screen==='garage') rerender(); } }
+  syncing=false; }
+async function logout(){ const pv=PV.get(); try{ localStorage.removeItem('sc_phone_ok'); }catch(e){}
+  if(pv){ const mine=S.cars.filter(c=>phoneE164((c.answers||{}).cell)===pv.phone); for(const c of mine) await Store.remove(c.id); S.cars=S.cars.filter(c=>!mine.includes(c)); }
+  toast('Déconnecté. Tes autos restent dans ton compte.'); rerender(); }
 
 /* ============ NIV (VIN) ============ */
 const TR={A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:1,K:2,L:3,M:4,N:5,P:7,R:9,S:2,T:3,U:4,V:5,W:6,X:7,Y:8,Z:9};
@@ -540,7 +575,7 @@ function render(){
 function topbar(title, back){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<img class="logo" src="/logo-blanc.png" alt="Shopicar">`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}<span class="pill-top">Québec</span></div>`; }
 
 function vHome(){
-  const active=S.cars.filter(c=>['estimation','recherche','offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
+  const active=S.cars.filter(c=>!c.archived&&['estimation','recherche','offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
   return `${topbar()}
   <div class="hero">
     <h1>Vends ton auto.<br>Simplement.</h1>
@@ -1056,23 +1091,26 @@ function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c);
     <button class="btn ghost" data-act="ics" style="padding:4px">Apple Calendrier / Outlook</button>
   </div>`; }
 
-function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt);
+function garageCard(c){ const st=statusInfo(c); return `<div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
+      <div class="veh">${carThumb(c)}<div style="flex:1;min-width:0"><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
+      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk" data-act="${c.archived?'unarchive':'archive'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
+      ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
+    </div>`; }
+function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get();
   return `${topbar('Mon garage')}
   <div class="wrap">
+    ${pv&&pv.token?`<div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>`
+      :`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
-    ${S.loaded&&!cars.length?`<div class="card empty"><h2>Ton garage est vide</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
-    ${cars.map(c=>{ const st=statusInfo(c); return `<div class="card gcar" data-act="open" data-id="${c.id}" role="button" tabindex="0">
-      <div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
-      <div class="bot"><span class="stat ${st.cls}">${st.txt}</span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
-      ${['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
-    </div>`; }).join('')}
+    ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
+    ${cars.map(garageCard).join('')}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
-    ${S.loaded&&Store.mode!=='db'?`<p class="muted small" style="text-align:center;margin:0">Garage sauvegardé sur cet appareil.</p>`:''}
+    ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
   </div>`; }
 
 function setTabsH(){ const t=document.querySelector('#tabs .tabs'); if(t) document.documentElement.style.setProperty('--tabs-h', t.offsetHeight+'px'); }
 addEventListener('resize', setTabsH);
-function renderTabs(){ const t=S.screen==='garage'?'garage':'sell'; const n=S.cars.filter(c=>c.status==='offre'&&Date.now()<c.expiresAt).length;
+function renderTabs(){ const t=S.screen==='garage'?'garage':'sell'; const n=S.cars.filter(c=>!c.archived&&c.status==='offre'&&Date.now()<c.expiresAt).length;
   $('#tabs').innerHTML=`<nav class="tabs"><div class="in">
    <button class="tab ${t==='sell'?'on':''}" data-act="tab-sell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-6a2 2 0 012-1.4h10A2 2 0 0119 7l2 6v5h-3m-12 0H3v-5m3 5a2 2 0 104 0m4 0a2 2 0 104 0M3 13h18"/></svg>Vendre</button>
    <button class="tab ${t==='garage'?'on':''}" data-act="tab-garage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V9l9-6 9 6v12M7 21v-7h10v7M7 17h10"/></svg>Mon garage${n?`<span class="badge">${n}</span>`:''}</button>
@@ -1119,7 +1157,13 @@ document.addEventListener('click', async e=>{
   else if(a==='rmphoto'){ const i=+el.dataset.i; S.draft.photos.splice(i,1); S.draft.photoBlobs.splice(i,1); rerender(); }
   else if(a==='quiz-next'){ if(S.step<STEPS.length-1){ S.step++; go('quiz'); } else if(phoneOk(S.draft.answers.cell)) runValuation(); else openOtp(); }
   else if(a==='otp-check'){ otpCheck(); }
+  else if(a==='login'){ openLogin(); }
+  else if(a==='login-send'){ const v=($('#loginCell')||{}).value||''; OTP.cellDraft=v; const p=phoneE164(v); if(!p){ OTP.err='Entre un numéro de cellulaire à 10 chiffres.'; renderOtp(); return; } OTP.phone=p; OTP.err=''; otpSend(false); }
+  else if(a==='logout'){ logout(); }
+  else if(a==='archive'||a==='unarchive'){ const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans ton garage.'); rerender(); } }
+  else if(a==='show-arch'){ S.showArch=!S.showArch; rerender(); }
   else if(a==='otp-resend'){ otpSend(true); }
+  else if(a==='otp-edit'&&OTP.mode==='login'){ OTP.phone=null; OTP.code=''; OTP.err=''; renderOtp(); }
   else if(a==='otp-edit'){ $('#modal').innerHTML=''; S.step=Math.max(0, STEPS.findIndex(st=>st.qs.some(q=>q.id==='cell'))); go('quiz'); setTimeout(()=>$('[data-qi="cell"]')?.focus(),80); }
   else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); S.liveShown=null; go(screenFor(S.current)); }
   else if(a==='open-offer'){ go('offer'); }
@@ -1472,7 +1516,7 @@ ${juliaContext()}`;
   jBusy=false; renderJulia(); }
 
 /* ============ GARAGE ============ */
-async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; list.forEach(c=>{ if(c.estimate&&!c.dbSaved) Cloud.save(c); }); if(S.screen==='garage'||S.screen==='home') rerender(); }
+async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; setTimeout(()=>syncGarage(false),0); list.forEach(c=>{ if(c.estimate&&!c.dbSaved) Cloud.save(c); }); if(S.screen==='garage'||S.screen==='home') rerender(); }
 
 /* comptes à rebours */
 setInterval(()=>{ document.querySelectorAll('[data-cd]').forEach(el=>{ el.textContent=timeLeft(+el.dataset.cd-Date.now()); }); }, 30000);
