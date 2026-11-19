@@ -16,14 +16,15 @@ import { get, put } from '@vercel/blob';
 const REFINE_TTL = 30 * 24 * 3600 * 1000;
 async function refineVersion(vin, v) {
   const key = (process.env.ANTHROPIC_API_KEY || '').trim(); if (!key) return null;
-  const path = `vin-version/v1/${vin.slice(0, 8)}${vin[9]}.json`;
+  const path = `vin-version/v2/${vin.slice(0, 8)}${vin[9]}.json`;
   if (process.env.BLOB_READ_WRITE_TOKEN) {
     try { const r = await get(path, { access: 'private', useCache: false }); if (r && r.stream) { const hit = await new Response(r.stream).json(); if (Date.now() - hit.at < REFINE_TTL) return hit.v; } } catch (e) { /* pas en cache */ }
   }
   const prompt = `NIV : ${vin}. Décodage officiel NHTSA : ${v.year} ${v.make} ${v.model} ${v.trim || ''}.
 Cherche sur le web les 8 premiers caractères « ${vin.slice(0, 8)} » avec l'année ${v.year} pour trouver la VERSION EXACTE : édition spéciale ou limitée (ex. John Cooper Works GP, Type R, Raptor, TRD Pro, Shelby, GT3), ou version courante.
 Ne change jamais la marque, le modèle ni l'année. N'invente rien : si aucune source ne confirme, réponds avec la version donnée et "confirme": false.
-Termine par UN SEUL objet JSON : {"version":"nom court de la version, en français si possible","edition_speciale":true|false,"confirme":true|false,"source":"url"}`;
+Liste aussi les versions offertes AU CANADA pour ce ${v.year} ${v.make} ${v.model} avec la même motorisation et la même traction, avec les NOMS CANADIENS (souvent différents des noms américains de la NHTSA, ex. Hyundai Essential/Preferred/Luxury/Ultimate au lieu de SE/SEL/Limited). Seulement des versions confirmées par une source, sinon une liste vide.
+Termine par UN SEUL objet JSON : {"version":"nom court de la version, en français si possible","edition_speciale":true|false,"confirme":true|false,"source":"url","versions_canada":["..."]}`;
   try {
     let convo = [{ role: 'user', content: prompt }], j;
     for (let t = 0; t < 3; t++) {
@@ -39,7 +40,9 @@ Termine par UN SEUL objet JSON : {"version":"nom court de la version, en frança
     const text = (j.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
     const a = text.lastIndexOf('{'), b = text.lastIndexOf('}');
     const out = JSON.parse(text.slice(a, b + 1));
-    const res = out.confirme === true && out.version && /^https?:\/\//.test(out.source || '') ? { version: String(out.version).slice(0, 60), special: out.edition_speciale === true, source: out.source } : { version: null };
+    const ok = out.confirme === true && out.version && /^https?:\/\//.test(out.source || '');
+    const trims = (Array.isArray(out.versions_canada) ? out.versions_canada : []).map((t) => String(t || '').replace(/\s*\(.*\)\s*$/, '').trim().slice(0, 40)).filter(Boolean).filter((t, i, a) => a.findIndex((x) => x.toLowerCase() === t.toLowerCase()) === i).slice(0, 8);
+    const res = ok ? { version: String(out.version).slice(0, 60), special: out.edition_speciale === true, source: out.source, trims } : { version: null, trims };
     if (process.env.BLOB_READ_WRITE_TOKEN) { try { await put(path, JSON.stringify({ at: Date.now(), v: res }), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' }); } catch (e) { /* cache facultatif */ } }
     return res;
   } catch (e) { console.warn('[vin] version', e?.message || e); return null; }
@@ -56,6 +59,8 @@ function teslaVersion(vin, model) {
   return null;
 }
 
+// La NHTSA renvoie parfois plusieurs versions pour un même début de NIV (ex. « SEL, SEL Plus ») : on les sépare.
+const splitTrims = (s) => String(s || '').split(/\s*[,;]\s*|\s+\/\s+|\s+or\s+/i).map((t) => t.trim()).filter(Boolean);
 const clean = (s) => { const t = String(s ?? '').trim(); return !t || /^(not applicable|null|0)$/i.test(t) ? '' : t; };
 
 export default async function handler(req, res) {
@@ -70,7 +75,9 @@ export default async function handler(req, res) {
       console.warn('[vin] incomplet', { vin, make, model, year, err: x.ErrorText });
       return res.status(200).json({ found: false, partial: { year, make: make ? make[0] + make.slice(1).toLowerCase() : '' } });
     }
-    const trim = [clean(x.Trim), clean(x.Series)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' ');
+    const tOpts = splitTrims(clean(x.Trim)), sOpts = splitTrims(clean(x.Series));
+    const nhtsaOpts = tOpts.length > 1 ? tOpts : sOpts.length > 1 ? sOpts : [];
+    const trim = nhtsaOpts.length ? '' : [clean(x.Trim), clean(x.Series)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' ');
     const disp = +clean(x.DisplacementL); const cyl = clean(x.EngineCylinders);
     const elec = clean(x.ElectrificationLevel);
     const fuel = /plug-in|PHEV/i.test(elec) ? 'hybride rechargeable' : /BEV|battery electric/i.test(elec) ? 'électrique' : /hybrid|HEV/i.test(elec) ? 'hybride' : '';
@@ -84,12 +91,19 @@ export default async function handler(req, res) {
       transmission: tr ? (/manual/i.test(tr) ? 'Manuelle' : 'Automatique') : '',
       confiance: trim ? 'haute' : 'moyenne', notes: trim ? '' : 'Version non précisée par le NIV : confirme-la ci-dessous.', source: 'nhtsa',
     };
+    if (nhtsaOpts.length) vehicle.trims = nhtsaOpts;
     if (/tesla/i.test(make) && !vehicle.trim) { const t = teslaVersion(vin, model); if (t) { vehicle.trim = t.trim; vehicle.drivetrain = t.drivetrain; vehicle.confiance = 'haute'; vehicle.notes = ''; } }
     // Édition spéciale confirmée par une source : elle remplace la version NHTSA (le client peut encore corriger)
     const ref = await refineVersion(vin, vehicle);
     if (ref && ref.version && ref.special) { ref.version = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec ton NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
     // Version courante confirmée par une source : seulement si la NHTSA n'en donne aucune
     else if (ref && ref.version && !vehicle.trim) { vehicle.trim = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.confiance = 'haute'; vehicle.notes = ''; }
+    // Versions canadiennes : liste à choisir. Si la version NHTSA (souvent un nom américain) n'y figure pas, le client doit choisir.
+    if (!vehicle.edition_speciale && ref && ref.trims && ref.trims.length) {
+      vehicle.trims = ref.trims;
+      if (vehicle.trim && !ref.trims.some((t) => t.toLowerCase() === vehicle.trim.toLowerCase())) vehicle.trim = '';
+    }
+    if (vehicle.trims && vehicle.trims.length && !vehicle.trim) { vehicle.trim_a_choisir = true; vehicle.confiance = 'moyenne'; vehicle.notes = 'Ton NIV ne précise pas la version exacte : choisis la tienne ci-dessous.'; }
     console.log('[vin] ok', { vin, v: `${year} ${vehicle.make} ${model} ${vehicle.trim}`, ref });
     return res.status(200).json({ found: true, vehicle });
   } catch (e) {

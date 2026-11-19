@@ -494,12 +494,13 @@ function vVin(){ const d=S.draft; const v=d.vin; const len=v.length; const ok=le
     <button class="btn ghost" data-act="julia-novin">Pas de NIV ? Écris à Julia</button>
   </div>`; }
 
+const needTrim = v => !!((v.trims||[]).length && !v.trimUnknown && !String(v.trim||'').trim());
 function vConfirm(){ const d=S.draft, v=d.vehicle||{};
   return `${topbar('Ton véhicule','vin')}
   <div class="wrap">
     <div class="card">
-      <span class="stat ${v.confiance==='faible'?'warn':'ok'}">${v.confiance==='faible'?'À vérifier':'Trouvé avec ton NIV'}</span>
-      <div class="veh">${carThumb({answers:d.answers,photos:[],vehicle:v})}<div><div class="t">${esc(vTitle(v))||'Véhicule'}</div><div class="muted">${esc(v.trim||'')}</div><div class="muted small num">NIV ${esc(d.vin)}</div></div></div>
+      <span class="stat ${v.confiance==='faible'||needTrim(v)?'warn':'ok'}">${v.confiance==='faible'?'À vérifier':needTrim(v)?'Version à confirmer':'Trouvé avec ton NIV'}</span>
+      <div class="veh">${carThumb({answers:d.answers,photos:[],vehicle:v})}<div><div class="t">${esc(vTitle(v))||'Véhicule'}</div><div class="muted">${esc(v.trim||(needTrim(v)?'Version à choisir':''))}</div><div class="muted small num">NIV ${esc(d.vin)}</div></div></div>
       <div class="kv">
         ${v.body?`<span class="k">Carrosserie</span><span class="v">${esc(v.body)}</span>`:''}
         ${v.engine?`<span class="k">Moteur</span><span class="v">${esc(v.engine)}</span>`:''}
@@ -512,7 +513,10 @@ function vConfirm(){ const d=S.draft, v=d.vehicle||{};
       <div class="row"><div class="field"><label for="vy">Année</label><input id="vy" class="inp" inputmode="numeric" data-veh="year" value="${esc(v.year||'')}"></div>
       <div class="field"><label for="vm">Marque</label><input id="vm" class="inp" data-veh="make" value="${esc(v.make||'')}"></div></div>
       <div class="field"><label for="vmo">Modèle</label><input id="vmo" class="inp" data-veh="model" value="${esc(v.model||'')}"></div>
-      <div class="field"><label for="vt">Version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="ex. A-Spec, EX-L, Limited"></div>
+      ${(v.trims||[]).length?`<div class="q"><span class="ql">Version</span><div class="chips" role="group" aria-label="Version">${v.trims.map(t=>{ const on=!v.trimOther&&!v.trimUnknown&&(v.trim||'').toLowerCase()===t.toLowerCase(); return `<button class="chip ${on?'on':''}" aria-pressed="${on}" data-act="trim" data-v="${esc(t)}">${esc(t)}</button>`; }).join('')}
+        <button class="chip ${v.trimOther?'on':''}" data-act="trim" data-v="__autre">Autre</button><button class="chip ${v.trimUnknown?'on':''}" data-act="trim" data-v="__nsp">Je ne sais pas</button></div></div>
+      ${v.trimOther?`<div class="field"><label for="vt">Ta version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="Telle qu'écrite sur ton auto ou ton contrat"></div>`:''}`
+      :`<div class="field"><label for="vt">Version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="ex. A-Spec, EX-L, Limited"></div>`}
       ${v.notes?`<div class="note">${esc(v.notes)}</div>`:''}
     </div>
     <button class="btn pri" data-act="confirm-veh">C'est bien mon auto</button>
@@ -909,7 +913,10 @@ document.addEventListener('click', async e=>{
   else if(a==='vin'){ go('vin'); }
   else if(a==='scan'){ $('#scanFile').click(); }
   else if(a==='decode'){ decodeVin(); }
+  else if(a==='trim'){ const v=S.draft.vehicle, t=el.dataset.v; v.trimUnknown=t==='__nsp'; v.trimOther=t==='__autre';
+      v.trim = (t==='__nsp'||t==='__autre') ? '' : t; rerender(); if(v.trimOther){ const i=$('#vt'); if(i) i.focus(); } }
   else if(a==='confirm-veh'){ const v=S.draft.vehicle; if(!v.year||!v.make||!v.model){ toast('Indique au moins l\'année, la marque et le modèle.'); return; }
+      if(needTrim(v)){ toast('Choisis ta version (ou « Je ne sais pas »).'); return; }
       if(v.transmission && !S.draft.answers.transmission){ S.draft.answers.transmission = /manu/i.test(v.transmission)?'Manuelle':'Automatique'; }
       S.step=0; go('quiz'); }
   else if(a==='quiz-back'){ if(S.step>0){ S.step--; go('quiz'); } else go('confirm'); }
