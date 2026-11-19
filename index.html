@@ -30,6 +30,8 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .top{background:#000;color:#fff;padding:calc(env(safe-area-inset-top) + 16px) 20px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .logo{display:block;height:22px;width:auto}
 .top .back{background:transparent;border:1px solid rgba(255,255,255,.2);color:#fff;width:36px;height:36px;border-radius:99px;font-size:20px}
+.pf-btn{background:transparent;border:1px solid rgba(255,255,255,.25);color:#fff;width:38px;height:38px;border-radius:99px;display:flex;align-items:center;justify-content:center;position:relative}
+.pf-btn.on:after{content:'';position:absolute;right:1px;bottom:1px;width:9px;height:9px;border-radius:99px;background:var(--acc);border:2px solid #000}
 .pill-top{font-size:12px;color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.2);padding:5px 10px;border-radius:99px}
 .wrap{padding:20px;display:flex;flex-direction:column;gap:14px}
 .hero{background:#000;color:#fff;padding:12px 20px 32px;display:flex;flex-direction:column;gap:14px}
@@ -649,9 +651,12 @@ function render(){
   else if(s==='prep') app.innerHTML=vPrep();
   else if(s==='garage') app.innerHTML=vGarage();
   else if(s==='settings') app.innerHTML=vSettings();
+  else if(s==='profile') app.innerHTML=vProfile();
   renderTabs(); setTabsH(); bindInputs();
 }
-function topbar(title, back){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<img class="logo" src="/logo-blanc.png" alt="Shopicar">`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}<span class="pill-top">Québec</span></div>`; }
+function topbar(title, back, right){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<img class="logo" src="/logo-blanc.png" alt="Shopicar">`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}${right||'<span class="pill-top">Québec</span>'}</div>`; }
+const PROFILE_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>';
+const profileBtn = () => { const pv=PV.get(); const on=!!(pv&&pv.token); return `<button class="pf-btn${on?' on':''}" data-act="profile-open" aria-label="Mon profil">${PROFILE_ICON}</button>`; };
 
 function vHome(){
   const active=S.cars.filter(c=>!c.archived&&['estimation','recherche','offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
@@ -1177,16 +1182,25 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
     </div></div>`; }
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get();
-  return `${topbar('Mon garage')}
+  return `${topbar('Mon garage', null, profileBtn())}
   <div class="wrap">
-    ${pv&&pv.token?`<div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>${profileCardHTML()}`
-      :`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
+    ${pv&&pv.token?'':`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
     ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
     ${cars.map(garageCard).join('')}
     ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
+    ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages du parcours rapide (Super Admin)</button>`:''}
+  </div>`; }
+
+/* ============ MON PROFIL (icône en haut à droite de Mon garage) ============ */
+function vProfile(){ const pv=PV.get(); const on=!!(pv&&pv.token);
+  return `${topbar('Mon profil','tab-garage')}
+  <div class="wrap">
+    ${on?`${profileCardHTML()}
+      <div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>`
+      :`<div class="card"><h3>Connecte-toi</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton profil et ton garage sur tous tes appareils.</p><button class="btn pri" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages du parcours rapide (Super Admin)</button>`:''}
   </div>`; }
 
@@ -1238,7 +1252,7 @@ async function saveSettingsUI(settings){ SET.data=settings; SET.busy=true; SET.e
 
 function setTabsH(){ const t=document.querySelector('#tabs .tabs'); if(t) document.documentElement.style.setProperty('--tabs-h', t.offsetHeight+'px'); }
 addEventListener('resize', setTabsH);
-function renderTabs(){ const t=(S.screen==='garage'||S.screen==='settings')?'garage':'sell'; const n=S.cars.filter(c=>!c.archived&&c.status==='offre'&&Date.now()<c.expiresAt).length;
+function renderTabs(){ const t=['garage','settings','profile'].includes(S.screen)?'garage':'sell'; const n=S.cars.filter(c=>!c.archived&&c.status==='offre'&&Date.now()<c.expiresAt).length;
   $('#tabs').innerHTML=`<nav class="tabs"><div class="in">
    <button class="tab ${t==='sell'?'on':''}" data-act="tab-sell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-6a2 2 0 012-1.4h10A2 2 0 0119 7l2 6v5h-3m-12 0H3v-5m3 5a2 2 0 104 0m4 0a2 2 0 104 0M3 13h18"/></svg>Vendre</button>
    <button class="tab ${t==='garage'?'on':''}" data-act="tab-garage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V9l9-6 9 6v12M7 21v-7h10v7M7 17h10"/></svg>Mon garage${n?`<span class="badge">${n}</span>`:''}</button>
@@ -1291,6 +1305,7 @@ document.addEventListener('click', async e=>{
   else if(a==='login'){ openLogin(); }
   else if(a==='login-send'){ const v=($('#loginCell')||{}).value||''; OTP.cellDraft=v; const p=phoneE164(v); if(!p){ OTP.err='Entre un numéro de cellulaire à 10 chiffres.'; renderOtp(); return; } OTP.phone=p; OTP.err=''; otpSend(false); }
   else if(a==='logout'){ logout(); }
+  else if(a==='profile-open'){ go('profile'); }
   else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans ton garage.'); rerender(); } }
   else if(a==='show-arch'){ S.showArch=!S.showArch; rerender(); }
   else if(a==='otp-resend'){ otpSend(true); }
