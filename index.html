@@ -84,6 +84,10 @@ a.btn,a.btn:visited{text-decoration:none}
 .dmgcard{border:2px solid var(--acc);background:#f5f9ff;gap:14px;box-shadow:0 8px 24px rgba(0,111,235,.15)}
 .jrow{display:flex;gap:12px;align-items:flex-start}.jrow .julia-av{flex:0 0 38px}.jrow>div:nth-child(2){flex:1}
 .bubble{background:var(--soft);border-radius:4px 16px 16px 16px;padding:10px 13px;font-size:15px}
+.btn.more{background:#000;color:#fff;display:flex;align-items:center;gap:12px;text-align:left;padding:15px 16px;border-radius:14px}
+.btn.more .mi{flex:0 0 34px;height:34px;border-radius:50%;background:var(--acc);display:grid;place-items:center;font-size:18px;font-weight:700}
+.btn.more .mt{flex:1;display:flex;flex-direction:column;gap:2px}.btn.more .mt b{font-size:16.5px}.btn.more .mt span{font-size:13px;color:#a3a3a3;font-weight:400}
+.btn.more .mc{font-size:24px;color:#a3a3a3}
 .card.guard{border-color:var(--acc)}
 .stepk{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin-bottom:2px}
 .dmg-i{width:40px!important;height:40px!important;flex-basis:40px!important;font-size:18px!important}
@@ -694,8 +698,8 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <p>Passe à la prochaine étape : un conseiller Shopicar valide ton dossier et te confirme ton offre ferme.</p>
       <button class="btn dark big" data-act="initial-ok">Cette offre me convient : je passe à la prochaine étape</button>
     </div>
-    <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>
-    <button class="btn sec" data-act="want-more">Je veux plus que cette offre</button>`:''}
+    <button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour toi</span></span><span class="mc">›</span></button>
+    <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
     ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoute 6 photos et tes dommages : Julia cherche ensuite le meilleur prix pour toi. Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale.</p></div>`:''}
     ${showPhotos?`<div class="best" id="bestBox">
