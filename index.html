@@ -664,9 +664,9 @@ function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre
       <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te faire une offre ajustée. Tu restes libre de refuser.</p>
     </div>`; }
 function vehHead(c){ const st=statusInfo(c); return `<div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted">${esc(c.vehicle.trim||'')}</div><span class="stat ${st.cls}" style="margin-top:6px">${st.txt}</span></div></div>`; }
-/* Photos guidées : 6 obligatoires, puis photos des dommages (2 au plus) ou confirmation « aucun dommage ». */
+/* Photos guidées : 6 obligatoires, puis photos des dommages (jusqu'à 10, plusieurs à la fois) ou confirmation « aucun dommage ». */
 const PHOTO_SLOTS=[['avant','Avant'],['gauche','Côté gauche'],['droit','Côté droit'],['arriere','Arrière'],['dash','Tableau de bord','Tableau'],['interieur','Intérieur']];
-const DMG_MAX=2;
+const DMG_MAX=10;
 const needsDamagePhotos = a => !DMG_NONE(a) || (a.rouille && a.rouille!=='Aucune');
 const slotCount = c => PHOTO_SLOTS.filter(([k])=>c.slots&&c.slots[k]).length;
 /* Après les 6 photos : le client doit soit ajouter ses dommages, soit confirmer qu'il n'y en a aucun. */
@@ -689,7 +689,9 @@ function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const 
     <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">${prep?'1 b':'Étape 2'} · ${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages te permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
     ${c.noDmg?`<div class="dmg-ok"><span>✓ Tu as confirmé que ton auto n'a aucun dommage.</span><button class="lnk" data-act="dmg-undo">Modifier</button></div>`
     :`<p class="small muted" style="margin:0">${dmg?'Tu as déclaré des dommages. Montre-les de près (bosses, égratignures, éclats, rouille).':'Bosses, égratignures, éclats, rouille? Montre-les de près.'}</p>
-    ${(c.dmg||[]).length?`<div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>`:`<button class="btn pri big" data-act="slot-add" data-slot="dmg">📷  Ajouter une photo de dommage</button>`}
+    ${(c.dmg||[]).length?`<div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>
+      ${(c.dmg||[]).length<DMG_MAX?`<button class="btn sec" data-act="slot-add" data-slot="dmg">📷  Ajouter d'autres dommages · ${(c.dmg||[]).length}/${DMG_MAX}</button>`:`<p class="small muted" style="margin:0">Maximum de ${DMG_MAX} photos atteint.</p>`}`
+      :`<button class="btn pri big" data-act="slot-add" data-slot="dmg">📷  Ajouter mes photos de dommages</button><p class="small muted" style="margin:-4px 0 0;text-align:center">Tu peux en choisir plusieurs à la fois, jusqu'à ${DMG_MAX}.</p>`}
     ${(c.dmg||[]).length?'':`<div class="dmg-or"><span>ou</span></div><button class="btn sec" data-act="dmg-none">Je confirme : mon auto n'a aucun dommage</button>`}`}
   </div>`:''}
 `; }
@@ -805,7 +807,7 @@ function vValidation(c){ const s=c.search||{}; const canNotify='Notification' in
     <p class="muted" style="margin:6px 0 0">Tu as choisi ton offre initiale de <b class="num">${money(c.estimate)}</b>. On vérifie que tes photos, tes dommages et tes documents sont conformes, puis on te confirme ton offre ferme ici et par texto.</p></div>
     <div class="jlive" id="liveMsg"><div class="jl-pulse sm"><div class="julia-av">J</div></div>
       <div class="txt"><b>Validation en cours</b><span>Un conseiller Shopicar vérifie tes photos et tes documents.</span></div><div class="jl-bar"><i></i></div></div>
-    ${pickupOk(c)?`<div class="card"><h3>Ton rendez-vous</h3><div><b>${esc(pickupLabel(c))}</b></div><p class="muted small" style="margin:0">Il est confirmé dès que tu acceptes ton offre ferme.</p></div>`:''}
+    ${pickupOk(c)?pickupCardHTML(c, (c.pickup||{}).lieu===PK_DROP?'Ton dépôt est réservé':'Ton rendez-vous est réservé'):''}
     <div class="card"><h3>Ce qu'on valide</h3>${validationListHTML(c)}
       <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te proposer une offre ajustée. Tu restes libre de refuser.</p></div>
     ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton offre ferme est confirmée. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
@@ -833,10 +835,10 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton offre initiale</span>`:''}
       ${bonusLive(c)?`<div class="bonus" style="width:100%"><span>Accepte d'ici <b class="num" data-cd="${bonusEnd(c)}">${timeLeft(bonusEnd(c)-Date.now())}</b> et reçois</span><b>+${money(BONUS_24H)}</b></div>`:''}
       <div class="cd num">Offre valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>
-      <button class="btn pri big" data-act="accept">${bonusLive(c)?`Accepter ${money(shown+BONUS_24H)} et ${prepReady(c)?'confirmer mon rendez-vous':'prendre rendez-vous'}`:`Accepter mon offre et ${prepReady(c)?'confirmer mon rendez-vous':'prendre rendez-vous'}`}</button>
-      ${prepReady(c)?`<div class="small" style="color:#d4d4d4;text-align:center;width:100%">Ton rendez-vous : ${esc(pickupLabel(c))}</div>`:''}
+      <button class="btn pri big" data-act="accept">${bonusLive(c)?(prepReady(c)?`Accepter ${money(shown+BONUS_24H)}`:`Accepter ${money(shown+BONUS_24H)} et prendre rendez-vous`):(prepReady(c)?'Accepter mon offre':'Accepter mon offre et prendre rendez-vous')}</button>
+      ${prepReady(c)?`<div class="small" style="color:#d4d4d4;text-align:center;width:100%">Ton rendez-vous est déjà réservé. Il est confirmé dès que tu acceptes.</div>`:''}
     </div>
-    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>${bonusLive(c)?'Avec bonus 24 h':'Ton offre'}</span><b>${money(shown+(bonusLive(c)?BONUS_24H:0))}</b></div><button class="btn pri" data-act="accept">${prepReady(c)?'Accepter et confirmer':'Accepter et prendre RDV'}</button></div></div>`:`${intro}
+    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>${bonusLive(c)?'Avec bonus 24 h':'Ton offre'}</span><b>${money(shown+(bonusLive(c)?BONUS_24H:0))}</b></div><button class="btn pri" data-act="accept">${prepReady(c)?'Accepter':'Accepter et prendre RDV'}</button></div></div>`:`${intro}
     <div class="offer">
       <span class="lbl">${nu?(['acceptee','planifiee'].includes(c.status)?'Offre acceptée*':'Meilleure offre Shopicar · Offre ferme*'):firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
       <div class="amt num">${amtHTML(shown)}</div>
@@ -846,6 +848,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       ${bonusLive(c)&&!expired?`<div class="bonus"><span>Accepte d'ici <b class="num" data-cd="${bonusEnd(c)}" style="font-size:14px;font-family:var(--f-body)">${timeLeft(bonusEnd(c)-Date.now())}</b></span><b>+${money(BONUS_24H)}</b></div>`:''}
       ${c.finalOffer&&c.finalOffer>c.offer?`<div class="small" style="color:#66a9f3">Bonus 24 h inclus : +${money(c.finalOffer-c.offer)}</div>`:''}
     </div>`}
+    ${official&&prepReady(c)?pickupCardHTML(c, (c.pickup||{}).lieu===PK_DROP?'Ton dépôt est réservé':'Ton rendez-vous est réservé'):''}
     ${official&&diff>=0?'':story}
     ${expired?`<button class="btn pri" data-act="reeval">Réévaluer mon auto</button>`:''}
     ${firm&&!expired&&!official?`<button class="btn pri" data-act="accept">${nu?'Accepter mon offre et prendre rendez-vous':'Accepter '+money(c.offer+(bonusLive(c)?BONUS_24H:0))}</button>`:''}
@@ -921,9 +924,9 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
       ${p1?docsHTML(c,true):wait('Ajoute d\'abord tes photos et tes dommages.')}</div>
     <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Ton rendez-vous de dépôt':'Ton rendez-vous','Choisis où et quand on se rencontre, sans frais.',!(p1&&p2))}
       ${p1&&p2?pickupFormHTML(c):wait('Ajoute d\'abord tes documents.')}</div>
-    <div class="card stp">${head(4,false,'Validation par un conseiller','Il vérifie que tes photos et tes documents sont conformes, puis te confirme ton offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+    <div class="card stp">${head(4,false,'Validation du dossier','On vérifie que tes photos et tes documents sont conformes, puis on te confirme ton offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       ${validationListHTML(c)}</div>
-    <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer mon dossier pour validation</button>
+    <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer le dossier</button>
     ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!p1&&'tes photos et tes dommages',!p2&&'tes documents',!p3&&'ton rendez-vous'].filter(Boolean).join(', ')}.</p>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     <button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>
@@ -996,11 +999,11 @@ function downloadIcs(c){ const ev=pickupEvent(c); if(!ev) return; const x=s=>Str
     `DTSTART;TZID=America/Toronto:${ev.start}`,`DTEND;TZID=America/Toronto:${ev.end}`,`SUMMARY:${x(ev.title)}`,`LOCATION:${x(ev.where)}`,`DESCRIPTION:${x(ev.details)}`,
     'BEGIN:VALARM','TRIGGER:-PT12H','ACTION:DISPLAY','DESCRIPTION:Rappel Shopicar','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
   const url=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'})); const l=document.createElement('a'); l.href=url; l.download='shopicar-rendez-vous.ics'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); }
-function pickupCardHTML(c){ const pk=c.pickup||{}; const ev=pickupEvent(c); if(!ev) return ''; const drop=pk.lieu===PK_DROP; const a=pk.agent;
+function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c); if(!ev) return ''; const drop=pk.lieu===PK_DROP; const a=pk.agent;
   const line=(i,t,sub)=>`<div style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:18px;width:22px;text-align:center">${i}</span><div style="flex:1;min-width:0"><b>${t}</b>${sub?`<div class="muted small">${sub}</div>`:''}</div></div>`;
   const mapQ = drop ? (a ? (a.demo ? a.ville+' '+a.postal : agentAddr(a)) : '') : (pk.adresse||'');
   return `<div class="card">
-    <span class="stat info">${drop?'Dépôt planifié':'Cueillette planifiée'}</span>
+    <span class="stat info">${tag||(drop?'Dépôt planifié':'Cueillette planifiée')}</span>
     ${line('📅', ev.label.charAt(0).toUpperCase()+ev.label.slice(1), drop?'Présente-toi pendant cette plage':'On arrive pendant cette plage')}
     ${line('🕒', esc(pk.slot||''), '')}
     ${drop ? line('📍', a?esc(a.nom):'Agent Shopicar', a ? `${esc(agentAddr(a))}${a.km!=null?` · ${a.km<1?'moins de 1':a.km} km de chez toi`:''}${a.heures?`<br>${esc(a.heures)}`:''}${a.tel?`<br><a href="tel:${esc(a.tel.replace(/[^\d+]/g,''))}">${esc(a.tel)}</a>`:''}` : 'Un conseiller te confirme l\'adresse')
@@ -1091,7 +1094,7 @@ document.addEventListener('click', async e=>{
       if(wi){ const n=Number(String(wi.value).replace(/[^\d]/g,'')); c.wish=n>=500?n:null; if(!c.wish){ toast('Indique d\'abord le prix que tu aimerais obtenir.'); $('#bestBox')?.scrollIntoView({behavior:'smooth',block:'start'}); wi.focus({preventScroll:true}); return; } Store.save(c); }
       if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
       document.querySelectorAll('#photoAsk button.slot').forEach(x=>{ x.classList.remove('need'); void x.offsetWidth; x.classList.add('need'); }); return; } startSearch(c); }
-  else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; $('#slotFile').click(); }
+  else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; const fi=$('#slotFile'); fi.multiple = el.dataset.slot==='dmg'; fi.click(); }
   else if(a==='slot-rm'){ const c=S.current; Cloud.rm(c,'photo',el.dataset.slot); delete c.slots[el.dataset.slot]; if(BLOBS[c.id]) delete BLOBS[c.id].slots[el.dataset.slot]; syncPhotos(c); Store.save(c); rerender(); }
   else if(a==='dmg-rm'){ const c=S.current; const i=+el.dataset.slot; c.dmg.splice(i,1); if(BLOBS[c.id]) BLOBS[c.id].dmg.splice(i,1); Cloud.dmgAll(c); syncPhotos(c); Store.save(c); rerender(); }
   else if(a==='conseiller'){ openRdv('appel'); }
@@ -1137,14 +1140,20 @@ $('#photoFile').addEventListener('change', async e=>{
   for(const f of files){ try{ const {im,u}=await loadImg(f); S.draft.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); S.draft.photoBlobs.push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
   rerender(); });
 
-$('#slotFile').addEventListener('change', async e=>{ const f=e.target.files[0]; e.target.value=''; const c=S.current; const key=S.slotTarget; if(!f||!c||!key) return;
-  try{ const {im,u}=await loadImg(f); const thumb=draw(im,320).toDataURL('image/jpeg',.6); const blob=await toBlob(draw(im,1024),.8); URL.revokeObjectURL(u);
-    const B=(BLOBS[c.id] ||= {slots:{},dmg:[]}); if(Array.isArray(B)){ BLOBS[c.id]={slots:{},dmg:[]}; }
-    if(key==='dmg'){ c.dmg=c.dmg||[]; if(c.dmg.length<DMG_MAX){ c.dmg.push(thumb); BLOBS[c.id].dmg.push(blob); } }
-    else { c.slots=c.slots||{}; c.slots[key]=thumb; BLOBS[c.id].slots[key]=blob; }
-    syncPhotos(c); await Store.save(c); rerender();
-    if(key==='dmg') Cloud.dmgAll(c); else Cloud.file(c,'photo',key,BLOBS[c.id].slots[key],'image/jpeg',key+'.jpg');
-  }catch(err){ toast('Photo illisible. Réessaie.'); } });
+$('#slotFile').addEventListener('change', async e=>{ const c=S.current; const key=S.slotTarget; const files=[...e.target.files]; e.target.value=''; if(!files.length||!c||!key) return;
+  if(!BLOBS[c.id] || Array.isArray(BLOBS[c.id])) BLOBS[c.id]={slots:{},dmg:[]};
+  const B=BLOBS[c.id]; const added=[]; let bad=0;
+  for(const f of (key==='dmg'?files:files.slice(0,1))){
+    if(key==='dmg' && (c.dmg||[]).length>=DMG_MAX){ toast(`${DMG_MAX} photos de dommages au maximum.`); break; }
+    try{ const {im,u}=await loadImg(f); const thumb=draw(im,320).toDataURL('image/jpeg',.6); const blob=await toBlob(draw(im,1024),.8); URL.revokeObjectURL(u);
+      if(key==='dmg'){ c.dmg=c.dmg||[]; c.dmg.push(thumb); B.dmg.push(blob); added.push(c.dmg.length-1); }
+      else { c.slots=c.slots||{}; c.slots[key]=thumb; B.slots[key]=blob; added.push(key); }
+    }catch(err){ bad++; } }
+  if(bad) toast(bad>1?'Certaines photos sont illisibles. Réessaie.':'Photo illisible. Réessaie.');
+  if(!added.length) return;
+  syncPhotos(c); await Store.save(c); rerender();
+  if(key==='dmg') added.forEach(i=>Cloud.file(c,'dommage','d'+i,B.dmg[i],'image/jpeg','dommage-'+(i+1)+'.jpg'));
+  else Cloud.file(c,'photo',key,B.slots[key],'image/jpeg',key+'.jpg'); });
 
 /* ============ SCAN NIV ============ */
 let zxingP=null;
