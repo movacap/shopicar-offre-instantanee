@@ -90,6 +90,7 @@ a.btn,a.btn:visited{text-decoration:none}
 .btn.more .mt{flex:1;display:flex;flex-direction:column;gap:2px}.btn.more .mt b{font-size:16.5px}.btn.more .mt span{font-size:13px;color:#a3a3a3;font-weight:400}
 .btn.more .mc{font-size:24px;color:#a3a3a3}
 .btn.more.lite{background:#fff;color:var(--ink,#0a0a0a);border:1.5px solid var(--acc)}.btn.more.lite .mi{color:#fff}.btn.more.lite .mt b{font-size:15.5px}.btn.more.lite .mt span{color:#737373}.btn.more.lite .mc{color:var(--acc)}
+@keyframes pulseBtn{0%,100%{transform:scale(1)}50%{transform:scale(1.04)}}.pulse{animation:pulseBtn .45s ease 2}
 .card.guard{border-color:var(--acc)}
 .stepk{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin-bottom:2px}
 .dmg-i{width:40px!important;height:40px!important;flex-basis:40px!important;font-size:18px!important}
@@ -989,7 +990,9 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-none'){ const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ startSearch(S.current, 'initial'); }
-  else if(a==='want-more'){ S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
+  else if(a==='want-more'){ openMoreModal(); }
+  else if(a==='more-keep'){ $('#modal').innerHTML=''; const b=document.querySelector('[data-act="initial-ok"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); } }
+  else if(a==='more-go'){ $('#modal').innerHTML=''; S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
   else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; await Store.save(c); startSearch(c, 'initial'); }
   else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
   else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
@@ -1259,6 +1262,20 @@ async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:0
   else if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
   c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label};
   await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller te rappelle à l\'heure choisie.':(c.estimate?'Demande de rendez-vous envoyée. Un conseiller te confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
+
+/* « Je veux plus » : avertissement avant de quitter l'offre initiale */
+function openMoreModal(){ const c=S.current;
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Avant de continuer</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  <div class="bd">
+    <div class="jrow"><div class="julia-av">J</div><div class="bubble">Je vais essayer d'obtenir le meilleur prix possible, le plus proche de ce que tu veux.</div></div>
+    <ul class="clean warnl">
+      <li><span>Les offres reçues peuvent être <b>plus hautes ou plus basses</b> que ton offre initiale.</span></li>
+      <li><span>Ton offre initiale de <b class="num">${money(c.estimate)}</b> <b>ne sera plus garantie</b>.</span></li>
+      <li><span>Tu devras ajouter 6 photos et tes dommages pour que Julia travaille pour toi.</span></li>
+    </ul>
+    <button class="btn pri big" data-act="more-go">Je veux que Julia me trouve le meilleur prix</button>
+    <button class="btn sec big" data-act="more-keep">Ok, je garde mon offre initiale de ${money(c.estimate)}</button>
+  </div></div></div>`; }
 
 /* ============ JULIA ============ */
 function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.'; return juliaContext0(c) + (c.wish?` Le client aimerait obtenir ${money(c.wish)}; rappelle-lui que les offres reçues peuvent être plus hautes ou plus basses que l'offre initiale, et qu'avec ses photos et dommages, Julia cherche le meilleur prix.`:'') + (c.fastTrack&&!c.fastTrack.ok&&c.status==='estimation'?' Ce véhicule est dans une catégorie plus difficile à évaluer : il faut ses photos et ses dommages pour une offre ferme; ne propose pas d\'accepter l\'offre initiale telle quelle.':''); }
