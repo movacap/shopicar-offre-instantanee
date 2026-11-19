@@ -570,6 +570,9 @@ function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
 
 /* ============ QUESTIONNAIRE ============ */
 const NONE_EXT='Aucun dommage', NONE_INT='Aucun dommage', NONE_LIGHT='Aucun voyant', NONE_TITLE='Rien à déclarer', NONE_MOD="Aucune, tout d'origine";
+const TX_SALE='Vente seulement', TX_TRADE='Échange (trade-in) contre une autre auto';
+const isTrade = a => (a||{}).transaction===TX_TRADE;
+const tradeNote = a => isTrade(a) ? `ÉCHANGE (trade-in) : le client recherche ${String((a||{}).recherche||'modèle non précisé').trim()}.` : ((a||{}).transaction ? 'Vente seulement (pas d\'échange).' : '');
 const STEPS=[
  {title:'Ton auto', qs:[
   {id:'km', label:'Kilométrage actuel', type:'number', suffix:'km', req:true, ph:'ex. 84 500'},
@@ -599,6 +602,8 @@ const STEPS=[
   {id:'modifs', label:'Modifications', type:'multi', req:true, none:NONE_MOD, opts:[NONE_MOD,'Suspension','Échappement','Performance','Wrap / esthétique','Système de son']}
  ]},
  {title:'Contact', qs:[
+  {id:'transaction', label:'Vente seulement ou échange ?', type:'single', req:true, opts:[TX_SALE, TX_TRADE]},
+  {id:'recherche', label:'Quel modèle de voiture recherches-tu ?', type:'text', req:true, show:a=>a.transaction===TX_TRADE, ph:'ex. Toyota RAV4 2022 ou plus récent', hint:'Marque, modèle, année ou budget : un conseiller Shopicar te proposera des autos qui correspondent.'},
   {id:'quand', label:'Quand veux-tu vendre ?', type:'single', req:true, opts:['Cette semaine','D\'ici 3 mois','Je veux juste savoir']},
   {id:'nom', label:'Nom complet', type:'text', req:true, ph:'Prénom et nom', hint:'Le nom inscrit sur ton certificat d\'immatriculation.'},
   {id:'cell', label:'Cellulaire', type:'tel', req:true, ph:'514 555-0123', hint:"Ton offre est sauvegardée dans ton garage. Julia te texte seulement pour ton dossier."}
@@ -896,8 +901,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
     ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}`:''}
     ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complète ton dossier : un conseiller le valide et te confirme ton offre ferme</span></span><span class="mc">›</span></button>`:''}
-    <button class="btn sec" data-act="conseiller">Parler à un conseiller</button>
-    <button class="btn sec" data-act="julia">Discuter avec Julia</button>
+    <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     ${ADVANTAGES}
     ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller demandé':'Rendez-vous demandé'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
     ${clientDetailsHTML(c)}
@@ -1480,7 +1484,7 @@ const inspekBusy={};
 async function inspekDraft(c){ if(!c||!c.estimate||c.archived||c.inspekToken||(c.search&&c.search.leadToken)||inspekBusy[c.id]) return; if(!phoneE164((c.answers||{}).cell)) return;
   inspekBusy[c.id]=true;
   try{ const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{});
-    const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos:[], stage:'offre_initiale', demo:!!DEMO_OFFERS, valuation:{ drapeaux:[...(((c.valuation||{}).drapeaux)||[])] } }});
+    const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos:[], stage:'offre_initiale', demo:!!DEMO_OFFERS, valuation:{ drapeaux:[...(tradeNote(c.answers)?[tradeNote(c.answers)]:[]), ...(((c.valuation||{}).drapeaux)||[])] } }});
     if(j&&j.token){ c.inspekToken=j.token; await Store.save(c); } }
   catch(e){ console.warn('[360inspek] brouillon', e.message); }
   finally{ inspekBusy[c.id]=false; } }
@@ -1493,7 +1497,7 @@ async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.l
   const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
   for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
-  const notes=[...(((c.valuation||{}).drapeaux)||[])];
+  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
   const D=B.docs||{}; const documents=[]; for(const [k,label] of docsNeed(c)){ const d=D[k]; if(d&&d.blob) documents.push({ type:k, label, name:d.name, mime:d.mime, data:await blobToB64(d.blob) }); }
   if(c.intent==='initial'){
     if(pickupOk(c)) notes.unshift(`Rendez-vous choisi par le client : ${pickupLabel(c)} (confirmé à l'acceptation de l'offre ferme).`);
@@ -1641,7 +1645,7 @@ function openMoreModal(){ const c=S.current;
   </div></div></div>`; }
 
 /* ============ JULIA ============ */
-function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.'; return juliaContext0(c) + (c.wish?` Le client aimerait obtenir ${money(c.wish)}; rappelle-lui que les offres reçues peuvent être plus hautes ou plus basses que l'offre initiale, et qu'avec ses photos et dommages, Julia cherche le meilleur prix.`:'') + (c.fastTrack&&!c.fastTrack.ok&&c.status==='estimation'?' Ce véhicule est dans une catégorie plus difficile à évaluer : il faut ses photos et ses dommages pour une offre ferme; ne propose pas d\'accepter l\'offre initiale telle quelle.':''); }
+function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.'; return juliaContext0(c) + (isTrade(c.answers)?` Le client veut ÉCHANGER son auto (trade-in) et recherche : ${c.answers.recherche||'modèle non précisé'}. Un conseiller lui proposera des autos qui correspondent.`:'') + (c.wish?` Le client aimerait obtenir ${money(c.wish)}; rappelle-lui que les offres reçues peuvent être plus hautes ou plus basses que l'offre initiale, et qu'avec ses photos et dommages, Julia cherche le meilleur prix.`:'') + (c.fastTrack&&!c.fastTrack.ok&&c.status==='estimation'?' Ce véhicule est dans une catégorie plus difficile à évaluer : il faut ses photos et ses dommages pour une offre ferme; ne propose pas d\'accepter l\'offre initiale telle quelle.':''); }
 function juliaContext0(c){
   if(c.estimate && ['estimation','recherche'].includes(c.status)){ const b=bestOffer(c);
     return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}, ${(c.photos||[]).length} photo(s). Offre initiale Shopicar : ${money(c.estimate)} (offre initiale conditionnelle suite à la réception des photos et dommages; pas une offre garantie, le prix final peut être plus haut ou plus bas). ${c.status==='recherche'?(b?`Shopicar cherche le meilleur prix; meilleure offre validée jusqu'ici : ${money(b.amount)}.`:'Shopicar cherche le meilleur prix; aucune offre validée pour l\'instant.'):'Le client n\'a pas encore lancé la recherche du meilleur prix (bouton « Obtenir mon meilleur prix Shopicar »). Encourage-le à ajouter des photos (avant, arrière, côtés, tableau de bord, dommages) s\'il n\'en a pas.'} Ne donne jamais d'autre montant que ceux-ci.`; }
