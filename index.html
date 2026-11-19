@@ -461,7 +461,11 @@ async function otpSend(resend){ OTP.sending=true; OTP.err=''; OTP.info=''; rende
 async function otpCheck(){ if(OTP.busy||OTP.code.length!==6) return; OTP.busy=true; OTP.err=''; renderOtp();
   try{ const {ok,j}=await verifyApi({action:'check', phone:OTP.phone, code:OTP.code}); OTP.busy=false;
     if(ok&&j.token){ PV.set({phone:OTP.phone, token:j.token, at:Date.now()}); $('#modal').innerHTML='';
-      if(OTP.mode==='login'){ toast('Connecté. Ton garage est à jour.'); go('garage'); syncGarage(true); } else { runValuation(); syncGarage(false); } return; }
+      if(OTP.mode==='login'){ toast('Connecté. Ton garage est à jour.'); go('garage'); syncGarage(true); }
+      else { const a=S.draft.answers; runValuation(); syncGarage(false).then(()=>{ const pf=PROFILE.get()||{}; const up={};
+          if(!pf.full_name&&a.nom) up.full_name=a.nom.trim(); if(!pf.postal&&a.postal) up.postal=String(a.postal).trim().toUpperCase();
+          if(Object.keys(up).length) profileApi(up).catch(()=>{}); }); }
+      return; }
     OTP.err=(OTP_ERR[j.error]||'Vérification impossible. Réessaie.')+(j.error==='code_invalide'&&j.restants!=null?` Il te reste ${j.restants} essai${j.restants>1?'s':''}.`:''); OTP.code=''; }
   catch(e){ OTP.busy=false; OTP.err='Vérification impossible. Réessaie.'; }
   if($('#modal').innerHTML) renderOtp(); }
@@ -469,9 +473,38 @@ async function otpCheck(){ if(OTP.busy||OTP.code.length!==6) return; OTP.busy=tr
 /* ============ COMPTE (cellulaire confirmé) ============
    Après le code texto, le garage se remplit avec toutes les autos de ce cellulaire (base Shopicar, action « garage »),
    sur n'importe quel appareil. Les photos reviennent en liens temporaires (7 jours), rafraîchis à chaque synchronisation. */
+const PROFILE={ get(){ try{ return JSON.parse(localStorage.getItem('sc_profile')||'null'); }catch(e){ return null; } }, set(v){ try{ localStorage.setItem('sc_profile', JSON.stringify(v||null)); }catch(e){} } };
+async function profileApi(profile){ const pv=PV.get(); if(!pv||!pv.token) throw new Error('non_connecte');
+  const j=await Cloud.call({action:'profile-save', phone:pv.phone, verify_token:pv.token, profile}); PROFILE.set(j.profile); return j.profile; }
+function openProfile(){ const pf=PROFILE.get()||{};
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet">
+    <div class="hd"><h2>Mon profil</h2><button class="btn ghost" data-act="close" style="width:auto;padding:0 4px" aria-label="Fermer">✕</button></div>
+    <div class="bd">
+      <div class="field"><label for="pfNom">Nom complet</label><input id="pfNom" class="inp" autocomplete="name" value="${esc(pf.full_name||'')}" placeholder="Prénom et nom"></div>
+      <div class="field"><label for="pfAdr">Adresse</label><input id="pfAdr" class="inp" autocomplete="street-address" value="${esc(pf.address||'')}" placeholder="Numéro et rue"></div>
+      <div class="row"><div class="field" style="flex:2"><label for="pfVille">Ville</label><input id="pfVille" class="inp" autocomplete="address-level2" value="${esc(pf.city||'')}" placeholder="Ville"></div>
+        <div class="field" style="flex:1"><label for="pfPostal">Code postal</label><input id="pfPostal" class="inp" autocomplete="postal-code" maxlength="7" value="${esc(pf.postal||'')}" placeholder="H2X 1Y4"></div></div>
+      <p id="pfErr" class="small" style="margin:0;color:var(--bad)"></p>
+      <button class="btn pri big" data-act="profile-save">Enregistrer</button>
+      <p class="muted small" style="margin:0">Sert à préremplir tes prochaines offres et l'adresse de cueillette.</p>
+    </div></div></div>`; }
+async function saveProfile(){ const v=id=>(($('#'+id)||{}).value||'').trim(); const nom=v('pfNom'), postal=v('pfPostal').toUpperCase();
+  const err=t=>{ const e=$('#pfErr'); if(e) e.textContent=t; };
+  if(nom.split(/\s+/).filter(w=>w.length>1).length<2) return err('Entre ton prénom et ton nom.');
+  if(postal && !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(postal)) return err('Code postal invalide (ex. H2X 1Y4).');
+  const b=$('[data-act="profile-save"]'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span> Enregistrement…'; }
+  try{ await profileApi({ full_name:nom, address:v('pfAdr'), city:v('pfVille'), postal }); $('#modal').innerHTML=''; toast('Profil enregistré.'); rerender(); }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Enregistrer'; } err(/non_connecte/.test(e.message)?'Reconnecte-toi avec ton cellulaire.':'Enregistrement impossible. Réessaie.'); } }
+function profileCardHTML(){ const pv=PV.get(); const pf=PROFILE.get()||{}; const adr=[pf.address, pf.city].filter(Boolean).join(', ');
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Mon profil</h3><button class="lnk" data-act="profile-edit" style="color:var(--acc);text-decoration:none;font-weight:600">Modifier</button></div>
+    <div class="kv"><span class="k">Nom</span><span class="v">${pf.full_name?esc(pf.full_name):'<span class="muted">À compléter</span>'}</span>
+      <span class="k">Cellulaire</span><span class="v num">${esc(fmtCell(pv.phone))} ✓</span>
+      <span class="k">Adresse</span><span class="v">${adr?esc(adr):'<span class="muted">À compléter</span>'}</span>
+      <span class="k">Code postal</span><span class="v">${pf.postal?esc(pf.postal):'<span class="muted">À compléter</span>'}</span></div></div>`; }
 let syncing=false;
 async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) return; syncing=true;
   try{ const j=await Cloud.call({action:'garage', phone:pv.phone, verify_token:pv.token});
+    PROFILE.set(j.profile||null);
     let added=0;
     for(const r of (j.cars||[])){ if(!r.state||!r.state.estimate) continue;
       const imgs={ slots:r.slots||{}, dmg:r.dmg||[] }; const photos=[...PHOTO_SLOTS.map(([k])=>imgs.slots[k]).filter(Boolean), ...imgs.dmg];
@@ -485,7 +518,7 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
   }catch(e){ if(/non_connecte/.test(e.message)){ try{ localStorage.removeItem('sc_phone_ok'); }catch(_){} if(S.screen==='garage') rerender(); } }
   syncing=false; }
 async function logout(){ // vide tout le garage de cet appareil (autos, photos, brouillon); les dossiers restent dans le compte
-  try{ localStorage.removeItem('sc_phone_ok'); localStorage.removeItem('sc_cars'); }catch(e){}
+  try{ localStorage.removeItem('sc_phone_ok'); localStorage.removeItem('sc_cars'); localStorage.removeItem('sc_profile'); }catch(e){}
   Object.values(Cloud.t).forEach(clearTimeout); Cloud.t={};
   Store.mem=[]; S.cars=[]; S.current=null; S.draft=null; S.drop=null; S.showArch=false;
   for(const k of Object.keys(BLOBS)) delete BLOBS[k];
@@ -567,12 +600,13 @@ const STEPS=[
  ]},
  {title:'Contact', qs:[
   {id:'quand', label:'Quand veux-tu vendre ?', type:'single', req:true, opts:['Cette semaine','D\'ici 3 mois','Je veux juste savoir']},
-  {id:'prenom', label:'Prénom', type:'text', req:true, ph:'Ton prénom'},
+  {id:'nom', label:'Nom complet', type:'text', req:true, ph:'Prénom et nom', hint:'Le nom inscrit sur ton certificat d\'immatriculation.'},
   {id:'cell', label:'Cellulaire', type:'tel', req:true, ph:'514 555-0123', hint:"Ton offre est sauvegardée dans ton garage. Julia te texte seulement pour ton dossier."}
  ]}
 ];
 function visibleQs(step, a){ return STEPS[step].qs.filter(q=>!q.show || q.show(a)); }
 function answered(q,a){ const v=a[q.id]; if(!q.req) return true; if(q.type==='multi') return Array.isArray(v)&&v.length>0;
+  if(q.id==='nom') return String(v||'').trim().split(/\s+/).filter(w=>w.length>1).length>=2;
   if(q.id==='cell') return String(v||'').replace(/\D/g,'').length>=10;
   if(q.id==='postal') return /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/.test(String(v||'').trim());
   if(q.type==='number') return Number(String(v||'').replace(/[^\d]/g,''))>0 || (q.id==='solde' && String(v)==='0');
@@ -582,7 +616,9 @@ function answered(q,a){ const v=a[q.id]; if(!q.req) return true; if(q.type==='mu
 const BLOBS = {}; // photos 1024 px par auto, en mémoire seulement (envoyées à 360inspek au lancement de la recherche)
 const S = { screen:'home', tab:'sell', draft:null, step:0, cars:[], loaded:false, current:null, error:null, busy:false, chat:[], loadStage:0 };
 
-function newDraft(){ return { id:uid(), vin:'', vinOk:false, vehicle:null, answers:{}, photos:[], photoBlobs:[] }; }
+function newDraft(){ const pf=PROFILE.get()||{}, pv=PV.get(); const a={};
+  if(pf.full_name){ a.nom=pf.full_name; a.prenom=pf.full_name.split(/\s+/)[0]; } if(pf.postal) a.postal=pf.postal; if(pv&&pv.phone) a.cell=fmtCell(pv.phone);
+  return { id:uid(), vin:'', vinOk:false, vehicle:null, answers:a, photos:[], photoBlobs:[] }; }
 
 /* ============ NAVIGATION ============ */
 function go(screen, extra){ Object.assign(S, {screen, error:null}, extra||{}); render(); scrollTo(0,0); }
@@ -1133,7 +1169,7 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get();
   return `${topbar('Mon garage')}
   <div class="wrap">
-    ${pv&&pv.token?`<div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>`
+    ${pv&&pv.token?`<div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>${profileCardHTML()}`
       :`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
     ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
@@ -1159,7 +1195,7 @@ function bindInputs(){
       const ok=n.length===17&&vinCheck(n); const h=$('#vinHint'); h.textContent= n.length===0?'17 caractères': n.length<17?`${n.length}/17`: ok?'NIV valide':'Vérifie le NIV : un caractère semble erroné';
       h.style.color= ok?'var(--ok)': n.length===17?'var(--bad)':'var(--muted)'; $('#vinGo').disabled = n.length!==17; }); }
   document.querySelectorAll('[data-veh]').forEach(el=>el.addEventListener('input',()=>{ S.draft.vehicle[el.dataset.veh]=el.value; }));
-  document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
+  document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; if(el.dataset.qi==='nom') S.draft.answers.prenom=el.value.trim().split(/\s+/)[0]||''; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
   document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; if(el.type==='date') rerender(); }));
   document.querySelectorAll('[data-pk="adresse"]').forEach(el=>el.addEventListener('change',rerender));
   document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',async()=>{ const f=el.files[0]; if(!f) return; const c=S.current; const k=el.dataset.doc;
@@ -1243,7 +1279,11 @@ document.addEventListener('click', async e=>{
         c.status='planifiee'; await Store.save(c); toast((c.pickup||{}).lieu===PK_DROP?'Offre acceptée et dépôt confirmé. Julia te texte la veille.':'Offre acceptée et rendez-vous confirmé. Julia te texte la veille.'); go('offer'); return; }
       c.status='acceptee'; await Store.save(c); go('accept'); }
   else if(a==='open-accept'){ go('accept'); }
-  else if(a==='pk'){ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.k]=el.dataset.v; rerender(); }
+  else if(a==='pk'){ const pk=S.current.pickup=S.current.pickup||{}; pk[el.dataset.k]=el.dataset.v; const pf=PROFILE.get();
+      if(el.dataset.k==='lieu'&&el.dataset.v==='À mon adresse'&&!pk.adresse&&pf&&pf.address) pk.adresse=[pf.address, pf.city, pf.postal].filter(Boolean).join(', ');
+      rerender(); }
+  else if(a==='profile-edit'){ openProfile(); }
+  else if(a==='profile-save'){ saveProfile(); }
   else if(a==='pk-agent'){ const dr=S.drop; const ag=dr&&dr.agents.find(x=>x.id===el.dataset.v); if(ag){ S.current.pickup=S.current.pickup||{}; S.current.pickup.agent=ag; rerender(); } }
   else if(a==='drop-postal'){ const v=($('#dropPostal')||{}).value||''; if(!/^[A-Za-z]\d[A-Za-z]/.test(v.trim())){ toast('Entre un code postal valide (ex. H2X 1Y4).'); return; } S.current.pickup=S.current.pickup||{}; S.current.pickup.postal=v.trim().toUpperCase(); S.current.pickup.agent=null; S.drop=null; rerender(); }
   else if(a==='ics'){ downloadIcs(S.current); }
@@ -1398,7 +1438,7 @@ async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search
     notes.unshift(`Le client accepte son offre initiale de ${money(c.estimate)} : valider que les photos, les dommages et les documents sont conformes, puis confirmer l'offre ferme.`); }
   if(c.wish) notes.unshift(`Le client veut plus que l'offre initiale (${money(c.estimate)}) : prix souhaité ${money(c.wish)}.`);
   if(c.fastTrack && !c.fastTrack.ok) notes.push(`Hors parcours rapide (${c.fastTrack.raison||'catégorie'}) : photos et dommages requis.`);
-  const answers=Object.assign({}, c.answers, c.wish?{prix_souhaite:c.wish}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
+  const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{}, c.wish?{prix_souhaite:c.wish}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
   const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, documents, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, valuation:{ drapeaux:notes } }});
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
 async function startSearch(c, intent){ if(starting) return;
