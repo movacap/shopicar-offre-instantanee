@@ -638,6 +638,7 @@ function render(){
   else if(s==='accept') app.innerHTML=vAccept();
   else if(s==='prep') app.innerHTML=vPrep();
   else if(s==='garage') app.innerHTML=vGarage();
+  else if(s==='settings') app.innerHTML=vSettings();
   renderTabs(); setTabsH(); bindInputs();
 }
 function topbar(title, back){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<img class="logo" src="/logo-blanc.png" alt="Shopicar">`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}<span class="pill-top">Québec</span></div>`; }
@@ -1177,11 +1178,58 @@ function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt
     ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
+    ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages du parcours rapide (Super Admin)</button>`:''}
   </div>`; }
+
+/* ============ SUPER ADMIN : RÉGLAGES DU PARCOURS RAPIDE (api/settings.js → api/_lib/settings.js) ============ */
+const SET = { data:null, defaults:null, busy:false, msg:'', err:'' };
+async function setApi(method, body){ const r=await fetch('/api/settings',{method, headers:{'content-type':'application/json','x-admin-key':adminKey()}, body: body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok) throw new Error(j.error||'erreur'); return j; }
+async function loadSettingsUI(){ SET.busy=true; SET.err=''; SET.msg=''; rerender();
+  try{ const j=await setApi('GET'); SET.data=j.settings; SET.defaults=j.defaults; }catch(e){ SET.err=e.message; }
+  SET.busy=false; if(S.screen==='settings') rerender(); }
+const comfortTxt = c => Object.entries(c||{}).map(([m,l])=>`${m}: ${l.join(', ')}`).join('\n');
+function parseComfort(t){ const o={}; String(t||'').split(/\n+/).forEach(line=>{ const i=line.indexOf(':'); if(i<1) return; const mk=line.slice(0,i).trim().toLowerCase(); const ms=line.slice(i+1).split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); if(mk&&ms.length) o[mk]=(o[mk]||[]).concat(ms); }); return o; }
+function readSettingsForm(){ const v=id=>($('#'+id)||{}).value, c=id=>!!($('#'+id)||{}).checked;
+  return { maxAge:v('setAge'), maxKm:v('setKm'), minOffer:v('setMin'), maxOffer:v('setMax'), useComfortList:c('setList'), pickupsToJulia:c('setPickup'), requireKnownTrim:c('setTrim'),
+    comfort:parseComfort(v('setComfort')), luxury:String(v('setLux')||'').split(/[,\n]+/).map(x=>x.trim()).filter(Boolean) }; }
+function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().getFullYear();
+  const numF=(id,label,val,def,hint)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="inp num" inputmode="numeric" value="${esc(String(val))}"><div class="muted small">${hint||''}${def!==undefined?` Par défaut : ${esc(Number(def).toLocaleString('fr-CA'))}.`:''}</div></div>`;
+  const tog=(id,label,on,hint)=>`<label class="small" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="${id}" ${on?'checked':''} style="margin-top:3px;width:18px;height:18px"><span><b>${label}</b>${hint?`<br><span class="muted">${hint}</span>`:''}</span></label>`;
+  return `${topbar('Réglages Super Admin','tab-garage')}
+  <div class="wrap">
+    <div class="card"><span class="stat info">Super Admin seulement</span><h2>Parcours rapide « Cette offre me convient »</h2>
+      <p class="muted small" style="margin:0">Une auto qui respecte tous ces seuils peut accepter son offre initiale directement. Sinon : photos + dommages, puis Julia en direct. Les changements s'appliquent aux nouvelles évaluations en moins de 20 secondes.</p></div>
+    ${SET.busy&&!d?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement des réglages…</span></div></div>`:''}
+    ${SET.err?`<div class="card"><p class="small" style="margin:0;color:var(--bad)">${esc(SET.err)}</p><button class="btn sec" data-act="admin-settings">Réessayer</button></div>`:''}
+    ${d?`<div class="card"><h3>Seuils</h3>
+      ${numF('setAge','Âge maximum (années)',d.maxAge,D.maxAge,`Ex. ${d.maxAge} → modèles ${yr-d.maxAge} et plus.`)}
+      ${numF('setKm','Kilométrage maximum (km)',d.maxKm,D.maxKm)}
+      ${numF('setMin','Offre minimum ($)',d.minOffer,D.minOffer)}
+      ${numF('setMax','Offre maximum ($)',d.maxOffer,D.maxOffer)}
+    </div>
+    <div class="card"><h3>Règles</h3>
+      ${tog('setList','Seulement les modèles de la liste de confiance',d.useComfortList,'Décoché : toutes les marques et modèles passent (sauf luxe et camionnettes), si les seuils sont respectés.')}
+      ${tog('setPickup','Camionnettes toujours vers Julia',d.pickupsToJulia)}
+      ${tog('setTrim','Version exacte obligatoire',d.requireKnownTrim,'Décoché : une version « Je ne sais pas » ou incertaine peut quand même passer.')}
+    </div>
+    <div class="card"><h3>Liste de confiance (marque : modèles)</h3>
+      <p class="muted small" style="margin:0">Une ligne par marque. Le modèle doit commencer par le nom inscrit (ex. « rav4 » couvre RAV4 Hybride et RAV4 Prime). Un modèle inscrit ici passe même si sa marque est dans la liste luxe (ex. « acura: csx, ilx »).</p>
+      <textarea id="setComfort" class="inp" rows="11" style="font-family:ui-monospace,Menlo,monospace;font-size:14px">${esc(comfortTxt(d.comfort))}</textarea></div>
+    <div class="card"><h3>Marques de luxe (toujours vers Julia)</h3>
+      <p class="muted small" style="margin:0">Séparées par des virgules.</p>
+      <textarea id="setLux" class="inp" rows="4" style="font-size:14px">${esc((d.luxury||[]).join(', '))}</textarea></div>
+    ${SET.msg?`<p class="small" style="margin:0;color:var(--ok);text-align:center">${esc(SET.msg)}</p>`:''}
+    <button class="btn pri big" data-act="set-save" ${SET.busy?'disabled':''}>${SET.busy?'Enregistrement…':'Enregistrer les réglages'}</button>
+    <button class="btn ghost" data-act="set-reset" ${SET.busy?'disabled':''}>Remettre les valeurs par défaut</button>`:''}
+  </div>`; }
+async function saveSettingsUI(settings){ SET.data=settings; SET.busy=true; SET.err=''; SET.msg=''; rerender();
+  try{ const j=await setApi('POST',{settings}); SET.data=j.settings; SET.msg='Réglages enregistrés.'; }catch(e){ SET.err=e.message; }
+  SET.busy=false; if(S.screen==='settings') rerender(); }
 
 function setTabsH(){ const t=document.querySelector('#tabs .tabs'); if(t) document.documentElement.style.setProperty('--tabs-h', t.offsetHeight+'px'); }
 addEventListener('resize', setTabsH);
-function renderTabs(){ const t=S.screen==='garage'?'garage':'sell'; const n=S.cars.filter(c=>!c.archived&&c.status==='offre'&&Date.now()<c.expiresAt).length;
+function renderTabs(){ const t=(S.screen==='garage'||S.screen==='settings')?'garage':'sell'; const n=S.cars.filter(c=>!c.archived&&c.status==='offre'&&Date.now()<c.expiresAt).length;
   $('#tabs').innerHTML=`<nav class="tabs"><div class="in">
    <button class="tab ${t==='sell'?'on':''}" data-act="tab-sell"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 13l2-6a2 2 0 012-1.4h10A2 2 0 0119 7l2 6v5h-3m-12 0H3v-5m3 5a2 2 0 104 0m4 0a2 2 0 104 0M3 13h18"/></svg>Vendre</button>
    <button class="tab ${t==='garage'?'on':''}" data-act="tab-garage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V9l9-6 9 6v12M7 21v-7h10v7M7 17h10"/></svg>Mon garage${n?`<span class="badge">${n}</span>`:''}</button>
@@ -1211,6 +1259,9 @@ document.addEventListener('click', async e=>{
   const el=e.target.closest('[data-act]'); if(!el) return; const a=el.dataset.act;
   if(a==='home'||a==='tab-sell'){ go('home'); }
   else if(a==='tab-garage'){ go('garage'); loadGarage(); }
+  else if(a==='admin-settings'){ if(!IS_ADMIN) return; go('settings'); loadSettingsUI(); }
+  else if(a==='set-save'){ if(!IS_ADMIN) return; saveSettingsUI(readSettingsForm()); }
+  else if(a==='set-reset'){ if(!IS_ADMIN||!SET.defaults) return; SET.data=SET.defaults; rerender(); saveSettingsUI(SET.defaults); }
   else if(a==='start'){ S.draft=newDraft(); S.step=0; go('vin'); }
   else if(a==='vin'){ go('vin'); }
   else if(a==='scan'){ $('#scanFile').click(); }

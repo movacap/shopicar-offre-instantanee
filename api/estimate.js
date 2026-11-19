@@ -4,13 +4,14 @@
 import { isAdmin } from './_lib/market.js';
 import { valuate, clientView, internalView } from './_lib/valuation.js';
 import { fastTrack } from './_lib/eligibility.js';
+import { loadSettings } from './_lib/settings.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST seulement' });
   const { vin, vehicle = {}, answers = {} } = req.body || {};
   try {
     const v = await valuate({ vin, vehicle, answers });
-    const ft = fastTrack({ vehicle, answers, calc: v.calc, market: v.market });
+    const ft = fastTrack({ vehicle, answers, calc: v.calc, market: v.market, settings: await loadSettings() });
     const out = { ok: true, ...clientView(v), fastTrack: { ok: ft.ok, raison: ft.raison || null } };
     if (isAdmin(req)) out.fastTrackDetail = ft.detail || null;
     if (isAdmin(req)) out.internal = internalView(v);
