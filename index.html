@@ -678,7 +678,7 @@ function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><di
     <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale. Ensuite, ajoute tes photos et tes dommages pour que Julia travaille pour toi.</p>
     <button class="btn pri big" data-act="wish-save">Continuer : ajouter mes photos</button></div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage();
-  const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||(more&&c.wish);
+  const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||more;
   return `${topbar('Ton offre initiale','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
@@ -696,13 +696,16 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     </div>
     <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>
     <button class="btn sec" data-act="want-more">Je veux plus que cette offre</button>`:''}
-    ${fast&&more?wishHTML(c):''}
     ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoute 6 photos et tes dommages : Julia cherche ensuite le meilleur prix pour toi. Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale.</p></div>`:''}
-    ${showPhotos?`<div class="best">
+    ${showPhotos?`<div class="best" id="bestBox">
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
-      <h2>Obtiens le meilleur prix Shopicar</h2>
-      <p>Ajoute 6 photos de ton auto, plus les dommages s'il y en a, et laisse Julia travailler pour toi.</p>
+      ${fast&&more?`<h2>Julia va travailler pour obtenir le prix que tu espères</h2>
+      <p>Combien aimerais-tu obtenir pour ton auto? Ajoute ensuite 6 photos et tes dommages : Julia cherche le meilleur prix pour toi.</p>
+      <div class="field" style="width:100%"><label for="wishIn" style="color:#fff">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${c.wish?esc(Math.round(c.wish).toLocaleString('fr-CA')+' $'):''}"></div>
+      <p class="small" style="opacity:.85">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale de ${money(c.estimate)}.</p>`
+      :`<h2>Obtiens le meilleur prix Shopicar</h2>
+      <p>Ajoute 6 photos de ton auto, plus les dommages s'il y en a, et laisse Julia travailler pour toi.</p>`}
       <button class="btn dark big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':slotCount(c)<6?`Ajouter mes photos · ${slotCount(c)}/6`:'Étape 2 : mes photos de dommages'}</button>
     </div>
     ${photoSlotsHTML(c)}
@@ -944,6 +947,7 @@ function renderTabs(){ const t=S.screen==='garage'?'garage':'sell'; const n=S.ca
 
 /* ============ BIND ============ */
 function bindInputs(){
+  const wi=$('#wishIn'); if(wi&&S.current){ wi.addEventListener('change',()=>{ const n=Number(String(wi.value).replace(/[^\d]/g,'')); S.current.wish=n>=500?n:null; wi.value=S.current.wish?Math.round(S.current.wish).toLocaleString('fr-CA')+' $':''; Store.save(S.current); }); }
   const vin=$('#vin'); if(vin){ vin.addEventListener('input',()=>{ const n=normVin(vin.value).slice(0,17); S.draft.vin=n; if(vin.value!==n) vin.value=n;
       const ok=n.length===17&&vinCheck(n); const h=$('#vinHint'); h.textContent= n.length===0?'17 caractères': n.length<17?`${n.length}/17`: ok?'NIV valide':'Vérifie le NIV : un caractère semble erroné';
       h.style.color= ok?'var(--ok)': n.length===17?'var(--bad)':'var(--muted)'; $('#vinGo').disabled = n.length!==17; }); }
@@ -979,13 +983,15 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-none'){ const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ startSearch(S.current, 'initial'); }
-  else if(a==='want-more'){ S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#wishAsk'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
+  else if(a==='want-more'){ S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
   else if(a==='want-more-undo'){ S.current.wantMore=false; await Store.save(S.current); go('estimate'); }
   else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
   else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
       if(!(n>=500)){ toast('Indique le montant que tu aimerais obtenir.'); return; }
       c.wish=n; c.wishDraft=''; await Store.save(c); rerender(); setTimeout(()=>$('#photoAsk')?.scrollIntoView({behavior:'smooth',block:'start'}),50); }
-  else if(a==='best-price'){ const c=S.current; if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
+  else if(a==='best-price'){ const c=S.current; const wi=$('#wishIn');
+      if(wi){ const n=Number(String(wi.value).replace(/[^\d]/g,'')); c.wish=n>=500?n:null; if(!c.wish){ toast('Indique d\'abord le prix que tu aimerais obtenir.'); $('#bestBox')?.scrollIntoView({behavior:'smooth',block:'start'}); wi.focus({preventScroll:true}); return; } Store.save(c); }
+      if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
       document.querySelectorAll('#photoAsk button.slot').forEach(x=>{ x.classList.remove('need'); void x.offsetWidth; x.classList.add('need'); }); return; } startSearch(c); }
   else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; $('#slotFile').click(); }
   else if(a==='slot-rm'){ const c=S.current; delete c.slots[el.dataset.slot]; if(BLOBS[c.id]) delete BLOBS[c.id].slots[el.dataset.slot]; syncPhotos(c); Store.save(c); rerender(); }
