@@ -33,6 +33,11 @@ Projet indépendant : aucun lien avec HomPilot ni avec l'infrastructure de Julia
 Variable Vercel : `SHOPICAR_LEAD_SECRET` (même valeur que le secret `shopicar_lead_secret` du vault 360inspek).
 Démo sans 360inspek : ouvrir l'app avec `?demo=1` (offres simulées +300, +400, +300, +500 $), `?demo=0` pour revenir.
 
+## Cueillette ou dépôt
+- Étape « Ta cueillette » : « On vient chez moi » (adresse) ou « Je dépose mon auto chez un agent ». Pour le dépôt, `api/dropoff.js` renvoie les 3 agents les plus proches du code postal du client (centre de la région postale, `api/_lib/fsa-qc.js`, données publiques Postes Canada). Le plus proche est présélectionné.
+- **Liste des agents : `api/_lib/dropoff-agents.js` (`DROPOFF_AGENTS`).** Tant qu'elle est vide : points fictifs « (démo) » en mode démo, sinon message « un conseiller te confirme l'agent ».
+- Une fois planifiée, « Mon offre » affiche date, plage, adresse (ou agent : adresse, distance, heures, téléphone), lien Google Maps, « Ajouter à mon Google Agenda » et un fichier .ics (Apple Calendrier / Outlook, rappel 12 h avant).
+
 ## À brancher pour la production
 - Stockage : le garage est sauvegardé sur l'appareil (localStorage). Prochaine étape : une base Supabase dédiée + connexion Google/Facebook ou code SMS.
 - Prix : l'AI ne fait que trouver les annonces (rapportées telles quelles, mises en cache 7 jours). Le prix est calculé sur le serveur par `api/_lib/pricing.js` : la même auto avec les mêmes réponses obtient toujours la même offre. Les photos ne changent jamais le prix, elles signalent seulement un écart à l'acheteur. Pour une offre réellement ferme, ajouter une source wholesale (Canadian Black Book, Manheim MMR) et l'historique des transactions Shopicar pour calibrer `SPREAD_PCT`.

@@ -50,6 +50,7 @@ h1,h2,h3{font-family:var(--f-display);font-weight:600;letter-spacing:-.025em;mar
 .btn:active{opacity:.85}
 .btn.sec{background:var(--card);border:1px solid #e5e5e5;color:var(--ink)}
 .btn.ghost{background:transparent;color:var(--acc);padding:10px}
+a.btn,a.btn:visited{text-decoration:none}
 .btn.dark{background:#fff;color:var(--navy)}
 .row{display:flex;gap:10px}
 .row>*{flex:1}
@@ -554,7 +555,7 @@ function vLoading(){ return `${topbar('Ton offre initiale')}
 function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
   return ({estimation:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:'Julia travaille pour toi'},
-    offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, planifiee:{cls:'info',txt:'Cueillette planifiée'}, payee:{cls:'ok',txt:'Payée'}})[c.status]||{cls:'info',txt:c.status}; }
+    offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Payée'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
 function bonusEnd(c){ return bonusStart(c) + 24*3600000; }
@@ -753,7 +754,8 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
     ${official&&diff>=0?'':story}
     ${expired?`<button class="btn pri" data-act="reeval">Réévaluer mon auto</button>`:''}
     ${firm&&!expired&&!official?`<button class="btn pri" data-act="accept">${nu?'Accepter mon offre et prendre rendez-vous':'Accepter '+money(c.offer+(bonusLive(c)?BONUS_24H:0))}</button>`:''}
-    ${['acceptee','planifiee'].includes(c.status)?`<button class="btn pri" data-act="open-accept">${c.status==='acceptee'?'Compléter mes documents':'Voir ma cueillette'}</button>`:''}
+    ${c.status==='planifiee'?pickupCardHTML(c):''}
+    ${['acceptee','planifiee'].includes(c.status)?`<button class="btn ${c.status==='acceptee'?'pri':'sec'}" data-act="open-accept">${c.status==='acceptee'?'Compléter mes documents':(c.pickup||{}).lieu===PK_DROP?'Modifier mon dépôt':'Modifier ma cueillette'}</button>`:''}
     ${nu&&!expired&&['offre','acceptee','planifiee'].includes(c.status)?`<button class="btn sec" data-act="conseiller">Parler à un conseiller Shopicar</button>`
       :['offre','a_valider'].includes(c.status)&&!expired?`<div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre un rendez-vous</button><button class="btn sec" data-act="rdv" data-t="appel">Planifier un appel</button></div>`:''}
     <button class="btn sec" data-act="julia">${nu?'Discuter avec Julia':'Continuer par texto avec Julia'}</button>
@@ -773,7 +775,8 @@ function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','p
 
 function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
   const need=[['immat','Certificat d\'immatriculation','Le document de la SAAQ'],['permis','Permis de conduire','Le recto suffit'], ...(fin?[['pret','État de compte du prêteur','Pour rembourser ton prêt']]:[])];
-  const docsOk=need.every(n=>docs[n[0]]); const pkOk=pk.date&&pk.slot&&pk.lieu&&(pk.lieu!=='À mon adresse'||(pk.adresse||'').trim().length>5);
+  const docsOk=need.every(n=>docs[n[0]]); const isDrop=pk.lieu===PK_DROP; const dr=isDrop?dropState(c):null;
+  const pkOk=pk.date&&pk.slot&&pk.lieu&&(pk.lieu!=='À mon adresse'||(pk.adresse||'').trim().length>5)&&(!isDrop||(dr&&!dr.loading&&(pk.agent||!dr.agents.length)));
   const done=[docsOk,pkOk].filter(Boolean).length;
   const days=[]; for(let i=1;days.length<6;i++){ const d=new Date(Date.now()+i*86400000); if(d.getDay()===0) continue; days.push(d); }
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -793,9 +796,10 @@ function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup|
         <input type="file" id="doc_${n[0]}" class="file-hidden" accept="image/*,application/pdf" data-doc="${n[0]}"></div>`).join('')}
     </div>
 
-    <div class="card stp ${pkOk?'ok':''}">${head(2,pkOk,'Ta cueillette','On vient chercher ton auto, sans frais.')}
-      ${sec('Où?',`<div class="chips">${['À mon adresse','Garage partenaire près de chez moi'].map(o=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${o}</button>`).join('')}</div>
-      ${pk.lieu==='À mon adresse'?`<input id="pkadr" class="inp" style="margin-top:10px" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville">`:''}`)}
+    <div class="card stp ${pkOk?'ok':''}">${isDrop?head(2,pkOk,'Ton dépôt','Choisis l\'agent Shopicar le plus près de chez toi.'):head(2,pkOk,'Ta cueillette','On vient chercher ton auto, sans frais.')}
+      ${sec('Où?',`<div class="chips">${[['À mon adresse','On vient chez moi'],[PK_DROP,'Je dépose mon auto chez un agent']].map(([o,l])=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${l}</button>`).join('')}</div>
+      ${pk.lieu==='À mon adresse'?`<input id="pkadr" class="inp" style="margin-top:10px" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville">`:''}
+      ${isDrop?dropPickerHTML(c,dr):''}`)}
       ${sec('Quel jour?',`<div class="days">${days.map(d=>`<button class="day ${pk.date===iso(d)?'on':''}" data-act="pk" data-k="date" data-v="${iso(d)}">${dayLbl(d)}</button>`).join('')}</div>`)}
       ${sec('À quelle heure?',`<div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div>`)}
     </div>
@@ -803,8 +807,63 @@ function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup|
     <div class="card stp">${head(3,c.status==='payee','Ton paiement','Tu es payé le jour même.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       <div class="pay"><div><b>1</b><span>On arrive à l'heure choisie</span></div><div><b>2</b><span>Inspection rapide de 10 minutes</span></div><div><b>3</b><span>Virement de ${money(c.finalOffer||c.offer)}${fin?' (moins le solde du prêt)':''} le jour même</span></div></div>
     </div>
-    <button class="btn pri big" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?'Mettre à jour ma cueillette':'Confirmer ma cueillette'}</button>
+    <button class="btn pri big" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?(isDrop?'Mettre à jour mon dépôt':'Mettre à jour ma cueillette'):(isDrop?'Confirmer mon dépôt':'Confirmer ma cueillette')}</button>
     ${!docsOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!docsOk&&'tes documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
+  </div>`; }
+
+/* ---- Cueillette / dépôt : agents les plus proches, détails du RDV, ajout à l'agenda ---- */
+const PK_DROP = 'Garage partenaire près de chez moi'; // valeur enregistrée (anciens dossiers) = dépôt chez un agent Shopicar
+const dropPostal = c => ((c.pickup||{}).postal || c.answers.postal || '').toUpperCase();
+function dropState(c){ const postal=dropPostal(c);
+  if(!S.drop || S.drop.postal!==postal){ S.drop={postal, loading:true, agents:[], source:''};
+    fetch('/api/dropoff?postal='+encodeURIComponent(postal)+(DEMO_OFFERS?'&demo=1':'')).then(r=>r.json()).catch(()=>({agents:[]})).then(j=>{
+      if(!S.drop || S.drop.postal!==postal) return;
+      Object.assign(S.drop,{loading:false, agents:j.agents||[], source:j.source||'', error:j.error||''});
+      const pk=c.pickup=c.pickup||{}; if(!pk.agent || !S.drop.agents.some(a=>a.id===pk.agent.id)) pk.agent=S.drop.agents[0]||null;
+      if(S.screen==='accept') rerender(); }); }
+  return S.drop; }
+const mapsUrl = q => 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
+const agentAddr = a => a.demo ? `${a.ville} (${a.postal})` : `${a.adresse}, ${a.ville} ${a.postal||''}`.trim();
+function dropPickerHTML(c, dr){ const pk=c.pickup||{}; const postal=dropPostal(c);
+  const postalForm = `<div class="row" style="margin-top:10px"><input id="dropPostal" class="inp" value="${esc(postal)}" placeholder="Ton code postal" maxlength="7" style="flex:2"><button class="btn sec" data-act="drop-postal" style="flex:1">Chercher</button></div>`;
+  if(!postal) return postalForm;
+  if(dr.loading) return `<p class="muted small" style="margin:10px 0 0">Recherche des agents près de ${esc(postal)}…</p>`;
+  if(dr.error==='code_postal') return `<p class="small" style="margin:10px 0 0;color:var(--bad)">Code postal introuvable. Vérifie-le.</p>${postalForm}`;
+  if(!dr.agents.length) return `<p class="muted small" style="margin:10px 0 0">Un conseiller Shopicar te confirme l'agent le plus près de ${esc(postal)}, avec son adresse, avant ton rendez-vous.</p>`;
+  return `<p class="muted small" style="margin:12px 0 6px">Les plus près de <b>${esc(postal)}</b> · <a href="#" onclick="event.preventDefault();document.getElementById('dropBox').style.display='block'">changer</a></p>
+    <div id="dropBox" style="display:none">${postalForm}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">${dr.agents.map((a,i)=>{ const on=pk.agent&&pk.agent.id===a.id;
+      return `<button class="chip ${on?'on':''}" data-act="pk-agent" data-v="${esc(a.id)}" style="border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:flex-start;width:100%">
+        <span style="font-size:18px;line-height:1.2">${on?'✓':'📍'}</span><span style="flex:1;min-width:0"><b>${esc(a.nom)}</b>${i===0?` <small style="opacity:.75">· le plus près</small>`:''}<br>
+        <small style="opacity:.8">${esc(agentAddr(a))} · ${a.km<1?'moins de 1':a.km} km</small>${a.heures?`<br><small style="opacity:.7">${esc(a.heures)}</small>`:''}</span></button>`; }).join('')}</div>
+    ${pk.agent?`<a class="btn ghost" style="padding:8px 0 0" target="_blank" rel="noopener" href="${mapsUrl(pk.agent.demo?pk.agent.ville+' '+pk.agent.postal:agentAddr(pk.agent))}">Voir l'itinéraire</a>`:''}`; }
+function pickupWhen(c){ const pk=c.pickup||{}; if(!pk.date) return null;
+  const m=String(pk.slot||'').match(/(\d{1,2})\s*h\s*à\s*(\d{1,2})/); const h1=m?+m[1]:9, h2=m?+m[2]:h1+1;
+  const d=pk.date.replace(/-/g,''); const t=h=>String(h).padStart(2,'0')+'0000';
+  return {start:`${d}T${t(h1)}`, end:`${d}T${t(h2)}`, label:new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}; }
+function pickupWhere(c){ const pk=c.pickup||{}; if(pk.lieu==='À mon adresse') return pk.adresse||'';
+  return pk.agent ? (pk.agent.demo ? `${pk.agent.nom}, ${pk.agent.ville}` : `${pk.agent.nom}, ${agentAddr(pk.agent)}`) : 'Agent Shopicar (adresse à confirmer)'; }
+function pickupEvent(c){ const w=pickupWhen(c); if(!w) return null; const drop=(c.pickup||{}).lieu===PK_DROP; const a=(c.pickup||{}).agent;
+  return {...w, title:`${drop?'Dépôt':'Cueillette'} Shopicar · ${vTitle(c.vehicle)}`, where:pickupWhere(c),
+    details:`${drop?'Dépôt de ton auto chez l\'agent Shopicar':'Cueillette de ton auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 10 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
+function gcalUrl(ev){ return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(ev.title)+'&dates='+ev.start+'/'+ev.end+'&ctz=America/Toronto&location='+encodeURIComponent(ev.where)+'&details='+encodeURIComponent(ev.details); }
+function downloadIcs(c){ const ev=pickupEvent(c); if(!ev) return; const x=s=>String(s).replace(/\\/g,'\\\\').replace(/[,;]/g,m=>'\\'+m).replace(/\n/g,'\\n');
+  const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Shopicar//Offre//FR','BEGIN:VEVENT',`UID:${c.id||c.vin}-pickup@shopicar.com`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
+    `DTSTART;TZID=America/Toronto:${ev.start}`,`DTEND;TZID=America/Toronto:${ev.end}`,`SUMMARY:${x(ev.title)}`,`LOCATION:${x(ev.where)}`,`DESCRIPTION:${x(ev.details)}`,
+    'BEGIN:VALARM','TRIGGER:-PT12H','ACTION:DISPLAY','DESCRIPTION:Rappel Shopicar','END:VALARM','END:VEVENT','END:VCALENDAR'].join('\r\n');
+  const url=URL.createObjectURL(new Blob([ics],{type:'text/calendar;charset=utf-8'})); const l=document.createElement('a'); l.href=url; l.download='shopicar-rendez-vous.ics'; document.body.appendChild(l); l.click(); l.remove(); setTimeout(()=>URL.revokeObjectURL(url),4000); }
+function pickupCardHTML(c){ const pk=c.pickup||{}; const ev=pickupEvent(c); if(!ev) return ''; const drop=pk.lieu===PK_DROP; const a=pk.agent;
+  const line=(i,t,sub)=>`<div style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:18px;width:22px;text-align:center">${i}</span><div style="flex:1;min-width:0"><b>${t}</b>${sub?`<div class="muted small">${sub}</div>`:''}</div></div>`;
+  const mapQ = drop ? (a ? (a.demo ? a.ville+' '+a.postal : agentAddr(a)) : '') : (pk.adresse||'');
+  return `<div class="card">
+    <span class="stat info">${drop?'Dépôt planifié':'Cueillette planifiée'}</span>
+    ${line('📅', ev.label.charAt(0).toUpperCase()+ev.label.slice(1), drop?'Présente-toi pendant cette plage':'On arrive pendant cette plage')}
+    ${line('🕒', esc(pk.slot||''), '')}
+    ${drop ? line('📍', a?esc(a.nom):'Agent Shopicar', a ? `${esc(agentAddr(a))}${a.km!=null?` · ${a.km<1?'moins de 1':a.km} km de chez toi`:''}${a.heures?`<br>${esc(a.heures)}`:''}${a.tel?`<br><a href="tel:${esc(a.tel.replace(/[^\d+]/g,''))}">${esc(a.tel)}</a>`:''}` : 'Un conseiller te confirme l\'adresse')
+      : line('📍', esc(pk.adresse||'À ton adresse'), 'Cueillette sans frais')}
+    ${mapQ?`<a class="small" target="_blank" rel="noopener" href="${mapsUrl(mapQ)}" style="color:var(--acc);font-weight:600;margin-left:34px">Ouvrir dans Google Maps</a>`:''}
+    <a class="btn pri" target="_blank" rel="noopener" href="${gcalUrl(ev)}">Ajouter à mon Google Agenda</a>
+    <button class="btn ghost" data-act="ics" style="padding:4px">Apple Calendrier / Outlook</button>
   </div>`; }
 
 function vGarage(){ const cars=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt);
@@ -880,10 +939,13 @@ document.addEventListener('click', async e=>{
       c.finalOffer = c.offer + bonus; c.status='acceptee'; c.acceptedAt=Date.now(); await Store.save(c); go('accept'); }
   else if(a==='open-accept'){ go('accept'); }
   else if(a==='pk'){ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.k]=el.dataset.v; rerender(); }
+  else if(a==='pk-agent'){ const dr=S.drop; const ag=dr&&dr.agents.find(x=>x.id===el.dataset.v); if(ag){ S.current.pickup=S.current.pickup||{}; S.current.pickup.agent=ag; rerender(); } }
+  else if(a==='drop-postal'){ const v=($('#dropPostal')||{}).value||''; if(!/^[A-Za-z]\d[A-Za-z]/.test(v.trim())){ toast('Entre un code postal valide (ex. H2X 1Y4).'); return; } S.current.pickup=S.current.pickup||{}; S.current.pickup.postal=v.trim().toUpperCase(); S.current.pickup.agent=null; S.drop=null; rerender(); }
+  else if(a==='ics'){ downloadIcs(S.current); }
   else if(a==='confirm-pickup'){ const c=S.current; const pk=c.pickup||{};
-      if(c.search&&c.search.leadToken){ try{ await leadApi({action:'pickup', token:c.search.leadToken, when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`, where: pk.lieu==='À mon adresse'?pk.adresse:pk.lieu }); }
+      if(c.search&&c.search.leadToken){ try{ await leadApi({action:'pickup', token:c.search.leadToken, when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`, where: pk.lieu==='À mon adresse'?pk.adresse:pk.agent?`Dépôt chez ${pk.agent.nom}, ${pk.agent.adresse}, ${pk.agent.ville}`:'Dépôt chez un agent Shopicar (à confirmer)' }); }
         catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
-      c.status='planifiee'; await Store.save(c); toast('Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
+      c.status='planifiee'; await Store.save(c); toast(pk.lieu===PK_DROP?'Dépôt confirmé. Julia te texte la veille.':'Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
   else if(a==='rdv'){ openRdv(el.dataset.t); }
   else if(a==='rdv-slot'){ RD.slot=el.dataset.v; renderRdv(); }
   else if(a==='rdv-save'){ saveRdv(); }
