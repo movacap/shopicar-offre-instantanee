@@ -129,6 +129,9 @@ a.btn,a.btn:visited{text-decoration:none}
 .thumb svg{width:108px}
 .best{background:var(--acc);color:#fff;border-radius:20px;padding:22px 20px;display:flex;flex-direction:column;gap:10px;align-items:flex-start}
 .best h2{font-size:22px;line-height:1.15;letter-spacing:-.03em}
+.best.ok{background:#fff;color:var(--ink);border:1px solid #e5e5e5;box-shadow:0 6px 20px rgba(0,0,0,.06)}
+.best.ok p{color:#525252;margin:0}
+.best.ok .btn{width:100%}
 .best.official{gap:8px;padding:24px 20px;background:#000}
 .best.official .tag{background:var(--acc);color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:99px}
 .best.official h2{font-size:20px;margin-top:4px}
@@ -287,7 +290,7 @@ ul.clean.warnl li:before{background:#000}
 .clean.checks li{grid-template-columns:18px 1fr}
 .clean.checks li:before{content:"✓";width:auto;height:auto;background:none;border-radius:0;margin:0;color:var(--acc);font-weight:700}
 .clean.checks.onDark li{color:#e5e5e5}
-.offer.light{background:linear-gradient(180deg,#f2f8ff 0%,#e6f1fd 100%);color:var(--ink);border:2px solid var(--acc);box-shadow:0 10px 28px rgba(0,111,235,.16)}
+.offer.light{background:#fff;color:var(--ink);border:2px solid var(--ink);box-shadow:0 10px 28px rgba(0,0,0,.08)}
 .offer.light .lbl{color:var(--acc);font-weight:700}
 .offer.light .amt{color:var(--ink);font-size:60px}
 .offer.light .small{color:#404040}
@@ -888,10 +891,10 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de ton véhicule.</div>
       <ul class="clean checks"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
     </div>
-    ${fast&&!more?`<div class="best">
+    ${fast&&!more?`<div class="best ok">
       <h2>Cette offre te convient?</h2>
       <p>Ajoute tes photos et tes dommages, tes documents, puis choisis ton rendez-vous. Un conseiller Shopicar valide ensuite ton dossier et te confirme ton offre ferme.</p>
-      <button class="btn dark big" data-act="initial-ok">Cette offre me convient : je passe à la prochaine étape</button>
+      <button class="btn pri big" data-act="initial-ok">Cette offre me convient : je passe à la prochaine étape</button>
     </div>
     <button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour toi</span></span><span class="mc">›</span></button>
     <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
