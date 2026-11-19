@@ -1410,7 +1410,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
     status:'estimation', createdAt:now, expiresAt:now+OFFER_HOURS*3600000 };
   await Store.save(car);
   const i=S.cars.findIndex(c=>c.id===car.id); if(i>=0) S.cars[i]=car; else S.cars.push(car);
-  BLOBS[car.id]={slots:{},dmg:[]}; S.current=car; S.draft=null; go('estimate'); }
+  BLOBS[car.id]={slots:{},dmg:[]}; S.current=car; S.draft=null; go('estimate'); inspekDraft(car); }
 
 /* ============ MEILLEUR PRIX : OFFRES VALIDÉES EN DIRECT ============
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
@@ -1423,8 +1423,20 @@ function bestSteps(c){ let m=-Infinity; return validOffers(c).slice().sort((a,b)
 async function leadApi(body){ const r=await fetch('/api/lead',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok){ const e=new Error(j.error||'erreur'); e.status=r.status; throw e; } return j; }
 let starting=false;
+/* Fiche 360inspek en « Brouillon » dès l'offre initiale (démo comprise) : VIN, client, réponses et montant, sans photos.
+   La fiche est créée une seule fois par dossier (shopicar-lead la retrouve par app_car_id + cellulaire); les photos et l'intention s'y ajoutent ensuite par ensureLead. Jamais bloquant. */
+const inspekBusy={};
+async function inspekDraft(c){ if(!c||!c.estimate||c.archived||c.inspekToken||(c.search&&c.search.leadToken)||inspekBusy[c.id]) return; if(!phoneE164((c.answers||{}).cell)) return;
+  inspekBusy[c.id]=true;
+  try{ const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{});
+    const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos:[], stage:'offre_initiale', demo:!!DEMO_OFFERS, valuation:{ drapeaux:[...(((c.valuation||{}).drapeaux)||[])] } }});
+    if(j&&j.token){ c.inspekToken=j.token; await Store.save(c); } }
+  catch(e){ console.warn('[360inspek] brouillon', e.message); }
+  finally{ inspekBusy[c.id]=false; } }
+/* Dossiers de cet appareil sans fiche 360inspek (ex. créés pendant la démo, avant ce branchement) : un à la fois, 7 derniers jours. */
+async function inspekBackfill(){ for(const c of S.cars.filter(x=>x.estimate&&!x.archived&&!x.inspekToken&&!(x.search&&x.search.leadToken)&&Date.now()-(x.createdAt||0)<7*864e5)) await inspekDraft(c); }
 /* Dossier 360inspek (réseau Shopicar) : créé une seule fois, au premier besoin (meilleur prix, rendez-vous ou conseiller). */
-async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search.leadToken) return c.search.leadToken;
+async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.leadToken; if(DEMO_OFFERS&&c.inspekFull) return null;
   // Photos dans l'ordre : avant, côtés, arrière, tableau de bord, intérieur, dommages (pleine grandeur si encore en mémoire, sinon vignettes)
   const B=BLOBS[c.id]&&!Array.isArray(BLOBS[c.id])?BLOBS[c.id]:{slots:{},dmg:[]};
   const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
@@ -1439,7 +1451,12 @@ async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search
   if(c.wish) notes.unshift(`Le client veut plus que l'offre initiale (${money(c.estimate)}) : prix souhaité ${money(c.wish)}.`);
   if(c.fastTrack && !c.fastTrack.ok) notes.push(`Hors parcours rapide (${c.fastTrack.raison||'catégorie'}) : photos et dommages requis.`);
   const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{}, c.wish?{prix_souhaite:c.wish}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
+  if(DEMO_OFFERS){ // Démo : la fiche 360inspek reçoit quand même le dossier complet (photos, intention), sans faire attendre le client; l'app garde ses offres simulées
+    c.inspekFull=true; (async()=>{ try{ const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, documents, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, demo:true, valuation:{ drapeaux:notes } }});
+      c.inspekToken=c.inspekToken||j.token; await Store.save(c); }catch(e){ c.inspekFull=false; console.warn('[360inspek]', e.message); } })();
+    return null; }
   const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, documents, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, valuation:{ drapeaux:notes } }});
+  c.inspekToken=c.inspekToken||j.token; c.inspekFull=true;
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
 async function startSearch(c, intent){ if(starting) return;
   starting=true; c.intent = intent || 'meilleur_prix';
@@ -1598,7 +1615,7 @@ ${juliaContext()}`;
   jBusy=false; renderJulia(); }
 
 /* ============ GARAGE ============ */
-async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; setTimeout(()=>syncGarage(false),0); list.forEach(c=>{ if(c.estimate&&!c.dbSaved) Cloud.save(c); }); if(S.screen==='garage'||S.screen==='home') rerender(); }
+async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; setTimeout(()=>syncGarage(false).then(inspekBackfill),0); list.forEach(c=>{ if(c.estimate&&!c.dbSaved) Cloud.save(c); }); if(S.screen==='garage'||S.screen==='home') rerender(); }
 
 /* comptes à rebours */
 setInterval(()=>{ document.querySelectorAll('[data-cd]').forEach(el=>{ el.textContent=timeLeft(+el.dataset.cd-Date.now()); }); }, 30000);
