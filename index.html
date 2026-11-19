@@ -475,9 +475,12 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
     if(['garage','home'].includes(S.screen)) rerender();
   }catch(e){ if(/non_connecte/.test(e.message)){ try{ localStorage.removeItem('sc_phone_ok'); }catch(_){} if(S.screen==='garage') rerender(); } }
   syncing=false; }
-async function logout(){ const pv=PV.get(); try{ localStorage.removeItem('sc_phone_ok'); }catch(e){}
-  if(pv){ const mine=S.cars.filter(c=>phoneE164((c.answers||{}).cell)===pv.phone); for(const c of mine) await Store.remove(c.id); S.cars=S.cars.filter(c=>!mine.includes(c)); }
-  toast('Déconnecté. Tes autos restent dans ton compte.'); rerender(); }
+async function logout(){ // vide tout le garage de cet appareil (autos, photos, brouillon); les dossiers restent dans le compte
+  try{ localStorage.removeItem('sc_phone_ok'); localStorage.removeItem('sc_cars'); }catch(e){}
+  Object.values(Cloud.t).forEach(clearTimeout); Cloud.t={};
+  Store.mem=[]; S.cars=[]; S.current=null; S.draft=null; S.drop=null; S.showArch=false;
+  for(const k of Object.keys(BLOBS)) delete BLOBS[k];
+  toast('Déconnecté. Tes autos restent dans ton compte.'); go('garage'); }
 
 /* ============ NIV (VIN) ============ */
 const TR={A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:1,K:2,L:3,M:4,N:5,P:7,R:9,S:2,T:3,U:4,V:5,W:6,X:7,Y:8,Z:9};
