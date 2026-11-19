@@ -896,7 +896,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
     ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}`:''}
     ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complète ton dossier : un conseiller le valide et te confirme ton offre ferme</span></span><span class="mc">›</span></button>`:''}
-    <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
+    <button class="btn sec" data-act="conseiller">Parler à un conseiller</button>
     <button class="btn sec" data-act="julia">Discuter avec Julia</button>
     ${ADVANTAGES}
     ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller demandé':'Rendez-vous demandé'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
