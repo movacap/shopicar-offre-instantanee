@@ -369,12 +369,32 @@ const Store = {
     }catch(e){ this.toLocal(); } }
     if(this.mode==='local'){ try{ return JSON.parse(localStorage.getItem('sc_cars')||'[]'); }catch(e){ return []; } }
     return this.mem.slice(); },
-  save(car){ const clean=JSON.parse(JSON.stringify(car));
+  save(car){ if(car&&car.estimate) Cloud.key(car); const clean=JSON.parse(JSON.stringify(car)); Cloud.save(car);
     this.chain = this.chain.then(async()=>{ await this.init();
       if(this.mode==='db'){ try{ await this.col().doc(clean.id).set(clean); return; }catch(e){ this.toLocal(); } }
       if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]'); const i=all.findIndex(c=>c.id===clean.id); if(i>=0) all[i]=clean; else all.push(clean); localStorage.setItem('sc_cars', JSON.stringify(all)); return; }catch(e){ this.mode='memory'; } }
       const i=this.mem.findIndex(c=>c.id===clean.id); if(i>=0) this.mem[i]=clean; else this.mem.push(clean);
     }).catch(()=>{}); return this.chain; }
+};
+
+/* ============ BASE SHOPICAR (api/dossier → Supabase « Shopicar », fonction offer-dossier) ============
+   Chaque dossier qui a une offre initiale est sauvegardé : réponses, offre initiale, offres, statut, dossier, rendez-vous,
+   et les fichiers (photos, dommages, documents) dans un stockage privé. Mode démo : sauvegardé aussi, marqué demo.
+   La clé du dossier (dbKey) reste sur l'appareil : seule elle peut modifier le dossier. Jamais bloquant pour le client. */
+const Cloud = {
+  q:{}, t:{},
+  key(c){ if(!c.dbKey) c.dbKey=Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join(''); return c.dbKey; },
+  async call(body){ const r=await fetch('/api/dossier',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok) throw new Error(j.error||('HTTP '+r.status)); return j; },
+  run(c, fn){ this.q[c.id]=(this.q[c.id]||Promise.resolve()).then(fn).catch(e=>console.warn('[dossier]', e.message)); return this.q[c.id]; },
+  payload(c){ const { slots, dmg, photos, photoBlobs, dbKey, dbSaved, ...rest } = c; return JSON.parse(JSON.stringify(rest)); },
+  push(c){ return this.run(c, ()=>this.call({action:'save', id:c.id, key:this.key(c), demo:!!DEMO_OFFERS, car:this.payload(c)}).then(()=>{ if(!c.dbSaved){ c.dbSaved=true; Store.save(c); } })); },
+  save(c){ if(!c||!c.estimate) return; clearTimeout(this.t[c.id]); this.t[c.id]=setTimeout(()=>{ delete this.t[c.id]; this.push(c); }, 700); },
+  flush(c){ if(this.t[c.id]){ clearTimeout(this.t[c.id]); delete this.t[c.id]; return this.push(c); } if(!c.dbSaved) return this.push(c); },
+  file(c, kind, slot, blob, mime, name){ if(!c||!c.estimate||!blob) return; this.flush(c);
+    return this.run(c, async()=>this.call({action:'file', id:c.id, key:this.key(c), kind, slot, name:name||'', mime, data:await blobToB64(blob)})); },
+  rm(c, kind, slot){ if(!c||!c.estimate) return; this.flush(c); return this.run(c, ()=>this.call({action:'file-rm', id:c.id, key:this.key(c), kind, slot:slot||''})); },
+  dmgAll(c){ const B=BLOBS[c.id]; this.rm(c,'dommage'); ((B&&B.dmg)||[]).forEach((bl,i)=>this.file(c,'dommage','d'+i,bl,'image/jpeg','dommage-'+(i+1)+'.jpg')); }
 };
 
 /* ============ NIV (VIN) ============ */
@@ -1019,10 +1039,10 @@ function bindInputs(){
   document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',async()=>{ const f=el.files[0]; if(!f) return; const c=S.current; const k=el.dataset.doc;
     let B=BLOBS[c.id]; if(!B||Array.isArray(B)) B=BLOBS[c.id]={slots:{},dmg:[]}; B.docs=B.docs||{};
     try{ if(/^image\//.test(f.type)||/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)){ const {im,u}=await loadImg(f); B.docs[k]={blob:await toBlob(draw(im,1600),.75), mime:'image/jpeg', name:f.name}; URL.revokeObjectURL(u); }
-      else if(f.size<=1000000) B.docs[k]={blob:f, mime:f.type||'application/pdf', name:f.name};
+      else if(f.size<=1000000 && (/pdf/i.test(f.type)||/\.pdf$/i.test(f.name))) B.docs[k]={blob:f, mime:'application/pdf', name:f.name};
       else { toast('Fichier trop lourd. Prends plutôt une photo du document.'); return; } }
     catch(e){ toast('Document illisible. Prends une photo du document.'); return; }
-    c.docs=c.docs||{}; c.docs[k]=f.name; await Store.save(c); rerender(); }));
+    c.docs=c.docs||{}; c.docs[k]=f.name; await Store.save(c); rerender(); Cloud.file(c,'document',k,B.docs[k].blob,B.docs[k].mime==='application/pdf'?'application/pdf':B.docs[k].mime,f.name); }));
 }
 
 document.addEventListener('click', async e=>{
@@ -1065,8 +1085,8 @@ document.addEventListener('click', async e=>{
       if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
       document.querySelectorAll('#photoAsk button.slot').forEach(x=>{ x.classList.remove('need'); void x.offsetWidth; x.classList.add('need'); }); return; } startSearch(c); }
   else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; $('#slotFile').click(); }
-  else if(a==='slot-rm'){ const c=S.current; delete c.slots[el.dataset.slot]; if(BLOBS[c.id]) delete BLOBS[c.id].slots[el.dataset.slot]; syncPhotos(c); Store.save(c); rerender(); }
-  else if(a==='dmg-rm'){ const c=S.current; const i=+el.dataset.slot; c.dmg.splice(i,1); if(BLOBS[c.id]) BLOBS[c.id].dmg.splice(i,1); syncPhotos(c); Store.save(c); rerender(); }
+  else if(a==='slot-rm'){ const c=S.current; Cloud.rm(c,'photo',el.dataset.slot); delete c.slots[el.dataset.slot]; if(BLOBS[c.id]) delete BLOBS[c.id].slots[el.dataset.slot]; syncPhotos(c); Store.save(c); rerender(); }
+  else if(a==='dmg-rm'){ const c=S.current; const i=+el.dataset.slot; c.dmg.splice(i,1); if(BLOBS[c.id]) BLOBS[c.id].dmg.splice(i,1); Cloud.dmgAll(c); syncPhotos(c); Store.save(c); rerender(); }
   else if(a==='conseiller'){ openRdv('appel'); }
   else if(a==='notify'){ askNotify(S.current); }
   else if(a==='tax-hide'||a==='tax-show'){ S.current.hideTax = a==='tax-hide'; Store.save(S.current); rerender(); }
@@ -1116,6 +1136,7 @@ $('#slotFile').addEventListener('change', async e=>{ const f=e.target.files[0]; 
     if(key==='dmg'){ c.dmg=c.dmg||[]; if(c.dmg.length<DMG_MAX){ c.dmg.push(thumb); BLOBS[c.id].dmg.push(blob); } }
     else { c.slots=c.slots||{}; c.slots[key]=thumb; BLOBS[c.id].slots[key]=blob; }
     syncPhotos(c); await Store.save(c); rerender();
+    if(key==='dmg') Cloud.dmgAll(c); else Cloud.file(c,'photo',key,BLOBS[c.id].slots[key],'image/jpeg',key+'.jpg');
   }catch(err){ toast('Photo illisible. Réessaie.'); } });
 
 /* ============ SCAN NIV ============ */
@@ -1373,7 +1394,7 @@ ${juliaContext()}`;
   jBusy=false; renderJulia(); }
 
 /* ============ GARAGE ============ */
-async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; if(S.screen==='garage'||S.screen==='home') rerender(); }
+async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; list.forEach(c=>{ if(c.estimate&&!c.dbSaved) Cloud.save(c); }); if(S.screen==='garage'||S.screen==='home') rerender(); }
 
 /* comptes à rebours */
 setInterval(()=>{ document.querySelectorAll('[data-cd]').forEach(el=>{ el.textContent=timeLeft(+el.dataset.cd-Date.now()); }); }, 30000);
