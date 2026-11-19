@@ -82,6 +82,9 @@ a.btn,a.btn:visited{text-decoration:none}
 .pay{display:flex;flex-direction:column;gap:10px}.pay>div{display:flex;gap:12px;align-items:center;font-size:14.5px}
 .pay>div b{flex:0 0 24px;height:24px;border-radius:50%;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;font-size:12px}
 .dmgcard{border:2px solid var(--acc);background:#f5f9ff;gap:14px;box-shadow:0 8px 24px rgba(0,111,235,.15)}
+.jrow{display:flex;gap:12px;align-items:flex-start}.jrow .julia-av{flex:0 0 38px}.jrow>div:nth-child(2){flex:1}
+.bubble{background:var(--soft);border-radius:4px 16px 16px 16px;padding:10px 13px;font-size:15px}
+.card.guard{border-color:var(--acc)}
 .stepk{display:block;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc);margin-bottom:2px}
 .dmg-i{width:40px!important;height:40px!important;flex-basis:40px!important;font-size:18px!important}
 .dmgcard.ok{border-color:#cfe3fb;background:#fff}
@@ -558,7 +561,7 @@ function vLoading(){ return `${topbar('Ton offre initiale')}
 
 function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
-  return ({estimation:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:'Julia travaille pour toi'},
+  return ({estimation:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Payée'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
@@ -656,8 +659,26 @@ function photoSlotsHTML(c){ const dmg=needsDamagePhotos(c.answers); const n=slot
 const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]).filter(x=>x!==NONE_INT).length;
 
 /* ---- 2. Première estimation (pas une offre : les offres viennent ensuite de Shopicar) ---- */
+/* Parcours rapide (véhicules courants, api/_lib/eligibility.js) : « Cette offre me convient » → validation par un conseiller.
+   Sinon (camionnettes, luxe, exceptions, état à confirmer) : photos + dommages obligatoires, puis Julia en direct. */
+const isFast = c => !!(c.fastTrack && c.fastTrack.ok);
+const GUARD_TXT = { categorie:'Ton véhicule est dans une catégorie plus difficile à évaluer en raison des différentes options possibles. Nous avons besoin de plus d\'information pour te faire une offre ferme.',
+  etat:'Selon ce que tu as déclaré, nous avons besoin de voir ton auto pour te faire une offre ferme.',
+  donnees:'Il y a peu de véhicules comparables au tien sur le marché. Nous avons besoin de plus d\'information pour te faire une offre ferme.' };
+function initialDisclosuresHTML(c){ return `<ul class="clean warnl small" style="margin:0">
+    <li><span>Validation de ton dossier par un conseiller Shopicar avant l'offre ferme.</span></li>
+    <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
+    <li><span>État et équipements confirmés par une inspection rapide de 15 à 20 minutes à la cueillette.</span></li>
+    <li><span>Aucune charge ou dette non déclarée au RDPRM; pièces d'identité et immatriculation au nom du vendeur.</span></li>
+    <li><span>Kilométrage à la cueillette au plus 500 km de plus que déclaré.</span></li></ul>`; }
+function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><div class="julia-av">J</div><div><b>Prix souhaité : <span class="num">${money(c.wish)}</span></b><div class="muted small">Julia s'en sert pour chercher le meilleur prix pour toi.</div></div><button class="lnk" data-act="wish-edit">Modifier</button></div>
+    <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale de ${money(c.estimate)}.</p></div>`;
+  return `<div class="card" id="wishAsk"><div class="jrow"><div class="julia-av">J</div><div class="bubble">Pas de problème! Combien aimerais-tu obtenir pour ton auto?</div></div>
+    <div class="field"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${esc(c.wishDraft||'')}"></div>
+    <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale. Ensuite, ajoute tes photos et tes dommages pour que Julia travaille pour toi.</p>
+    <button class="btn pri big" data-act="wish-save">Continuer : ajouter mes photos</button></div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage();
-  const dmg=!DMG_NONE(c.answers);
+  const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||(more&&c.wish);
   return `${topbar('Ton offre initiale','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
@@ -666,9 +687,19 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <span class="lbl">Ton offre initiale</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
       <div class="small" style="color:#d4d4d4">Une offre initiale basée sur les données du marché et les caractéristiques de ton véhicule.</div>
-      <ul class="clean checks onDark"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>Offre initiale : conditionnelle suite à la réception des photos et dommages</span></li></ul>
+      <ul class="clean checks onDark"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
     </div>
-    <div class="best">
+    ${fast&&!more?`<div class="best">
+      <h2>Cette offre te convient?</h2>
+      <p>Passe à la prochaine étape : un conseiller Shopicar valide ton dossier et te confirme ton offre ferme.</p>
+      <button class="btn dark big" data-act="initial-ok">Cette offre me convient : je passe à la prochaine étape</button>
+    </div>
+    <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>
+    <button class="btn sec" data-act="want-more">Je veux plus que cette offre</button>`:''}
+    ${fast&&more?wishHTML(c):''}
+    ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
+      <p class="muted small" style="margin:0">Ajoute 6 photos et tes dommages : Julia cherche ensuite le meilleur prix pour toi. Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale.</p></div>`:''}
+    ${showPhotos?`<div class="best">
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
       <h2>Obtiens le meilleur prix Shopicar</h2>
       <p>Ajoute 6 photos de ton auto, plus les dommages s'il y en a, et laisse Julia travailler pour toi.</p>
@@ -676,7 +707,8 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     </div>
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
-    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}
+    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}`:''}
+    ${fast&&more?`<button class="btn ghost" data-act="want-more-undo">Finalement, l'offre initiale de ${money(c.estimate)} me convient</button>`:''}
     <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
     <button class="btn sec" data-act="julia">Discuter avec Julia</button>
     ${ADVANTAGES}
@@ -684,6 +716,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     ${clientDetailsHTML(c)}
     ${taxHTML(c, c.estimate)}
     ${((c.valuation||{}).drapeaux||[]).length?`<div class="card"><h3>À valider par un acheteur</h3><ul class="clean warnl">${c.valuation.drapeaux.map(f=>`<li><span>${esc(f)}</span></li>`).join('')}</ul></div>`:''}
+    ${IS_ADMIN?`<div class="card"><span class="stat info">Super Admin seulement</span><div class="small">Parcours rapide : <b>${fast?'oui':'non'}</b>${!fast?` · raison : ${esc((c.fastTrack||{}).raison||'—')}${c.fastTrackDetail?' ('+esc(c.fastTrackDetail)+')':''}`:''}</div></div>`:''}
     ${adminBreakdownHTML(c)}
   </div>`; }
 
@@ -700,7 +733,7 @@ function juliaLiveHTML(b){ return `<div class="jlive" id="liveMsg">
     <div class="jl-bar"><i></i></div></div>`; }
 let subTimer=null, subIdx=0;
 setInterval(()=>{ const el=$('#liveSub'); if(!el||$('#liveMsg').classList.contains('good')) return; subIdx=(subIdx+1)%LIVE_SUBS.length; el.style.opacity=0; setTimeout(()=>{ if(!$('#liveMsg')?.classList.contains('good')) el.textContent=LIVE_SUBS[subIdx]; el.style.opacity=1; },250); }, 3500);
-function vSearch(){ const c=S.current; if(!c) return vGarage(); const b=bestOffer(c); const s=c.search||{};
+function vSearch(){ const c=S.current; if(!c) return vGarage(); const b=bestOffer(c); const s=c.search||{}; if(s.intent==='initial') return vValidation(c);
   const canNotify='Notification' in window && Notification.permission!=='denied';
   return `${topbar('Julia travaille','tab-garage')}
   <div class="wrap">
@@ -723,6 +756,22 @@ function vSearch(){ const c=S.current; if(!c) return vGarage(); const b=bestOffe
     ${s.demo?`<p class="muted small" style="margin:0;text-align:center;opacity:.7">Mode démo : offres simulées.</p>`:''}
   </div>`; }
 
+/* ---- 3 bis. Parcours rapide : le client a accepté son offre initiale, un conseiller valide le dossier ---- */
+function vValidation(c){ const s=c.search||{}; const canNotify='Notification' in window && Notification.permission!=='denied';
+  return `${topbar('Validation de ton offre','tab-garage')}
+  <div class="wrap">
+    ${vehHead(c)}
+    <div><h2 style="font-size:24px">C'est noté! Un conseiller valide ton offre.</h2>
+    <p class="muted" style="margin:6px 0 0">Tu as choisi ton offre initiale de <b class="num">${money(c.estimate)}</b>. On vérifie ton dossier et on te confirme ton offre ferme ici et par texto.</p></div>
+    <div class="jlive" id="liveMsg"><div class="jl-pulse sm"><div class="julia-av">J</div></div>
+      <div class="txt"><b>Validation en cours</b><span>Un conseiller Shopicar révise tes déclarations.</span></div><div class="jl-bar"><i></i></div></div>
+    <div class="card"><h3>Ce qu'on valide</h3>${initialDisclosuresHTML(c)}
+      <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te proposer une offre ajustée. Tu restes libre de refuser.</p></div>
+    ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton offre ferme est confirmée. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
+    <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
+    ${s.demo?`<p class="muted small" style="margin:0;text-align:center;opacity:.7">Mode démo : validation simulée.</p>`:''}
+  </div>`; }
+
 /* ---- 4. Meilleure offre (et anciennes offres fermes) ---- */
 function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusInfo(c);
   const expired = st.txt==='Offre expirée'; const firm=c.status==='offre'; const nu=!!c.estimate;
@@ -738,7 +787,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
     ${vehHead(c)}
     ${official?`<div class="best official">
       <span class="tag">✓ Meilleure offre Shopicar · Offre ferme</span>
-      <h2>Excellente nouvelle! Ta meilleure offre est prête</h2>
+      <h2>${(c.search||{}).intent==='initial'&&diff===0?'Ton offre est validée par un conseiller!':'Excellente nouvelle! Ta meilleure offre est prête'}</h2>
       <div class="amt num">${amtHTML(shown)}</div>
       ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton offre initiale</span>`:''}
       ${bonusLive(c)?`<div class="bonus" style="width:100%"><span>Accepte d'ici <b class="num" data-cd="${bonusEnd(c)}">${timeLeft(bonusEnd(c)-Date.now())}</b> et reçois</span><b>+${money(BONUS_24H)}</b></div>`:''}
@@ -929,6 +978,13 @@ document.addEventListener('click', async e=>{
   else if(a==='open-offer'){ go('offer'); }
   else if(a==='dmg-none'){ const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
+  else if(a==='initial-ok'){ startSearch(S.current, 'initial'); }
+  else if(a==='want-more'){ S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#wishAsk'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
+  else if(a==='want-more-undo'){ S.current.wantMore=false; await Store.save(S.current); go('estimate'); }
+  else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
+  else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
+      if(!(n>=500)){ toast('Indique le montant que tu aimerais obtenir.'); return; }
+      c.wish=n; c.wishDraft=''; await Store.save(c); rerender(); setTimeout(()=>$('#photoAsk')?.scrollIntoView({behavior:'smooth',block:'start'}),50); }
   else if(a==='best-price'){ const c=S.current; if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
       document.querySelectorAll('#photoAsk button.slot').forEach(x=>{ x.classList.remove('need'); void x.offsetWidth; x.classList.add('need'); }); return; } startSearch(c); }
   else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; $('#slotFile').click(); }
@@ -1060,7 +1116,8 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
   const t=a.titre||[]; const review = !est.enough || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
   const now=Date.now();
   // L'offre calculée devient la première estimation (non garantie). Les règles de calcul ne changent pas.
-  const car={ id:d.replaces||d.id, vin:d.vin, vehicle:v, answers:Object.assign({},a), photos:d.photos.slice(0,6), valuation:val, estimate:offer, offer, fee, review,
+  const ft = est.fastTrack||{}; const fastTrack = ft.ok && !review ? {ok:true} : {ok:false, raison: ft.raison || (review?'etat':'categorie')};
+  const car={ id:d.replaces||d.id, vin:d.vin, vehicle:v, answers:Object.assign({},a), photos:d.photos.slice(0,6), valuation:val, estimate:offer, offer, fee, review, fastTrack, fastTrackDetail: est.fastTrackDetail||null,
     status:'estimation', createdAt:now, expiresAt:now+OFFER_HOURS*3600000 };
   await Store.save(car);
   const i=S.cars.findIndex(c=>c.id===car.id); if(i>=0) S.cars[i]=car; else S.cars.push(car);
@@ -1084,19 +1141,32 @@ async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search
   const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
   for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
-  const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers:c.answers, estimate:c.estimate, photos, valuation:{ drapeaux:(c.valuation||{}).drapeaux||[] } }});
+  const notes=[...(((c.valuation||{}).drapeaux)||[])];
+  if(c.intent==='initial') notes.unshift(`Le client accepte son offre initiale de ${money(c.estimate)} : valider le dossier et confirmer l'offre ferme.`);
+  if(c.wish) notes.unshift(`Le client veut plus que l'offre initiale (${money(c.estimate)}) : prix souhaité ${money(c.wish)}.`);
+  if(c.fastTrack && !c.fastTrack.ok) notes.push(`Hors parcours rapide (${c.fastTrack.raison||'catégorie'}) : photos et dommages requis.`);
+  const answers=Object.assign({}, c.answers, c.wish?{prix_souhaite:c.wish}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
+  const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, valuation:{ drapeaux:notes } }});
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
-async function startSearch(c){ if(starting) return;
-  starting=true; const btn=document.querySelector('[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
-  try{ await ensureLead(c); }catch(e){ starting=false; toast("Impossible d'envoyer ton dossier pour l'instant. Réessaie dans un instant."); rerender(); return; }
+async function startSearch(c, intent){ if(starting) return;
+  starting=true; c.intent = intent || 'meilleur_prix';
+  const btn=document.querySelector(intent==='initial'?'[data-act="initial-ok"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
+  const had = !!(c.search&&c.search.leadToken);
+  try{ const tok=await ensureLead(c);
+    // Dossier déjà créé (ex. rendez-vous demandé avant) : on avise quand même l'équipe de l'intention du client.
+    if(had && tok) await leadApi({action:'callback', token:tok, when: intent==='initial' ? `Le client accepte son offre initiale de ${money(c.estimate)} : à valider` : `Le client veut le meilleur prix${c.wish?' (souhaité : '+money(c.wish)+')':''}`}).catch(()=>{});
+  }catch(e){ starting=false; toast("Impossible d'envoyer ton dossier pour l'instant. Réessaie dans un instant."); rerender(); return; }
   starting=false;
   if(!c.search) c.search={ status:'idle', demo:DEMO_OFFERS, notify:false, offers:[] };
+  c.search.intent = c.intent;
   if(c.search.status==='idle'){ c.search.status='running'; c.search.startedAt=Date.now(); }
   c.status='recherche'; await Store.save(c); S.liveShown=null; go('search'); if(c.search.leadToken) pollLead(c); }
 function feedPoll(c){ const s=c.search; const now=Date.now(); const added=[]; let changed=false;
   if(s.demo){ // DÉMO : offres simulées sur une ligne de temps fixe (reprend au bon endroit si on quitte et revient)
     const el=(now-s.startedAt)/1000; let amt=c.estimate;
-    DEMO_STEPS.forEach((st,i)=>{ amt+=st.add; const id='demo'+i;
+    if(s.intent==='initial'){ if(el>=8 && !s.offers.some(o=>o.id==='demo-init')){ const at=s.startedAt+8000; const o={id:'demo-init', amount:c.estimate, at, expiresAt:at+OFFER_HOURS*3600000, status:'valid'}; s.offers.push(o); added.push(o); }
+      if(el>=10 && s.status!=='done'){ s.status='done'; changed=true; } }
+    else DEMO_STEPS.forEach((st,i)=>{ amt+=st.add; const id='demo'+i;
       if(el>=st.t && !s.offers.some(o=>o.id===id)){ const at=s.startedAt+st.t*1000; const o={id, amount:Math.round(amt/50)*50, at, expiresAt:at+OFFER_HOURS*3600000, status:'valid'}; s.offers.push(o); added.push(o); } });
     if(el>=DEMO_DONE_T && s.status!=='done'){ s.status='done'; changed=true; }
   }
@@ -1179,7 +1249,8 @@ async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:0
   await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller te rappelle à l\'heure choisie.':(c.estimate?'Demande de rendez-vous envoyée. Un conseiller te confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
 
 /* ============ JULIA ============ */
-function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.';
+function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.'; return juliaContext0(c) + (c.wish?` Le client aimerait obtenir ${money(c.wish)}; rappelle-lui que les offres reçues peuvent être plus hautes ou plus basses que l'offre initiale, et qu'avec ses photos et dommages, Julia cherche le meilleur prix.`:'') + (c.fastTrack&&!c.fastTrack.ok&&c.status==='estimation'?' Ce véhicule est dans une catégorie plus difficile à évaluer : il faut ses photos et ses dommages pour une offre ferme; ne propose pas d\'accepter l\'offre initiale telle quelle.':''); }
+function juliaContext0(c){
   if(c.estimate && ['estimation','recherche'].includes(c.status)){ const b=bestOffer(c);
     return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}, ${(c.photos||[]).length} photo(s). Offre initiale Shopicar : ${money(c.estimate)} (offre initiale conditionnelle suite à la réception des photos et dommages; pas une offre garantie, le prix final peut être plus haut ou plus bas). ${c.status==='recherche'?(b?`Shopicar cherche le meilleur prix; meilleure offre validée jusqu'ici : ${money(b.amount)}.`:'Shopicar cherche le meilleur prix; aucune offre validée pour l\'instant.'):'Le client n\'a pas encore lancé la recherche du meilleur prix (bouton « Obtenir mon meilleur prix Shopicar »). Encourage-le à ajouter des photos (avant, arrière, côtés, tableau de bord, dommages) s\'il n\'en a pas.'} Ne donne jamais d'autre montant que ceux-ci.`; }
   if(c.estimate) return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}. Offre initiale : ${money(c.estimate)}. Meilleure offre Shopicar (offre ferme) : ${money(c.finalOffer||c.offer)} (statut : ${statusInfo(c).txt}), valide jusqu'au ${new Date(c.expiresAt).toLocaleString('fr-CA')}.${bonusLive(c)?` Bonus de ${money(BONUS_24H)} si le client accepte avant le ${new Date(bonusEnd(c)).toLocaleString('fr-CA')} (24 h après l'offre officielle).`:''} Pour accepter : bouton « Accepter mon offre et prendre rendez-vous »; pour un humain : « Parler à un conseiller Shopicar ».`;

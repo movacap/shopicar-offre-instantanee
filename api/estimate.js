@@ -3,13 +3,16 @@
 // Super Admin (en-tête x-admin-key) : en plus, le détail interne (internal).
 import { isAdmin } from './_lib/market.js';
 import { valuate, clientView, internalView } from './_lib/valuation.js';
+import { fastTrack } from './_lib/eligibility.js';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'POST seulement' });
   const { vin, vehicle = {}, answers = {} } = req.body || {};
   try {
     const v = await valuate({ vin, vehicle, answers });
-    const out = { ok: true, ...clientView(v) };
+    const ft = fastTrack({ vehicle, answers, calc: v.calc, market: v.market });
+    const out = { ok: true, ...clientView(v), fastTrack: { ok: ft.ok, raison: ft.raison || null } };
+    if (isAdmin(req)) out.fastTrackDetail = ft.detail || null;
     if (isAdmin(req)) out.internal = internalView(v);
     res.setHeader('cache-control', 'no-store');
     return res.status(200).json(out);
