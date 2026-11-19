@@ -805,7 +805,7 @@ function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup|
     </div>
 
     <div class="card stp">${head(3,c.status==='payee','Ton paiement','Tu es payé le jour même.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
-      <div class="pay"><div><b>1</b><span>On arrive à l'heure choisie</span></div><div><b>2</b><span>Inspection rapide de 10 minutes</span></div><div><b>3</b><span>Virement de ${money(c.finalOffer||c.offer)}${fin?' (moins le solde du prêt)':''} le jour même</span></div></div>
+      <div class="pay"><div><b>1</b><span>On arrive à l'heure choisie</span></div><div><b>2</b><span>Inspection rapide de 15 à 20 minutes</span></div><div><b>3</b><span>Virement de ${money(c.finalOffer||c.offer)}${fin?' (moins le solde du prêt)':''} le jour même</span></div></div>
     </div>
     <button class="btn pri big" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?(isDrop?'Mettre à jour mon dépôt':'Mettre à jour ma cueillette'):(isDrop?'Confirmer mon dépôt':'Confirmer ma cueillette')}</button>
     ${!docsOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!docsOk&&'tes documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
