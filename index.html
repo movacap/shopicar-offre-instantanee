@@ -900,15 +900,16 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
     ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoute 6 photos et tes dommages : Julia cherche ensuite le meilleur prix pour toi. Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale.</p></div>`:''}
-    ${showPhotos?`<div class="best" id="bestBox">
+    ${showPhotos?`<div class="best${fast&&more?' ok':''}" id="bestBox">
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
       ${fast&&more?`<h2>Julia va travailler pour obtenir le prix que tu espères</h2>
       <p>Combien aimerais-tu obtenir pour ton auto? Ajoute ensuite 6 photos et tes dommages : Julia cherche le meilleur prix pour toi.</p>
-      <div class="field" style="width:100%"><label for="wishIn" style="color:#fff">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${c.wish?esc(Math.round(c.wish).toLocaleString('fr-CA')+' $'):''}"></div>
-      <p class="small" style="opacity:.85">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale de ${money(c.estimate)}.</p>`
+      <div class="field" style="width:100%"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${c.wish?esc(Math.round(c.wish).toLocaleString('fr-CA')+' $'):''}"></div>
+      <div class="field" style="width:100%"><label for="wishWhy">Pourquoi ton auto vaut-elle plus?</label><textarea id="wishWhy" class="inp" rows="3" style="font-family:inherit;resize:vertical" placeholder="ex. groupe Technologie, toit ouvrant, sièges chauffants, pneus d'hiver neufs, entretien chez le concessionnaire…">${esc(c.wishWhy||'')}</textarea><div class="muted small">Options, groupes (packages), équipements ou entretiens qu'on devrait connaître : Julia s'en sert pour défendre ton prix.</div></div>
+      <p class="small muted" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale de ${money(c.estimate)}.</p>`
       :`<h2>Obtiens le meilleur prix Shopicar</h2>
       <p>Ajoute 6 photos de ton auto, plus les dommages s'il y en a, et laisse Julia travailler pour toi.</p>`}
-      <button class="btn dark big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':slotCount(c)<6?`Ajouter mes photos · ${slotCount(c)}/6`:'Étape 2 : mes photos de dommages'}</button>
+      <button class="btn ${fast&&more?'pri':'dark'} big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':slotCount(c)<6?`Ajouter mes photos · ${slotCount(c)}/6`:'Étape 2 : mes photos de dommages'}</button>
     </div>
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
@@ -1264,6 +1265,7 @@ function renderTabs(){ const t=['garage','settings','profile'].includes(S.screen
 
 /* ============ BIND ============ */
 function bindInputs(){
+  const ww=$('#wishWhy'); if(ww&&S.current){ ww.addEventListener('input',()=>{ S.current.wishWhy=ww.value.slice(0,800); }); ww.addEventListener('change',()=>Store.save(S.current)); }
   const wi=$('#wishIn'); if(wi&&S.current){ wi.addEventListener('change',()=>{ const n=Number(String(wi.value).replace(/[^\d]/g,'')); S.current.wish=n>=500?n:null; wi.value=S.current.wish?Math.round(S.current.wish).toLocaleString('fr-CA')+' $':''; Store.save(S.current); }); }
   const vin=$('#vin'); if(vin){ vin.addEventListener('input',()=>{ const n=normVin(vin.value).slice(0,17); S.draft.vin=n; if(vin.value!==n) vin.value=n;
       const ok=n.length===17&&vinCheck(n); const h=$('#vinHint'); h.textContent= n.length===0?'17 caractères': n.length<17?`${n.length}/17`: ok?'NIV valide':'Vérifie le NIV : un caractère semble erroné';
@@ -1331,7 +1333,7 @@ document.addEventListener('click', async e=>{
   else if(a==='want-more'){ openMoreModal(); }
   else if(a==='more-keep'){ $('#modal').innerHTML=''; const b=document.querySelector('[data-act="initial-ok"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); } }
   else if(a==='more-go'){ $('#modal').innerHTML=''; S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
-  else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; c.prep=true; await Store.save(c); go('prep'); }
+  else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; c.wishWhy=''; c.prep=true; await Store.save(c); go('prep'); }
   else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
   else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
       if(!(n>=500)){ toast('Indique le montant que tu aimerais obtenir.'); return; }
@@ -1526,9 +1528,9 @@ async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.l
     if(pickupOk(c)) notes.unshift(`Rendez-vous choisi par le client : ${pickupLabel(c)} (confirmé à l'acceptation de l'offre ferme).`);
     if(Object.keys(c.docs||{}).length) notes.unshift(`Documents fournis dans l'app : ${docsNeed(c).filter(n=>(c.docs||{})[n[0]]).map(n=>n[1]).join(', ')}.`);
     notes.unshift(`Le client accepte son offre initiale de ${money(c.estimate)} : valider que les photos, les dommages et les documents sont conformes, puis confirmer l'offre ferme.`); }
-  if(c.wish) notes.unshift(`Le client veut plus que l'offre initiale (${money(c.estimate)}) : prix souhaité ${money(c.wish)}.`);
+  if(c.wish) notes.unshift(`Le client veut plus que l'offre initiale (${money(c.estimate)}) : prix souhaité ${money(c.wish)}.${(c.wishWhy||'').trim()?` Pourquoi, selon le client : ${c.wishWhy.trim()}`:''}`);
   if(c.fastTrack && !c.fastTrack.ok) notes.push(`Hors parcours rapide (${c.fastTrack.raison||'catégorie'}) : photos et dommages requis.`);
-  const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{}, c.wish?{prix_souhaite:c.wish}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
+  const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{}, c.wish?{prix_souhaite:c.wish}:{}, (c.wish&&(c.wishWhy||'').trim())?{raisons_prix_souhaite:c.wishWhy.trim()}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
   if(DEMO_OFFERS){ // Démo : la fiche 360inspek reçoit quand même le dossier complet (photos, intention), sans faire attendre le client; l'app garde ses offres simulées
     c.inspekFull=true; (async()=>{ try{ const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, documents, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, demo:true, valuation:{ drapeaux:notes } }});
       c.inspekToken=c.inspekToken||j.token; await Store.save(c); }catch(e){ c.inspekFull=false; console.warn('[360inspek]', e.message); } })();
@@ -1668,7 +1670,7 @@ function openMoreModal(){ const c=S.current;
   </div></div></div>`; }
 
 /* ============ JULIA ============ */
-function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.'; return juliaContext0(c) + (isTrade(c.answers)?` Le client veut ÉCHANGER son auto (trade-in) et recherche : ${c.answers.recherche||'modèle non précisé'}. Un conseiller lui proposera des autos qui correspondent.`:'') + (c.wish?` Le client aimerait obtenir ${money(c.wish)}; rappelle-lui que les offres reçues peuvent être plus hautes ou plus basses que l'offre initiale, et qu'avec ses photos et dommages, Julia cherche le meilleur prix.`:'') + (c.fastTrack&&!c.fastTrack.ok&&c.status==='estimation'?' Ce véhicule est dans une catégorie plus difficile à évaluer : il faut ses photos et ses dommages pour une offre ferme; ne propose pas d\'accepter l\'offre initiale telle quelle.':''); }
+function juliaContext(){ const c=S.current; if(!c) return 'Le client n\'a pas encore d\'offre.'; return juliaContext0(c) + (isTrade(c.answers)?` Le client veut ÉCHANGER son auto (trade-in) et recherche : ${c.answers.recherche||'modèle non précisé'}. Un conseiller lui proposera des autos qui correspondent.`:'') + (c.wish?` Le client aimerait obtenir ${money(c.wish)}${(c.wishWhy||'').trim()?` (raisons données : ${c.wishWhy.trim()})`:''}; rappelle-lui que les offres reçues peuvent être plus hautes ou plus basses que l'offre initiale, et qu'avec ses photos et dommages, Julia cherche le meilleur prix.`:'') + (c.fastTrack&&!c.fastTrack.ok&&c.status==='estimation'?' Ce véhicule est dans une catégorie plus difficile à évaluer : il faut ses photos et ses dommages pour une offre ferme; ne propose pas d\'accepter l\'offre initiale telle quelle.':''); }
 function juliaContext0(c){
   if(c.estimate && ['estimation','recherche'].includes(c.status)){ const b=bestOffer(c);
     return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}, ${(c.photos||[]).length} photo(s). Offre initiale Shopicar : ${money(c.estimate)} (offre initiale conditionnelle suite à la réception des photos et dommages; pas une offre garantie, le prix final peut être plus haut ou plus bas). ${c.status==='recherche'?(b?`Shopicar cherche le meilleur prix; meilleure offre validée jusqu'ici : ${money(b.amount)}.`:'Shopicar cherche le meilleur prix; aucune offre validée pour l\'instant.'):'Le client n\'a pas encore lancé la recherche du meilleur prix (bouton « Obtenir mon meilleur prix Shopicar »). Encourage-le à ajouter des photos (avant, arrière, côtés, tableau de bord, dommages) s\'il n\'en a pas.'} Ne donne jamais d'autre montant que ceux-ci.`; }
