@@ -466,6 +466,7 @@ function render(){
   else if(s==='search') app.innerHTML=vSearch();
   else if(s==='offer') app.innerHTML=vOffer();
   else if(s==='accept') app.innerHTML=vAccept();
+  else if(s==='prep') app.innerHTML=vPrep();
   else if(s==='garage') app.innerHTML=vGarage();
   renderTabs(); setTabsH(); bindInputs();
 }
@@ -568,7 +569,7 @@ function vLoading(){ return `${topbar('Ton offre initiale')}
 
 function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
-  return ({estimation:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
+  return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Payée'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
@@ -646,17 +647,17 @@ const slotCount = c => PHOTO_SLOTS.filter(([k])=>c.slots&&c.slots[k]).length;
 const dmgDone = c => (c.dmg||[]).length>=1 || !!c.noDmg;
 const photosDone = c => slotCount(c)===PHOTO_SLOTS.length && dmgDone(c);
 function syncPhotos(c){ c.photos=[...PHOTO_SLOTS.map(([k])=>c.slots&&c.slots[k]).filter(Boolean), ...(c.dmg||[])]; }
-function photoSlotsHTML(c){ const dmg=needsDamagePhotos(c.answers); const n=slotCount(c);
+function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const n=slotCount(c);
   const tile=(key,label,img,rm,short)=> img
     ? `<div class="slot on"><img src="${img}" alt="${esc(label)}"><span>${esc(short||label)}</span><button class="rm" data-act="${rm}" data-slot="${key}" aria-label="Retirer">×</button></div>`
     : `<button class="slot" data-act="slot-add" data-slot="${key}"><b>+</b><span>${esc(label)}</span></button>`;
   return `<div class="card" id="photoAsk">
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3><span class="stepk">Étape 1</span>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3><span class="stepk">${prep?'1 a':'Étape 1'}</span>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
     <div class="slots">${PHOTO_SLOTS.map(([k,l,sh])=>tile(k,l,c.slots&&c.slots[k],'slot-rm',sh)).join('')}</div>
     ${n<PHOTO_SLOTS.length?`<p class="small muted" style="margin:2px 0 0">Ensuite : tes dommages${dmg?' déclarés':', s\'il y en a'}.</p>`:''}
   </div>
   ${n===PHOTO_SLOTS.length?`<div class="card dmgcard ${dmgDone(c)?'ok':''}" id="dmgAsk">
-    <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">Étape 2 · ${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages te permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
+    <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">${prep?'1 b':'Étape 2'} · ${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages te permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
     ${c.noDmg?`<div class="dmg-ok"><span>✓ Tu as confirmé que ton auto n'a aucun dommage.</span><button class="lnk" data-act="dmg-undo">Modifier</button></div>`
     :`<p class="small muted" style="margin:0">${dmg?'Tu as déclaré des dommages. Montre-les de près (bosses, égratignures, éclats, rouille).':'Bosses, égratignures, éclats, rouille? Montre-les de près.'}</p>
     ${(c.dmg||[]).length?`<div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>`:`<button class="btn pri big" data-act="slot-add" data-slot="dmg">📷  Ajouter une photo de dommage</button>`}
@@ -673,7 +674,7 @@ const GUARD_TXT = { categorie:'Ton véhicule est dans une catégorie plus diffic
   etat:'Selon ce que tu as déclaré, nous avons besoin de voir ton auto pour te faire une offre ferme.',
   donnees:'Il y a peu de véhicules comparables au tien sur le marché. Nous avons besoin de plus d\'information pour te faire une offre ferme.' };
 function initialDisclosuresHTML(c){ return `<ul class="clean warnl small" style="margin:0">
-    <li><span>Validation de ton dossier par un conseiller Shopicar avant l'offre ferme.</span></li>
+    <li><span>Tes photos, tes dommages et tes documents sont validés par un conseiller Shopicar avant l'offre ferme.</span></li>
     <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
     <li><span>État et équipements confirmés par une inspection rapide de 15 à 20 minutes à la cueillette.</span></li>
     <li><span>Aucune charge ou dette non déclarée au RDPRM; pièces d'identité et immatriculation au nom du vendeur.</span></li>
@@ -698,7 +699,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     </div>
     ${fast&&!more?`<div class="best">
       <h2>Cette offre te convient?</h2>
-      <p>Passe à la prochaine étape : un conseiller Shopicar valide ton dossier et te confirme ton offre ferme.</p>
+      <p>Ajoute tes photos et tes dommages, tes documents, puis choisis ton rendez-vous. Un conseiller Shopicar valide ensuite ton dossier et te confirme ton offre ferme.</p>
       <button class="btn dark big" data-act="initial-ok">Cette offre me convient : je passe à la prochaine étape</button>
     </div>
     <button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour toi</span></span><span class="mc">›</span></button>
@@ -718,7 +719,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
     ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}`:''}
-    ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Un conseiller valide ton dossier et te confirme ton offre ferme</span></span><span class="mc">›</span></button>`:''}
+    ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complète ton dossier : un conseiller le valide et te confirme ton offre ferme</span></span><span class="mc">›</span></button>`:''}
     <div class="row"><button class="btn sec" data-act="rdv" data-t="rendez-vous">Prendre rendez-vous</button><button class="btn sec" data-act="conseiller">Parler à un conseiller</button></div>
     <button class="btn sec" data-act="julia">Discuter avec Julia</button>
     ${ADVANTAGES}
@@ -772,10 +773,11 @@ function vValidation(c){ const s=c.search||{}; const canNotify='Notification' in
   <div class="wrap">
     ${vehHead(c)}
     <div><h2 style="font-size:24px">C'est noté! Un conseiller valide ton offre.</h2>
-    <p class="muted" style="margin:6px 0 0">Tu as choisi ton offre initiale de <b class="num">${money(c.estimate)}</b>. On vérifie ton dossier et on te confirme ton offre ferme ici et par texto.</p></div>
+    <p class="muted" style="margin:6px 0 0">Tu as choisi ton offre initiale de <b class="num">${money(c.estimate)}</b>. On vérifie que tes photos, tes dommages et tes documents sont conformes, puis on te confirme ton offre ferme ici et par texto.</p></div>
     <div class="jlive" id="liveMsg"><div class="jl-pulse sm"><div class="julia-av">J</div></div>
-      <div class="txt"><b>Validation en cours</b><span>Un conseiller Shopicar révise tes déclarations.</span></div><div class="jl-bar"><i></i></div></div>
-    <div class="card"><h3>Ce qu'on valide</h3>${initialDisclosuresHTML(c)}
+      <div class="txt"><b>Validation en cours</b><span>Un conseiller Shopicar vérifie tes photos et tes documents.</span></div><div class="jl-bar"><i></i></div></div>
+    ${pickupOk(c)?`<div class="card"><h3>Ton rendez-vous</h3><div><b>${esc(pickupLabel(c))}</b></div><p class="muted small" style="margin:0">Il est confirmé dès que tu acceptes ton offre ferme.</p></div>`:''}
+    <div class="card"><h3>Ce qu'on valide</h3>${validationListHTML(c)}
       <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te proposer une offre ajustée. Tu restes libre de refuser.</p></div>
     ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton offre ferme est confirmée. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
@@ -802,9 +804,10 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
       ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton offre initiale</span>`:''}
       ${bonusLive(c)?`<div class="bonus" style="width:100%"><span>Accepte d'ici <b class="num" data-cd="${bonusEnd(c)}">${timeLeft(bonusEnd(c)-Date.now())}</b> et reçois</span><b>+${money(BONUS_24H)}</b></div>`:''}
       <div class="cd num">Offre valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>
-      <button class="btn pri big" data-act="accept">${bonusLive(c)?`Accepter ${money(shown+BONUS_24H)} et prendre rendez-vous`:'Accepter mon offre et prendre rendez-vous'}</button>
+      <button class="btn pri big" data-act="accept">${bonusLive(c)?`Accepter ${money(shown+BONUS_24H)} et ${prepReady(c)?'confirmer mon rendez-vous':'prendre rendez-vous'}`:`Accepter mon offre et ${prepReady(c)?'confirmer mon rendez-vous':'prendre rendez-vous'}`}</button>
+      ${prepReady(c)?`<div class="small" style="color:#d4d4d4;text-align:center;width:100%">Ton rendez-vous : ${esc(pickupLabel(c))}</div>`:''}
     </div>
-    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>${bonusLive(c)?'Avec bonus 24 h':'Ton offre'}</span><b>${money(shown+(bonusLive(c)?BONUS_24H:0))}</b></div><button class="btn pri" data-act="accept">Accepter et prendre RDV</button></div></div>`:`${intro}
+    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>${bonusLive(c)?'Avec bonus 24 h':'Ton offre'}</span><b>${money(shown+(bonusLive(c)?BONUS_24H:0))}</b></div><button class="btn pri" data-act="accept">${prepReady(c)?'Accepter et confirmer':'Accepter et prendre RDV'}</button></div></div>`:`${intro}
     <div class="offer">
       <span class="lbl">${nu?(['acceptee','planifiee'].includes(c.status)?'Offre acceptée*':'Meilleure offre Shopicar · Offre ferme*'):firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
       <div class="amt num">${amtHTML(shown)}</div>
@@ -836,16 +839,73 @@ function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','p
   let idx=order.indexOf(c.status==='a_valider'?'offre':c.status); if(idx<0) idx=0;
   return `<div class="tl">${labels.map((l,i)=>`<div class="s ${i<idx||(i===idx&&i===0)?'done':i===idx?'cur':''}"><div class="dot">${i<idx||(i===idx&&i===0)?'✓':i+1}</div><div><b>${l[0]}</b><div class="muted small">${l[1]}</div></div></div>`).join('')}</div>`; }
 
-function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
-  const need=[['immat','Certificat d\'immatriculation','Le document de la SAAQ'],['permis','Permis de conduire','Le recto suffit'], ...(fin?[['pret','État de compte du prêteur','Pour rembourser ton prêt']]:[])];
-  const docsOk=need.every(n=>docs[n[0]]); const isDrop=pk.lieu===PK_DROP; const dr=isDrop?dropState(c):null;
-  const pkOk=pk.date&&pk.slot&&pk.lieu&&(pk.lieu!=='À mon adresse'||(pk.adresse||'').trim().length>5)&&(!isDrop||(dr&&!dr.loading&&(pk.agent||!dr.agents.length)));
-  const done=[docsOk,pkOk].filter(Boolean).length;
+/* Documents et rendez-vous : partagés entre le dossier avant validation (parcours rapide) et l'écran après acceptation. */
+function docsNeed(c){ const fin=c.answers.finance!=='Payée au complet';
+  return [['immat','Certificat d\'immatriculation','Le document de la SAAQ'],['permis','Permis de conduire','Le recto suffit'], ...(fin?[['pret','État de compte du prêteur','Pour rembourser ton prêt']]:[])]; }
+/* Avant validation, un document compte seulement si son fichier est encore sur l'appareil (il part avec le dossier). Après envoi ou en démo, le nom suffit. */
+const docBlob = (c,k) => { const B=BLOBS[c.id]; return B&&!Array.isArray(B)&&B.docs&&B.docs[k]; };
+const docHas = (c,k,strict) => !!(c.docs||{})[k] && (!strict || DEMO_OFFERS || !!c.prepSentAt || !!docBlob(c,k));
+const docsOk = (c,strict) => docsNeed(c).every(n=>docHas(c,n[0],strict));
+function docsHTML(c, strict){ const docs=c.docs||{};
+  return docsNeed(c).map(n=>{ const ok=docHas(c,n[0],strict); return `<div class="doc ${ok?'ok':''}"><span class="doc-i">${ok?'✓':'📄'}</span><div style="flex:1;min-width:0"><b>${n[1]}</b><div class="small ${ok?'':'muted'}" style="${ok?'color:var(--ok)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${ok?'Reçu · '+esc(docs[n[0]]):n[2]}</div></div>
+        <label class="btn ${ok?'sec':'blk'} doc-b" for="doc_${n[0]}">${ok?'Changer':'Ajouter'}</label>
+        <input type="file" id="doc_${n[0]}" class="file-hidden" accept="image/*,application/pdf" data-doc="${n[0]}"></div>`; }).join(''); }
+const todayIso = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+function pickupOk(c){ const pk=c.pickup||{}; const isDrop=pk.lieu===PK_DROP; const dr=isDrop?dropState(c):null;
+  return !!(pk.date&&pk.slot&&pk.lieu&&(pk.lieu!=='À mon adresse'||(pk.adresse||'').trim().length>5)&&(!isDrop||(dr&&!dr.loading&&(pk.agent||!dr.agents.length)))); }
+function pickupFormHTML(c){ const pk=c.pickup||{}; const isDrop=pk.lieu===PK_DROP; const dr=isDrop?dropState(c):null;
   const days=[]; for(let i=1;days.length<6;i++){ const d=new Date(Date.now()+i*86400000); if(d.getDay()===0) continue; days.push(d); }
   const iso=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   const dayLbl=d=>{ const w=d.toLocaleDateString('fr-CA',{weekday:'short'}).replace('.',''); return `<small>${w}</small><b>${d.getDate()}</b><small>${d.toLocaleDateString('fr-CA',{month:'short'}).replace('.','')}</small>`; };
-  const head=(n,ok,t,sub)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':'À faire'}</span></div>`;
   const sec=(t,body)=>`<div class="stp-q"><span class="ql">${t}</span>${body}</div>`;
+  return `${sec('Où?',`<div class="chips">${[['À mon adresse','On vient chez moi'],[PK_DROP,'Je dépose mon auto chez un agent']].map(([o,l])=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${l}</button>`).join('')}</div>
+      ${pk.lieu==='À mon adresse'?`<input id="pkadr" class="inp" style="margin-top:10px" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville">`:''}
+      ${isDrop?dropPickerHTML(c,dr):''}`)}
+      ${sec('Quel jour?',`<div class="days">${days.map(d=>`<button class="day ${pk.date===iso(d)?'on':''}" data-act="pk" data-k="date" data-v="${iso(d)}">${dayLbl(d)}</button>`).join('')}</div>`)}
+      ${sec('À quelle heure?',`<div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div>`)}`; }
+function pickupLabel(c){ const pk=c.pickup||{}; const w=pickupWhen(c); if(!w) return ''; return `${w.label}, ${pk.slot} · ${pk.lieu===PK_DROP?'dépôt chez ':''}${pickupWhere(c)}`; }
+function pickupApi(c){ const pk=c.pickup||{};
+  return { when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`,
+    where: pk.lieu==='À mon adresse'?pk.adresse:pk.agent?`Dépôt chez ${pk.agent.nom}, ${pk.agent.adresse}, ${pk.agent.ville}`:'Dépôt chez un agent Shopicar (à confirmer)' }; }
+/* Parcours rapide : le rendez-vous choisi avant la validation est encore à venir → l'acceptation le confirme directement. */
+const prepReady = c => (c.search||{}).intent==='initial' && !!c.prepSentAt && pickupOk(c) && (c.pickup||{}).date > todayIso();
+function validationListHTML(c){ const fin=c.answers.finance!=='Payée au complet'; return `<ul class="clean warnl small" style="margin:0">
+    <li><span>Tes photos et tes dommages correspondent à tes déclarations.</span></li>
+    <li><span>Tes documents sont conformes : immatriculation et permis au nom du vendeur${fin?', état de compte du prêteur':''}.</span></li>
+    <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
+    <li><span>Aucune charge ou dette non déclarée au RDPRM.</span></li>
+    <li><span>Au rendez-vous : inspection rapide de 15 à 20 minutes, kilométrage au plus 500 km de plus que déclaré.</span></li></ul>`; }
+
+/* ---- 2 bis. Parcours rapide : « Cette offre me convient » → 1. photos + dommages, 2. documents, 3. rendez-vous, 4. validation par un conseiller ---- */
+function vPrep(){ const c=S.current; if(!c) return vGarage();
+  const p1=photosDone(c), p2=docsOk(c,true), p3=pickupOk(c); const done=[p1,p2,p3].filter(Boolean).length; const isDrop=(c.pickup||{}).lieu===PK_DROP;
+  const head=(n,ok,t,sub,lock)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}" style="${lock&&!ok?'background:#d4d4d4':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':lock?'À venir':'À faire'}</span></div>`;
+  const wait=t=>`<p class="small muted" style="margin:0">${t}</p>`;
+  return `${topbar('Prochaines étapes','prep-back')}
+  <div class="wrap">
+    ${vehHead(c)}
+    <div class="offer"><span class="lbl">Offre initiale choisie</span><div class="amt num">${amtHTML(c.estimate)}</div>
+      <div class="small" style="color:#d4d4d4">Complète ton dossier : un conseiller Shopicar le valide et te confirme ton offre ferme.</div></div>
+    <div><h2 style="font-size:22px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Ton dossier est complet!'}</h2>
+      <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
+    <div class="card stp ${p1?'ok':''}">${head(1,p1,'Tes photos et tes dommages','6 photos de ton auto, puis tes dommages s\'il y en a.')}</div>
+    ${photoSlotsHTML(c,true)}
+    <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Tes documents','Prends une photo claire de chaque document.',!p1)}
+      ${p1?docsHTML(c,true):wait('Ajoute d\'abord tes photos et tes dommages.')}</div>
+    <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Ton rendez-vous de dépôt':'Ton rendez-vous','Choisis où et quand on se rencontre, sans frais.',!(p1&&p2))}
+      ${p1&&p2?pickupFormHTML(c):wait('Ajoute d\'abord tes documents.')}</div>
+    <div class="card stp">${head(4,false,'Validation par un conseiller','Il vérifie que tes photos et tes documents sont conformes, puis te confirme ton offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+      ${validationListHTML(c)}</div>
+    <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer mon dossier pour validation</button>
+    ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!p1&&'tes photos et tes dommages',!p2&&'tes documents',!p3&&'ton rendez-vous'].filter(Boolean).join(', ')}.</p>`:''}
+    <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
+    <button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>
+  </div>`; }
+
+function vAccept(){ const c=S.current; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
+  const dOk=docsOk(c); const isDrop=pk.lieu===PK_DROP; const pkOk=pickupOk(c);
+  const done=[dOk,pkOk].filter(Boolean).length;
+  const head=(n,ok,t,sub)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':'À faire'}</span></div>`;
   return `${topbar('Prochaines étapes','open-offer')}
   <div class="wrap">
     <div class="offer"><span class="lbl">Offre acceptée</span><div class="amt num">${Math.round(c.finalOffer||c.offer).toLocaleString('fr-CA')}<sup>$</sup></div>
@@ -853,25 +913,19 @@ function vAccept(){ const c=S.current; const docs=c.docs||{}; const pk=c.pickup|
     <div><h2 style="font-size:22px">Plus que 2 étapes pour être payé</h2>
       <div class="stp-prog"><i style="width:${done*50}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/2 complétées · ça prend environ 2 minutes</p></div>
 
-    <div class="card stp ${docsOk?'ok':''}">${head(1,docsOk,'Tes documents','Prends une photo claire de chaque document.')}
-      ${need.map(n=>`<div class="doc ${docs[n[0]]?'ok':''}"><span class="doc-i">${docs[n[0]]?'✓':'📄'}</span><div style="flex:1;min-width:0"><b>${n[1]}</b><div class="small ${docs[n[0]]?'':'muted'}" style="${docs[n[0]]?'color:var(--ok)':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${docs[n[0]]?'Reçu · '+esc(docs[n[0]]):n[2]}</div></div>
-        <label class="btn ${docs[n[0]]?'sec':'blk'} doc-b" for="doc_${n[0]}">${docs[n[0]]?'Changer':'Ajouter'}</label>
-        <input type="file" id="doc_${n[0]}" class="file-hidden" accept="image/*,application/pdf" data-doc="${n[0]}"></div>`).join('')}
+    <div class="card stp ${dOk?'ok':''}">${head(1,dOk,'Tes documents','Prends une photo claire de chaque document.')}
+      ${docsHTML(c)}
     </div>
 
     <div class="card stp ${pkOk?'ok':''}">${isDrop?head(2,pkOk,'Ton dépôt','Choisis l\'agent Shopicar le plus près de chez toi.'):head(2,pkOk,'Ta cueillette','On vient chercher ton auto, sans frais.')}
-      ${sec('Où?',`<div class="chips">${[['À mon adresse','On vient chez moi'],[PK_DROP,'Je dépose mon auto chez un agent']].map(([o,l])=>`<button class="chip ${pk.lieu===o?'on':''}" data-act="pk" data-k="lieu" data-v="${esc(o)}">${l}</button>`).join('')}</div>
-      ${pk.lieu==='À mon adresse'?`<input id="pkadr" class="inp" style="margin-top:10px" data-pk="adresse" value="${esc(pk.adresse||'')}" placeholder="Numéro, rue, ville">`:''}
-      ${isDrop?dropPickerHTML(c,dr):''}`)}
-      ${sec('Quel jour?',`<div class="days">${days.map(d=>`<button class="day ${pk.date===iso(d)?'on':''}" data-act="pk" data-k="date" data-v="${iso(d)}">${dayLbl(d)}</button>`).join('')}</div>`)}
-      ${sec('À quelle heure?',`<div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div>`)}
+      ${pickupFormHTML(c)}
     </div>
 
     <div class="card stp">${head(3,c.status==='payee','Ton paiement','Tu es payé le jour même.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       <div class="pay"><div><b>1</b><span>On arrive à l'heure choisie</span></div><div><b>2</b><span>Inspection rapide de 15 à 20 minutes</span></div><div><b>3</b><span>Virement de ${money(c.finalOffer||c.offer)}${fin?' (moins le solde du prêt)':''} le jour même</span></div></div>
     </div>
-    <button class="btn pri big" data-act="confirm-pickup" ${docsOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?(isDrop?'Mettre à jour mon dépôt':'Mettre à jour ma cueillette'):(isDrop?'Confirmer mon dépôt':'Confirmer ma cueillette')}</button>
-    ${!docsOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!docsOk&&'tes documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
+    <button class="btn pri big" data-act="confirm-pickup" ${dOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?(isDrop?'Mettre à jour mon dépôt':'Mettre à jour ma cueillette'):(isDrop?'Confirmer mon dépôt':'Confirmer ma cueillette')}</button>
+    ${!dOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!dOk&&'tes documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
   </div>`; }
 
 /* ---- Cueillette / dépôt : agents les plus proches, détails du RDV, ajout à l'agenda ---- */
@@ -883,7 +937,7 @@ function dropState(c){ const postal=dropPostal(c);
       if(!S.drop || S.drop.postal!==postal) return;
       Object.assign(S.drop,{loading:false, agents:j.agents||[], source:j.source||'', error:j.error||''});
       const pk=c.pickup=c.pickup||{}; if(!pk.agent || !S.drop.agents.some(a=>a.id===pk.agent.id)) pk.agent=S.drop.agents[0]||null;
-      if(S.screen==='accept') rerender(); }); }
+      if(S.screen==='accept'||S.screen==='prep') rerender(); }); }
   return S.drop; }
 const mapsUrl = q => 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
 const agentAddr = a => a.demo ? `${a.ville} (${a.postal})` : `${a.adresse}, ${a.ville} ${a.postal||''}`.trim();
@@ -962,7 +1016,13 @@ function bindInputs(){
   document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
   document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; if(el.type==='date') rerender(); }));
   document.querySelectorAll('[data-pk="adresse"]').forEach(el=>el.addEventListener('change',rerender));
-  document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',()=>{ const f=el.files[0]; if(!f) return; S.current.docs=S.current.docs||{}; S.current.docs[el.dataset.doc]=f.name; Store.save(S.current); rerender(); }));
+  document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',async()=>{ const f=el.files[0]; if(!f) return; const c=S.current; const k=el.dataset.doc;
+    let B=BLOBS[c.id]; if(!B||Array.isArray(B)) B=BLOBS[c.id]={slots:{},dmg:[]}; B.docs=B.docs||{};
+    try{ if(/^image\//.test(f.type)||/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)){ const {im,u}=await loadImg(f); B.docs[k]={blob:await toBlob(draw(im,1600),.75), mime:'image/jpeg', name:f.name}; URL.revokeObjectURL(u); }
+      else if(f.size<=1000000) B.docs[k]={blob:f, mime:f.type||'application/pdf', name:f.name};
+      else { toast('Fichier trop lourd. Prends plutôt une photo du document.'); return; } }
+    catch(e){ toast('Document illisible. Prends une photo du document.'); return; }
+    c.docs=c.docs||{}; c.docs[k]=f.name; await Store.save(c); rerender(); }));
 }
 
 document.addEventListener('click', async e=>{
@@ -989,11 +1049,13 @@ document.addEventListener('click', async e=>{
   else if(a==='open-offer'){ go('offer'); }
   else if(a==='dmg-none'){ const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
-  else if(a==='initial-ok'){ startSearch(S.current, 'initial'); }
+  else if(a==='initial-ok'){ const c=S.current; c.prep=true; await Store.save(c); go('prep'); }
+  else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
+  else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complète les 3 étapes avant d\'envoyer ton dossier.'); return; } startSearch(c, 'initial'); }
   else if(a==='want-more'){ openMoreModal(); }
   else if(a==='more-keep'){ $('#modal').innerHTML=''; const b=document.querySelector('[data-act="initial-ok"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); } }
   else if(a==='more-go'){ $('#modal').innerHTML=''; S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
-  else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; await Store.save(c); startSearch(c, 'initial'); }
+  else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; c.prep=true; await Store.save(c); go('prep'); }
   else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
   else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
       if(!(n>=500)){ toast('Indique le montant que tu aimerais obtenir.'); return; }
@@ -1014,14 +1076,17 @@ document.addEventListener('click', async e=>{
         el.disabled=true; el.innerHTML='<span class="spin"></span> Confirmation…';
         try{ await leadApi({action:'accept', token:c.search.leadToken, offer_id:b.id, bonus, final_amount:c.offer+bonus}); }
         catch(e){ toast(e.message==='expired'?'Cette offre est expirée.':e.message==='withdrawn'?'Cette offre a été retirée.':'Acceptation impossible pour l\'instant. Réessaie.'); pollLead(c); rerender(); return; } }
-      c.finalOffer = c.offer + bonus; c.status='acceptee'; c.acceptedAt=Date.now(); await Store.save(c); go('accept'); }
+      const ready=prepReady(c); c.finalOffer = c.offer + bonus; c.acceptedAt=Date.now();
+      if(ready){ if(c.search&&c.search.leadToken) await leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}).catch(()=>{});
+        c.status='planifiee'; await Store.save(c); toast((c.pickup||{}).lieu===PK_DROP?'Offre acceptée et dépôt confirmé. Julia te texte la veille.':'Offre acceptée et rendez-vous confirmé. Julia te texte la veille.'); go('offer'); return; }
+      c.status='acceptee'; await Store.save(c); go('accept'); }
   else if(a==='open-accept'){ go('accept'); }
   else if(a==='pk'){ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.k]=el.dataset.v; rerender(); }
   else if(a==='pk-agent'){ const dr=S.drop; const ag=dr&&dr.agents.find(x=>x.id===el.dataset.v); if(ag){ S.current.pickup=S.current.pickup||{}; S.current.pickup.agent=ag; rerender(); } }
   else if(a==='drop-postal'){ const v=($('#dropPostal')||{}).value||''; if(!/^[A-Za-z]\d[A-Za-z]/.test(v.trim())){ toast('Entre un code postal valide (ex. H2X 1Y4).'); return; } S.current.pickup=S.current.pickup||{}; S.current.pickup.postal=v.trim().toUpperCase(); S.current.pickup.agent=null; S.drop=null; rerender(); }
   else if(a==='ics'){ downloadIcs(S.current); }
   else if(a==='confirm-pickup'){ const c=S.current; const pk=c.pickup||{};
-      if(c.search&&c.search.leadToken){ try{ await leadApi({action:'pickup', token:c.search.leadToken, when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`, where: pk.lieu==='À mon adresse'?pk.adresse:pk.agent?`Dépôt chez ${pk.agent.nom}, ${pk.agent.adresse}, ${pk.agent.ville}`:'Dépôt chez un agent Shopicar (à confirmer)' }); }
+      if(c.search&&c.search.leadToken){ try{ await leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}); }
         catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
       c.status='planifiee'; await Store.save(c); toast(pk.lieu===PK_DROP?'Dépôt confirmé. Julia te texte la veille.':'Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
   else if(a==='rdv'){ openRdv(el.dataset.t); }
@@ -1142,7 +1207,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
    Règles : on n'affiche que des offres validées; la meilleure offre encore valide ne baisse jamais à cause d'une offre plus basse;
    une offre expirée ou retirée ne compte plus; l'estimation reste à part (c.estimate). */
-function screenFor(c){ return c.status==='estimation'?'estimate':c.status==='recherche'?'search':'offer'; }
+function screenFor(c){ return c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
 const validOffers = c => ((c.search&&c.search.offers)||[]).filter(o=>o.status==='valid' && Date.now()<o.expiresAt);
 function bestOffer(c){ return validOffers(c).reduce((m,o)=>!m||o.amount>m.amount?o:m, null); }
 function bestSteps(c){ let m=-Infinity; return validOffers(c).slice().sort((a,b)=>a.at-b.at).filter(o=>o.amount>m && (m=o.amount, true)); } // chaque nouvelle meilleure offre
@@ -1157,15 +1222,19 @@ async function ensureLead(c){ if(DEMO_OFFERS) return null; if(c.search&&c.search
   for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
   const notes=[...(((c.valuation||{}).drapeaux)||[])];
-  if(c.intent==='initial') notes.unshift(`Le client accepte son offre initiale de ${money(c.estimate)} : valider le dossier et confirmer l'offre ferme.`);
+  const D=B.docs||{}; const documents=[]; for(const [k,label] of docsNeed(c)){ const d=D[k]; if(d&&d.blob) documents.push({ type:k, label, name:d.name, mime:d.mime, data:await blobToB64(d.blob) }); }
+  if(c.intent==='initial'){
+    if(pickupOk(c)) notes.unshift(`Rendez-vous choisi par le client : ${pickupLabel(c)} (confirmé à l'acceptation de l'offre ferme).`);
+    if(Object.keys(c.docs||{}).length) notes.unshift(`Documents fournis dans l'app : ${docsNeed(c).filter(n=>(c.docs||{})[n[0]]).map(n=>n[1]).join(', ')}.`);
+    notes.unshift(`Le client accepte son offre initiale de ${money(c.estimate)} : valider que les photos, les dommages et les documents sont conformes, puis confirmer l'offre ferme.`); }
   if(c.wish) notes.unshift(`Le client veut plus que l'offre initiale (${money(c.estimate)}) : prix souhaité ${money(c.wish)}.`);
   if(c.fastTrack && !c.fastTrack.ok) notes.push(`Hors parcours rapide (${c.fastTrack.raison||'catégorie'}) : photos et dommages requis.`);
   const answers=Object.assign({}, c.answers, c.wish?{prix_souhaite:c.wish}:{}, c.intent?{intention:c.intent==='initial'?'Accepte l\'offre initiale':'Veut le meilleur prix'}:{});
-  const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, valuation:{ drapeaux:notes } }});
+  const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos, documents, intent:c.intent||'meilleur_prix', prix_souhaite:c.wish||null, valuation:{ drapeaux:notes } }});
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
 async function startSearch(c, intent){ if(starting) return;
   starting=true; c.intent = intent || 'meilleur_prix';
-  const btn=document.querySelector(intent==='initial'?'[data-act="initial-ok"],[data-act="want-more-undo"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
+  const btn=document.querySelector(intent==='initial'?'[data-act="prep-send"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
   const had = !!(c.search&&c.search.leadToken);
   try{ const tok=await ensureLead(c);
     // Dossier déjà créé (ex. rendez-vous demandé avant) : on avise quand même l'équipe de l'intention du client.
@@ -1175,7 +1244,8 @@ async function startSearch(c, intent){ if(starting) return;
   if(!c.search) c.search={ status:'idle', demo:DEMO_OFFERS, notify:false, offers:[] };
   c.search.intent = c.intent;
   if(c.search.status==='idle'){ c.search.status='running'; c.search.startedAt=Date.now(); }
-  c.status='recherche'; await Store.save(c); S.liveShown=null; go('search'); if(c.search.leadToken) pollLead(c); }
+  if(intent==='initial' && !c.prepSentAt){ c.prepSentAt=Date.now(); if(c.search.leadToken && pickupOk(c)) leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}).catch(()=>{}); }
+  c.prep=false; c.status='recherche'; await Store.save(c); S.liveShown=null; go('search'); if(c.search.leadToken) pollLead(c); }
 function feedPoll(c){ const s=c.search; const now=Date.now(); const added=[]; let changed=false;
   if(s.demo){ // DÉMO : offres simulées sur une ligne de temps fixe (reprend au bon endroit si on quitte et revient)
     const el=(now-s.startedAt)/1000; let amt=c.estimate;
