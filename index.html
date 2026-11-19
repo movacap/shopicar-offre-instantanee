@@ -149,7 +149,16 @@ a.btn,a.btn:visited{text-decoration:none}
 .slot:not(.on){border:1.5px dashed var(--acc);background:var(--acc-soft);color:var(--acc);font-weight:600;gap:2px}
 .slot:not(.on) b{color:var(--acc);font-size:22px;font-weight:400}
 .acct{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:14px;padding:2px 2px 0}
-.gcar.arch{opacity:.6}
+.gcar.arch .veh,.gcar.arch .amt{opacity:.6}
+.swipe{position:relative;border-radius:var(--r);overflow:hidden}
+.swipe .swipe-act{position:absolute;inset:0;display:flex;justify-content:flex-end;align-items:stretch;background:#e5484d;border-radius:var(--r)}
+.swipe .swipe-act.un{background:var(--acc)}
+.swipe:not(.on) .swipe-act{visibility:hidden}
+.swipe .swipe-act button{width:104px;border:0;background:none;color:#fff;font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.swipe .gcar{position:relative;transition:transform .22s ease;touch-action:pan-y}
+.swipe .gcar.drag{transition:none}
+@media (hover:none){ .gcar .arch-lnk{display:none} }
+.swipe-hint{text-align:center;font-size:12px;color:var(--muted);margin:-6px 0 0}
 .card.focus{border:2px solid var(--acc);box-shadow:0 6px 24px rgba(0,111,235,.14)}
 .offer-mini{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#000;color:#fff;border-radius:14px;padding:12px 16px}
 .offer-mini span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#a3a3a3}
@@ -481,6 +490,26 @@ async function logout(){ // vide tout le garage de cet appareil (autos, photos, 
   Store.mem=[]; S.cars=[]; S.current=null; S.draft=null; S.drop=null; S.showArch=false;
   for(const k of Object.keys(BLOBS)) delete BLOBS[k];
   toast('Déconnecté. Tes autos restent dans ton compte.'); go('garage'); }
+
+/* ============ GLISSER POUR ARCHIVER (mobile) ============
+   Glisser une auto du garage vers la gauche révèle « Archiver » (ou « Désarchiver »); archiver demande une confirmation. */
+const SW={ el:null, x0:0, y0:0, dx:0, dir:null, open:null };
+const SW_W=104;
+const swHide = el => setTimeout(()=>{ if(!el.style.transform) el.parentElement?.classList.remove('on'); }, 240);
+function swClose(){ if(SW.open){ const el=SW.open; el.style.transform=''; SW.open=null; swHide(el); } }
+document.addEventListener('touchstart', e=>{ const card=e.target.closest('.swipe .gcar'); if(!card){ if(!e.target.closest('.swipe-act')) swClose(); return; }
+  if(SW.open && SW.open!==card) swClose();
+  const t=e.touches[0]; Object.assign(SW,{ el:card, x0:t.clientX, y0:t.clientY, dx:0, dir:null, base:SW.open===card?-SW_W:0 }); }, {passive:true});
+document.addEventListener('touchmove', e=>{ if(!SW.el) return; const t=e.touches[0]; const dx=t.clientX-SW.x0, dy=t.clientY-SW.y0;
+  if(!SW.dir){ if(Math.abs(dx)<8 && Math.abs(dy)<8) return; SW.dir=Math.abs(dx)>Math.abs(dy)?'h':'v'; if(SW.dir==='h'){ SW.el.classList.add('drag'); SW.el.parentElement.classList.add('on'); } }
+  if(SW.dir!=='h') return; e.preventDefault();
+  SW.dx=dx; const x=Math.max(-SW_W-30, Math.min(0, SW.base+dx)); SW.el.style.transform=`translateX(${x}px)`; }, {passive:false});
+document.addEventListener('touchend', ()=>{ const el=SW.el; if(!el) return; el.classList.remove('drag');
+  if(SW.dir==='h'){ const x=SW.base+SW.dx; if(x < -SW_W/2){ el.style.transform=`translateX(${-SW_W}px)`; SW.open=el; } else { el.style.transform=''; if(SW.open===el) SW.open=null; swHide(el); }
+    el.dataset.swiped='1'; setTimeout(()=>{ delete el.dataset.swiped; }, 350); }
+  SW.el=null; });
+// un glissement ne doit pas ouvrir la fiche
+document.addEventListener('click', e=>{ const c=e.target.closest('.swipe .gcar'); if(c && c.dataset.swiped){ e.stopPropagation(); e.preventDefault(); } }, true);
 
 /* ============ NIV (VIN) ============ */
 const TR={A:1,B:2,C:3,D:4,E:5,F:6,G:7,H:8,J:1,K:2,L:3,M:4,N:5,P:7,R:9,S:2,T:3,U:4,V:5,W:6,X:7,Y:8,Z:9};
@@ -1094,11 +1123,13 @@ function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c);
     <button class="btn ghost" data-act="ics" style="padding:4px">Apple Calendrier / Outlook</button>
   </div>`; }
 
-function garageCard(c){ const st=statusInfo(c); return `<div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
+function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-sw="${c.id}">
+    <div class="swipe-act ${c.archived?'un':''}"><button data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}"><span style="font-size:20px">${c.archived?'↩':'🗄'}</span>${c.archived?'Désarchiver':'Archiver'}</button></div>
+    <div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div style="flex:1;min-width:0"><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
-      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk" data-act="${c.archived?'unarchive':'archive'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
+      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
-    </div>`; }
+    </div></div>`; }
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get();
   return `${topbar('Mon garage')}
   <div class="wrap">
@@ -1107,6 +1138,7 @@ function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
     ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
     ${cars.map(garageCard).join('')}
+    ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
   </div>`; }
@@ -1163,11 +1195,18 @@ document.addEventListener('click', async e=>{
   else if(a==='login'){ openLogin(); }
   else if(a==='login-send'){ const v=($('#loginCell')||{}).value||''; OTP.cellDraft=v; const p=phoneE164(v); if(!p){ OTP.err='Entre un numéro de cellulaire à 10 chiffres.'; renderOtp(); return; } OTP.phone=p; OTP.err=''; otpSend(false); }
   else if(a==='logout'){ logout(); }
-  else if(a==='archive'||a==='unarchive'){ const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans ton garage.'); rerender(); } }
+  else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans ton garage.'); rerender(); } }
   else if(a==='show-arch'){ S.showArch=!S.showArch; rerender(); }
   else if(a==='otp-resend'){ otpSend(true); }
   else if(a==='otp-edit'&&OTP.mode==='login'){ OTP.phone=null; OTP.code=''; OTP.err=''; renderOtp(); }
   else if(a==='otp-edit'){ $('#modal').innerHTML=''; S.step=Math.max(0, STEPS.findIndex(st=>st.qs.some(q=>q.id==='cell'))); go('quiz'); setTimeout(()=>$('[data-qi="cell"]')?.focus(),80); }
+  else if(a==='archive-ask'){ const c=S.cars.find(x=>x.id===el.dataset.id); if(!c) return;
+      $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="bd">
+        <h2 style="font-size:20px">Archiver cette auto?</h2>
+        <p style="margin:0"><b>${esc(vTitle(c.vehicle))}</b> ne sera plus dans ton garage. Tu la retrouves en tout temps dans « Autos archivées ».</p>
+        <button class="btn big" style="background:#e5484d;color:#fff" data-act="archive" data-id="${c.id}">Archiver</button>
+        <button class="btn sec" data-act="close">Annuler</button></div></div></div>`; }
+  else if(a==='open' && SW.open){ swClose(); return; }
   else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); S.liveShown=null; go(screenFor(S.current)); }
   else if(a==='open-offer'){ go('offer'); }
   else if(a==='dmg-none'){ const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
