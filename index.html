@@ -389,6 +389,7 @@ details.details:not([open]){gap:0}
   .cam-ctl>span{display:none}.cam-alt{justify-self:auto;padding:7px 12px;font-size:13px}
   .cam-shot{width:66px;height:66px}
 }
+#pkAsk>.stp-q:first-child{border-top:0;padding-top:0;margin-top:0}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -1260,31 +1261,45 @@ function validationListHTML(c){ const fin=c.answers.finance!=='Payée au complet
 
 /* ---- 2 bis. Parcours rapide : « Cette offre me convient » → 1. photos + dommages, 2. documents, 3. rendez-vous, 4. validation par un conseiller ---- */
 function vPrep(){ const c=S.current; if(!c) return vGarage();
-  const p1=photosDone(c), p2=docsOk(c,true), p3=pickupOk(c); const done=[p1,p2,p3].filter(Boolean).length; const isDrop=(c.pickup||{}).lieu===PK_DROP;
+  fixBonus(c); const locked=!!c.initialAcceptedAt, bon=c.initialBonus||0; // offre acceptée : pas de retour en arrière
+  // 1re étape après l'acceptation : le rendez-vous (puis félicitations + 2 étapes : photos et documents)
+  if((!c.prepRdvAt && !c.prepSentAt) || S.rdvEdit===c.id) return vPrepRdv(c, locked, bon);
+  const p1=photosDone(c), p2=docsOk(c,true), p3=pickupOk(c); const done=[p1,p2].filter(Boolean).length; const isDrop=(c.pickup||{}).lieu===PK_DROP;
   const head=(n,ok,t,sub,lock)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}" style="${lock&&!ok?'background:#d4d4d4':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':lock?'À venir':'À faire'}</span></div>`;
   const wait=t=>`<p class="small muted" style="margin:0">${t}</p>`;
-  fixBonus(c); const locked=!!c.initialAcceptedAt, bon=c.initialBonus||0; // offre acceptée : pas de retour en arrière
   return `${topbar('Prochaines étapes',locked?'tab-garage':'prep-back')}
   <div class="wrap">
     ${vehHead(c)}
     ${S.celebrate===c.id?`<div class="congrats" role="status"><div class="cf" aria-hidden="true">${Array.from({length:14},(_,i)=>`<i style="--x:${(i*37)%100}%;--d:${(i%5)*0.12}s;--c:${['#006feb','#ffc53d','#0a0a0a','#66a9f3'][i%4]}"></i>`).join('')}</div>
       <div class="ck"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
-      <div><b>Félicitations! Vous avez accepté l'offre${(c.initialBonus||0)?` de ${nbsp(money(c.estimate+c.initialBonus))}`:''}.</b><span>Encore 3 petites étapes et un conseiller valide votre dossier.</span></div></div>`:''}
+      <div><b>Félicitations! Vous avez accepté l'offre${bon?` de ${nbsp(money(c.estimate+bon))}`:''}.</b><span>Votre rendez-vous est choisi. Il ne reste que 2 petites étapes : vos photos et vos documents.</span></div></div>`:''}
     <div class="acc-card"><div class="acc-top"><span>Offre acceptée</span><b class="num">${nbsp(money(c.estimate+(locked?bon:0)))}</b></div>
       ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
-    <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''}`:'Votre dossier est complet!'}</h2>
-      <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
+    <div class="card stp ok rdv-done"><div class="stp-h"><span class="stp-n ok">✓</span><div style="flex:1;min-width:0"><h2>${isDrop?'Votre rendez-vous de dépôt':'Votre rendez-vous'}</h2><p class="small" style="margin:2px 0 0">${p3?esc(pickupLabel(c)):'À préciser'}</p></div>${c.prepSentAt?'':`<button class="btn sec" data-act="prep-rdv-edit" style="flex:0 0 auto;width:auto;padding:8px 14px;min-height:0;font-size:14px">Modifier</button>`}</div></div>
+    <div><h2 style="font-size:20px">${done<2?`Plus que ${2-done} étape${2-done>1?'s':''}`:'Votre dossier est complet!'}</h2>
+      <div class="stp-prog"><i style="width:${Math.round(done*100/2)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/2 complétées · environ 5 minutes</p></div>
     ${photoSlotsHTML(c, head(1,p1,'Vos photos','6 photos de votre auto'))}
     <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Vos documents','Prenez une photo claire de chaque document.',!p1)}
       ${p1?docsHTML(c,true):wait('Ajoutez d\'abord vos photos.')}</div>
-    <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Votre rendez-vous de dépôt':'Votre rendez-vous','Choisissez où et quand nous récupérons votre voiture.',!(p1&&p2))}
-      ${p1&&p2?pickupFormHTML(c):wait('Ajoutez d\'abord vos documents.')}</div>
-    ${c.prepSentAt?`<div class="card stp">${head(4,false,'Validation du dossier','Nous vérifions que vos photos et vos documents sont conformes, puis nous vous confirmons votre offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+    ${c.prepSentAt?`<div class="card stp">${head(3,false,'Validation du dossier','Nous vérifions que vos photos et vos documents sont conformes, puis nous vous confirmons votre offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       ${validationListHTML(c)}</div>`:''}
-    <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer le dossier</button>
-    ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il ne vous reste que : ${(l=>l.length>2?l.slice(0,-1).join(', ')+', et '+l[l.length-1]:l.join(' et '))([!p1&&'la prise de vos photos',!p2&&'vos documents',!p3&&'votre rendez-vous'].filter(Boolean))}.</p>`:''}
+    <button class="btn pri big" data-act="prep-send" ${p1&&p2&&p3?'':'disabled'}>Envoyer le dossier</button>
+    ${done<2?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il ne vous reste que : ${[!p1&&'la prise de vos photos',!p2&&'vos documents'].filter(Boolean).join(' et ')}.</p>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     ${locked?'':`<button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>`}
+  </div>`; }
+/* Rendez-vous choisi tout de suite après l'acceptation de l'offre */
+function vPrepRdv(c, locked, bon){ const edit=S.rdvEdit===c.id; const ok=pickupOk(c);
+  return `${topbar('Votre rendez-vous',edit?'prep-rdv-cancel':locked?'tab-garage':'prep-back')}
+  <div class="wrap">
+    ${vehHead(c)}
+    <div class="acc-card"><div class="acc-top"><span>Offre acceptée</span><b class="num">${nbsp(money(c.estimate+(locked?bon:0)))}</b></div>
+      ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
+    <div><h2 style="font-size:22px">${edit?'Modifier votre rendez-vous':'Choisissez votre rendez-vous'}</h2>
+      <p class="muted" style="margin:6px 0 0">Choisissez où et quand nous récupérons votre voiture.${edit?'':' Ensuite, il ne restera que vos photos et vos documents.'}</p></div>
+    <div class="card stp" id="pkAsk">${pickupFormHTML(c)}</div>
+    <button class="btn pri big" data-act="prep-rdv-ok" ${ok?'':'disabled'}>Confirmer mon rendez-vous</button>
+    ${edit?'':`<div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>`}
   </div>`; }
 
 function vAccept(){ const c=S.current; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
@@ -1495,8 +1510,8 @@ function bindInputs(){
       h.style.color= ok?'var(--ok)': n.length===17?'var(--bad)':'var(--muted)'; $('#vinGo').disabled = n.length!==17; }); }
   document.querySelectorAll('[data-veh]').forEach(el=>el.addEventListener('input',()=>{ S.draft.vehicle[el.dataset.veh]=el.value; }));
   document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; if(el.dataset.qi==='nom') S.draft.answers.prenom=el.value.trim().split(/\s+/)[0]||''; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
-  document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; if(el.type==='date') rerender(); }));
-  document.querySelectorAll('[data-pk="adresse"]').forEach(el=>el.addEventListener('change',rerender));
+  document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; if(el.type==='date') rerender(); const ok=$('[data-act="prep-rdv-ok"]'); if(ok) ok.disabled=!pickupOk(S.current); }));
+  document.querySelectorAll('[data-pk="adresse"]').forEach(el=>el.addEventListener('change',()=>setTimeout(()=>{ if(document.activeElement!==el) rerender(); },250))); // délai : le clic qui a fait perdre le focus doit d'abord aboutir
   document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',async()=>{ const f=el.files[0]; if(!f) return; const c=S.current; const k=el.dataset.doc;
     let B=BLOBS[c.id]; if(!B||Array.isArray(B)) B=BLOBS[c.id]={slots:{},dmg:[]}; B.docs=B.docs||{};
     try{ if(/^image\//.test(f.type)||/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)){ const {im,u}=await loadImg(f); B.docs[k]={blob:await toBlob(draw(im,1600),.75), mime:'image/jpeg', name:f.name}; URL.revokeObjectURL(u); }
@@ -1557,7 +1572,11 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-none-ok'){ $('#modal').innerHTML=''; const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
-      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; S.celebrate=c.id; await Store.save(c); go('prep'); scrollTo(0,0); }
+      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; delete c.prepRdvAt; await Store.save(c); go('prep'); scrollTo(0,0); }
+  else if(a==='prep-rdv-ok'){ const c=S.current; if(!pickupOk(c)){ toast('Choisissez le lieu, le jour et l\'heure.'); return; }
+      const first=!c.prepRdvAt; c.prepRdvAt=Date.now(); S.rdvEdit=null; if(first) S.celebrate=c.id; else toast('Rendez-vous modifié.'); await Store.save(c); rerender(); scrollTo(0,0); }
+  else if(a==='prep-rdv-edit'){ S.rdvEdit=S.current.id; rerender(); scrollTo(0,0); }
+  else if(a==='prep-rdv-cancel'){ S.rdvEdit=null; rerender(); scrollTo(0,0); }
   else if(a==='refuse-ask'){ const c=S.current; const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0);
       $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Refuser l'offre?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
       <div class="bd"><p style="margin:0">${bl?`Vous refusez l'offre de <b class="num">${money(tot)}</b> (boni de ${money(BONUS_24H)} inclus) pour votre ${esc(vTitle(c.vehicle))}. Le boni de ${money(BONUS_24H)} sera perdu.`:`Vous refusez l'offre de <b class="num">${money(tot)}</b> pour votre ${esc(vTitle(c.vehicle))}.`}</p>
@@ -1568,7 +1587,7 @@ document.addEventListener('click', async e=>{
       setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
   else if(a==='refuse-undo'){ const c=S.current; c.refused=false; delete c.refusedAt; c.status='estimation'; await Store.save(c); rerender(); }
   else if(a==='prep-back'){ const c=S.current; if(c.initialAcceptedAt){ go('garage'); return; } c.prep=false; await Store.save(c); go('estimate'); }
-  else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complétez les 3 étapes avant d\'envoyer votre dossier.'); return; } startSearch(c, 'initial'); }
+  else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complétez vos photos, vos documents et votre rendez-vous avant d\'envoyer votre dossier.'); return; } startSearch(c, 'initial'); }
   else if(a==='want-more'){ openMoreModal(); }
   else if(a==='more-keep'){ $('#modal').innerHTML=''; const b=document.querySelector('[data-act="initial-ok"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); } }
   else if(a==='more-go'){ $('#modal').innerHTML=''; S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
