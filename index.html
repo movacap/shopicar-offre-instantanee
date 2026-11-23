@@ -824,9 +824,9 @@ function vLoading(){ return `${topbar('Votre offre initiale')}
 const GROUPS=[['encours','En cours'],['expire','Expiré'],['refuse','Refusé'],['vendu','Vendu']];
 function carGroup(c){ if(['payee','inspectee','vendue'].includes(c.status)) return 'vendu';
   if(['refusee','refused'].includes(c.status)||c.refused) return 'refuse';
-  if(['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt) return 'expire';
+  if((['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt) return 'expire';
   return 'encours'; }
-function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
+function statusInfo(c){ const exp = (['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
   return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour vous'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, refusee:{cls:'bad',txt:'Offre refusée'}, inspectee:{cls:'ok',txt:'Vendue'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Vendue'}})[c.status]||{cls:'info',txt:c.status}; }
@@ -968,6 +968,10 @@ function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><di
     <button class="btn pri big" data-act="wish-save">Continuer : ajouter mes photos</button></div>`; }
 function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0), expired=Date.now()>c.expiresAt;
   if(c.refused) return `<div class="best official"><span class="tag" style="background:#525252">Offre refusée</span><h2>Vous avez refusé cette offre</h2><div class="amt num" style="opacity:.6">${amtHTML(c.estimate)}</div><p style="margin:0">Vous avez changé d'idée? Parlez à un conseiller ou demandez à Julia de chercher un meilleur prix.</p><button class="btn dark" data-act="refuse-undo">Revoir mon offre</button></div>`;
+  if(expired) return `<div class="best official"><span class="tag" style="background:#525252">Offre expirée</span>
+    <h2>Cette offre est expirée</h2><div class="amt num" style="opacity:.5">${amtHTML(c.estimate)}</div>
+    <p style="margin:0">Les prix du marché changent chaque semaine. Obtenez une nouvelle offre à jour : c'est gratuit et vos réponses sont déjà remplies.</p>
+    <button class="btn pri big" data-act="reeval">Obtenir une nouvelle offre</button></div>`;
   return `<div class="best official">
     <span class="tag">✓ Offre Shopicar</span>
     <h2>Excellente nouvelle! Votre offre est prête</h2>
@@ -990,7 +994,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de votre véhicule.</div>
       <ul class="clean checks"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
     </div>`}
-    ${fast&&!more?`<button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour vous</span></span><span class="mc">›</span></button>
+    ${fast&&!more&&Date.now()<=c.expiresAt&&!c.refused?`<button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour vous</span></span><span class="mc">›</span></button>
     <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
     ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoutez 6 photos et vos dommages : Julia cherche ensuite le meilleur prix pour vous. Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale.</p></div>`:''}
