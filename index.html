@@ -1477,10 +1477,22 @@ const CA={busy:false, items:[], err:'', show:'pending'};
 async function adminDossier(body){ const r=await fetch('/api/dossier',{method:'POST', headers:{'content-type':'application/json','x-admin-key':adminKey()}, body:JSON.stringify(body)});
   const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok) throw new Error(j.error||'erreur'); return j; }
 async function loadCancelsUI(){ CA.busy=true; CA.err=''; rerender(); try{ CA.items=(await adminDossier({action:'admin-cancels'})).items||[]; }catch(e){ CA.err=e.message; } CA.busy=false; if(S.screen==='admin-cancels') rerender(); }
-async function decideCancel(id, v){ const it=CA.items.find(x=>x.id===id); if(!it) return;
-  if(!confirm(v==='confirm'?`Confirmer l'annulation de ${it.vehicle} (${it.prenom||it.phone||id})? Le client verra « Transaction annulée ».`:`Refuser l'annulation? La transaction de ${it.vehicle} continue.`)) return;
-  try{ await adminDossier({action:'admin-cancel-set', id, decision:v}); toast(v==='confirm'?'Annulation confirmée.':'Annulation refusée : la transaction continue.');
-    if(S.cars.some(c=>c.id===id)){ syncing=false; syncGarage(false); } }catch(e){ toast('Erreur : '+e.message); }
+function decideCancel(id, v){ const it=CA.items.find(x=>x.id===id); if(!it) return; const ok=v==='confirm'; const r=it.request||{};
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>${ok?'Confirmer l\'annulation?':'Refuser l\'annulation?'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  <div class="bd">
+    <div class="ca-row" style="gap:4px"><b>${esc(it.vehicle)} ${esc(it.trim||'')}</b>
+      <div class="small">${esc(it.prenom||'')}${it.phone?` · ${esc(it.phone)}`:''}${it.confNo?` · <b class="num">${esc(it.confNo)}</b>`:''}</div>
+      <div class="small">Offre : <b class="num">${money(it.amount||0)}</b>${r.reason?` · ${esc(r.reason)}`:''}</div></div>
+    <p class="muted" style="margin:0">${ok?'La transaction sera annulée. Le client verra « Transaction annulée » dans son garage.':'La transaction continue. La demande du client est fermée et son dossier reste actif.'}</p>
+    <textarea id="caNote" class="inp" rows="2" maxlength="500" placeholder="Note interne (facultatif)" style="resize:vertical"></textarea>
+    <button class="btn pri big" style="${ok?'':'background:#0a0a0a;border-color:#0a0a0a;color:#fff'}" data-act="ca-go" data-id="${esc(id)}" data-v="${v}">${ok?'Oui, annuler la transaction':'Oui, refuser l\'annulation'}</button>
+    <button class="btn sec" data-act="close">Retour</button>
+  </div></div></div>`; }
+async function decideCancelGo(id, v, btn){ const note=(($('#caNote')||{}).value||'').trim(); if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi…'; }
+  try{ await adminDossier({action:'admin-cancel-set', id, decision:v, note}); $('#modal').innerHTML='';
+    toast(v==='confirm'?'Annulation confirmée. Le client verra « Transaction annulée ».':'Annulation refusée : la transaction continue.');
+    if(S.cars.some(c=>c.id===id)){ syncing=false; syncGarage(false); } }
+  catch(e){ toast('Erreur : '+e.message); if(btn){ btn.disabled=false; btn.textContent='Réessayer'; } return; }
   loadCancelsUI(); }
 function vAdminCancels(){ const st={pending:'En attente',confirmed:'Annulation confirmée',rejected:'Refusée (transaction maintenue)',withdrawn:'Retirée par le client'};
   const list=CA.items.filter(x=>CA.show==='all'||(x.request||{}).status==='pending'); const n=CA.items.filter(x=>(x.request||{}).status==='pending').length;
@@ -1663,6 +1675,7 @@ document.addEventListener('click', async e=>{
   else if(a==='admin-cancels'){ if(!IS_ADMIN) return; go('admin-cancels'); loadCancelsUI(); }
   else if(a==='ca-show'){ CA.show=el.dataset.v; rerender(); }
   else if(a==='ca-decide'){ if(!IS_ADMIN) return; decideCancel(el.dataset.id, el.dataset.v); }
+  else if(a==='ca-go'){ if(!IS_ADMIN) return; decideCancelGo(el.dataset.id, el.dataset.v, el); }
   else if(a==='prep-rdv-edit'){ S.rdvEdit=S.current.id; rerender(); scrollTo(0,0); }
   else if(a==='prep-rdv-cancel'){ S.rdvEdit=null; rerender(); scrollTo(0,0); }
   else if(a==='refuse-ask'){ const c=S.current; const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0);
