@@ -19,6 +19,7 @@
   --r:14px; color-scheme:light;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+[hidden]{display:none!important}
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;letter-spacing:-.006em}
 body{padding-bottom:env(safe-area-inset-bottom)}
 button,input,select{font:inherit;color:inherit}
@@ -927,6 +928,20 @@ function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const 
     ${(c.dmg||[]).length?'':`<div class="dmg-or"><span>ou</span></div><button class="btn sec" data-act="dmg-none">Je confirme : mon auto n'a aucun dommage</button>`}`}
   </div>`:''}
 `; }
+/* « Aucun dommage » : on fait confirmer avec la proportion estimée de véhicules du même âge sans aucun dommage.
+   Estimations Shopicar par âge (pas une statistique officielle) : à remplacer par les données d'inspection 360inspek quand on en aura assez. */
+const NO_DMG_PCT = age => age<=1?50 : age<=3?25 : age<=6?12 : age<=10?8 : 5;
+function openNoDmgCheck(){ const c=S.current; const v=c.vehicle||{}; const age=Math.max(0,new Date().getFullYear()-(+v.year||new Date().getFullYear())); const pct=NO_DMG_PCT(age);
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Es-tu certain?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  <div class="bd">
+    <div style="background:var(--acc-soft);border-radius:14px;padding:16px"><div style="font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:-.03em;color:var(--acc)">Moins de ${pct} %</div>
+      <p style="margin:4px 0 0">des ${esc([v.make,v.model].filter(Boolean).join(' ')||'véhicules')} ${esc(String(v.year||''))}${age?` (${age} an${age>1?'s':''})`:''} n'ont <b>aucun</b> dommage, selon notre estimation pour des véhicules de cet âge.</p></div>
+    <p style="margin:0">Un petit éclat ou une égratignure non déclarée peut faire baisser ton offre à l'inspection. En les montrant maintenant, ton offre reste <b>ferme</b>.</p>
+    <button class="lnk" data-act="dmg-ex" style="color:var(--acc);font-weight:600;align-self:flex-start;font-size:14px">Voir les dommages les plus souvent oubliés ›</button>
+    <ul class="clean" id="dmgEx" hidden><li><span>Éclat ou fissure dans le pare-brise</span></li><li><span>Égratignures sur les pare-chocs (stationnement)</span></li><li><span>Petites bosses dans les portes</span></li><li><span>Jantes frottées sur le trottoir</span></li><li><span>Rouille au bas des portes ou autour des roues</span></li><li><span>Siège conducteur usé ou taché</span></li></ul>
+    <button class="btn pri big" data-act="dmg-add-from-check">📷  Ajouter mes photos de dommages</button>
+    <button class="btn sec" data-act="dmg-none-ok">Oui, je confirme : aucun dommage</button>
+  </div></div></div>`; }
 const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]).filter(x=>x!==NONE_INT).length;
 
 /* ---- 2. Première estimation (pas une offre : les offres viennent ensuite de Shopicar) ---- */
@@ -1428,7 +1443,10 @@ document.addEventListener('click', async e=>{
   else if(a==='open' && SW.open){ swClose(); return; }
   else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); S.liveShown=null; go(screenFor(S.current)); }
   else if(a==='open-offer'){ go('offer'); }
-  else if(a==='dmg-none'){ const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
+  else if(a==='dmg-none'){ openNoDmgCheck(); }
+  else if(a==='dmg-add-from-check'){ $('#modal').innerHTML=''; S.slotTarget='dmg'; const fi=$('#slotFile'); fi.multiple=true; fi.click(); }
+  else if(a==='dmg-ex'){ const d=$('#dmgEx'); if(d) d.hidden=!d.hidden; }
+  else if(a==='dmg-none-ok'){ $('#modal').innerHTML=''; const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ const c=S.current; c.prep=true; await Store.save(c); go('prep'); }
   else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
