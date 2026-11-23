@@ -318,20 +318,22 @@ details.details:not([open]){gap:0}
 .g-filt .chip span{font-size:11.5px;font-weight:600;background:#f2f2f2;color:#737373;border-radius:99px;padding:0 6px;min-width:18px;text-align:center}
 .g-filt .chip.on span{background:rgba(255,255,255,.2);color:#fff}
 .g-none{text-align:center;margin:18px 0}
-.best.fastbox{background:#fff;color:var(--ink);border:1px solid #e5e5e5;border-radius:20px;padding:24px 22px;gap:10px;box-shadow:0 12px 32px rgba(0,0,0,.07)}
-.best.fastbox .tag{background:var(--acc-soft);color:var(--acc);font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:99px}
+.best.fastbox{background:#fff;color:var(--ink);border:2.5px solid var(--ink);border-radius:22px;padding:26px 24px;gap:12px;box-shadow:0 16px 44px rgba(0,0,0,.14)}
+.best.fastbox .tag{background:var(--acc);color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:5px 10px;border-radius:99px}
 .best.fastbox .tag.off{background:#f2f2f2;color:#737373}
-.best.fastbox h2{font-size:20px;color:var(--ink);margin-top:2px}
-.best.fastbox .amt{font-family:var(--f-display);font-weight:700;font-size:60px;line-height:1;letter-spacing:-.045em;color:var(--ink);margin-top:2px}
-.best.fastbox .amt sup{font-size:24px;margin-left:3px;font-weight:600;color:var(--acc)}
+.best.fastbox h2{font-size:22px;color:var(--ink);margin-top:2px}
+.best.fastbox .amt{font-family:var(--f-display);font-weight:700;font-size:72px;line-height:1;letter-spacing:-.05em;color:var(--ink);margin-top:4px}
+.best.fastbox .amt sup{font-size:28px;margin-left:3px;font-weight:600;color:var(--acc)}
 .best.fastbox .amt.dim{color:#a3a3a3}.best.fastbox .amt.dim sup{color:#a3a3a3}
-.best.fastbox .bonus{background:#fff8e6;border:1px solid #f6d58a;color:#0a0a0a}
+.best.fastbox .bonus{background:#ffc53d;border:0;color:#0a0a0a}
 .best.fastbox .cd{font-size:13.5px;color:#737373}.best.fastbox .cd b{color:var(--ink)}
 .best.fastbox p{color:#525252}
 .best.fastbox .btn{width:100%}
-.best.fastbox .btn.pri{margin-top:6px}
+.best.fastbox .btn.pri{margin-top:6px;padding:18px;font-size:17px;box-shadow:0 8px 20px rgba(0,111,235,.3)}
 .best.fastbox .btn.refuse{background:#fff;color:#525252;border:1px solid #e5e5e5;font-weight:500}
 .best.fastbox .note-c{color:#8a8a8a;width:100%}
+.best.fastbox .bonus b{white-space:nowrap}
+@media (max-width:767px){ .best.fastbox{padding:22px 18px}.best.fastbox .amt{font-size:64px}.best.fastbox .btn.refuse{font-size:14px;padding:13px 10px}.best.fastbox .btn.pri{font-size:16px} }
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -985,6 +987,7 @@ function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><di
     <div class="field"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${esc(c.wishDraft||'')}"></div>
     <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale. Ensuite, ajoutez vos photos et vos dommages pour que Julia travaille pour vous.</p>
     <button class="btn pri big" data-act="wish-save">Continuer : ajouter mes photos</button></div>`; }
+const nbsp = t => String(t).replace(/ /g,'\u00a0');
 function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0), expired=Date.now()>c.expiresAt;
   if(c.refused) return `<div class="best fastbox"><span class="tag off">Offre refusée</span><h2>Vous avez refusé cette offre</h2><div class="amt num dim">${amtHTML(c.estimate)}</div><p style="margin:0">Vous avez changé d'idée? Parlez à un conseiller ou demandez à Julia de chercher un meilleur prix.</p><button class="btn sec" data-act="refuse-undo">Revoir mon offre</button></div>`;
   if(expired) return `<div class="best fastbox"><span class="tag off">Offre expirée</span>
@@ -997,8 +1000,8 @@ function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_2
     <div class="amt num">${amtHTML(c.estimate)}</div>
     ${bl?`<div class="bonus" style="width:100%"><span>Acceptez d'ici <b class="num" data-cd="${fastBonusEnd(c)}">${timeLeft(fastBonusEnd(c)-Date.now())}</b> et recevez</span><b>+${money(BONUS_24H)}</b></div>`:''}
     ${expired?'<div class="cd">Cette offre est expirée.</div>':`<div class="cd num">Offre valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`}
-    ${expired?'':`<button class="btn pri big" data-act="initial-ok">Accepter ${money(tot)} et prendre rendez-vous</button>
-    <button class="btn refuse" data-act="refuse-ask">Je refuse ${money(tot)}${bl?` et le boni de ${money(BONUS_24H)}`:''}</button>
+    ${expired?'':`<button class="btn pri big" data-act="initial-ok">Accepter ${nbsp(money(tot))} et prendre rendez-vous</button>
+    <button class="btn refuse" data-act="refuse-ask">Je refuse ${nbsp(money(tot))}${bl?` et le boni de ${nbsp(money(BONUS_24H))}`:''}</button>
     <div class="small note-c">*Offre conditionnelle à la vérification des informations, photos et de l’état du véhicule.</div>`}
   </div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage();
