@@ -18,6 +18,12 @@ export const PRICING = {
   SPREAD_OLD_YEARS: 8, SPREAD_OLD_PCT: 2,       // +2 points dès 8 ans
   SPREAD_HIGH_KM: 200000, SPREAD_HIGH_KM_PCT: 2, // +2 points dès 200 000 km
   SPREAD_MIN: 3000,            // profit minimum en dollars, même pour une auto bon marché
+  // Peu de comparables = prix moins fiable : on ajoute des points d'écart (nov. 2026)
+  FEW_COMPS_N: 6, FEW_COMPS_PTS: 5,
+  // Points d'écart en plus (ou en moins) selon la marque / le modèle et le prix de détail. Réglables dans le Super Admin.
+  // Marques américaines : prix demandés plus loin du prix payé par les concessionnaires (point de départ, à calibrer)
+  SPREAD_MODEL_TXT: 'chevrolet: +10\ngmc: +8\nbuick: +10\nford: +8\ndodge: +10\nchrysler: +12\njeep: +10\nmitsubishi: +8',
+  SPREAD_PRICE_TXT: '',
   // Frais Shopicar : 700 $ à 1 200 $, linéaire entre 10 000 $ et 40 000 $ de wholesale, arrondi à 50 $
   FEE_MIN: 700, FEE_MAX: 1200, FEE_LOW_AT: 10000, FEE_HIGH_AT: 40000,
   // Dommages déclarés au Carfax : on enlève CARFAX_PCT % du montant, jamais plus de CARFAX_CAP_PCT % de la valeur wholesale
@@ -74,14 +80,36 @@ export function wholesaleFromBids(bids, subject, P = PRICING) {
 }
 
 /** Écart détail → wholesale selon la demande, l'âge et le kilométrage. */
-export function spreadFor(retail, { demande, year, km }, P = PRICING, now = new Date()) {
+const normTxt = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+const squashTxt = (s) => normTxt(s).replace(/[\s-]/g, '');
+/* « marque: +10 » ou « marque modèle: +15 » (une ligne chacun). Le modèle le plus précis gagne. */
+export function parseModelRules(txt) {
+  return String(txt || '').split(/\n+/).map((l) => l.match(/^\s*([^:]+?)\s*:\s*([+-]?\d+(?:[.,]\d+)?)\s*%?\s*$/)).filter(Boolean)
+    .map((m) => { const [make, ...rest] = normTxt(m[1]).split(/\s+/); return { make, model: rest.join(' '), pts: Number(m[2].replace(',', '.')) }; })
+    .filter((x) => x.make && Number.isFinite(x.pts)).slice(0, 200);
+}
+/* « 0-10000: +5 », « 40000+: -2 » : prix de détail en dollars. La première ligne qui correspond s'applique. */
+export function parsePriceRules(txt) {
+  return String(txt || '').split(/\n+/).map((l) => l.replace(/[\s$]/g, '').match(/^(\d+)(?:-(\d+)|\+)?:([+-]?\d+(?:[.,]\d+)?)%?$/)).filter(Boolean)
+    .map((m) => ({ min: +m[1], max: m[2] ? +m[2] : Infinity, pts: Number(m[3].replace(',', '.')) })).slice(0, 50);
+}
+export function spreadFor(retail, { demande, year, km, make, model, nComps }, P = PRICING, now = new Date()) {
   const age = year ? now.getFullYear() - +year : 0;
   const table = year && age <= P.SPREAD_RECENT_YEARS ? P.SPREAD_PCT_RECENT : P.SPREAD_PCT;
   let pct = table[demande] ?? table.normale;
   if (age >= P.SPREAD_OLD_YEARS) pct += P.SPREAD_OLD_PCT;
   if (+km >= P.SPREAD_HIGH_KM) pct += P.SPREAD_HIGH_KM_PCT;
+  const raisons = [];
+  if (nComps !== undefined && nComps < P.FEW_COMPS_N && P.FEW_COMPS_PTS) { pct += P.FEW_COMPS_PTS; raisons.push(`${nComps} comparable(s) seulement : ${P.FEW_COMPS_PTS > 0 ? '+' : ''}${P.FEW_COMPS_PTS} pts`); }
+  const mk = normTxt(make), md = squashTxt(model);
+  const rules = parseModelRules(P.SPREAD_MODEL_TXT).filter((x) => x.make === mk && (!x.model || (md && md.startsWith(squashTxt(x.model)))));
+  const rule = rules.sort((a, b) => b.model.length - a.model.length)[0];
+  if (rule && rule.pts) { pct += rule.pts; raisons.push(`${rule.model ? `${rule.make} ${rule.model}` : rule.make} : ${rule.pts > 0 ? '+' : ''}${rule.pts} pts`); }
+  const pr = parsePriceRules(P.SPREAD_PRICE_TXT).find((x) => retail >= x.min && retail < x.max);
+  if (pr && pr.pts) { pct += pr.pts; raisons.push(`prix de détail ${pr.min.toLocaleString('fr-CA')} $${pr.max === Infinity ? ' et plus' : ` à ${pr.max.toLocaleString('fr-CA')} $`} : ${pr.pts > 0 ? '+' : ''}${pr.pts} pts`); }
+  pct = Math.max(0, Math.min(80, pct));
   const amount = r(Math.max(P.SPREAD_MIN, (pct / 100) * retail), 50);
-  return { pct, amount };
+  return { pct, amount, raisons };
 }
 
 /** Ajustements d'état, selon les réponses du questionnaire seulement (barème fixe). */
@@ -144,7 +172,7 @@ export function computeOffer({ market, vehicle, answers }, P = PRICING, now = ne
   const bids = wholesaleFromBids(market.bids, { year: vehicle.year, km }, P);
   const nb = bids.used.length;
   if (!retail && nb < P.BIDS_MIN) return null;
-  const spread = retail ? spreadFor(retail, { demande: market.demande, year: vehicle.year, km }, P, now) : { pct: 0, amount: 0 };
+  const spread = retail ? spreadFor(retail, { demande: market.demande, year: vehicle.year, km, make: vehicle.make, model: vehicle.model, nComps: used.length }, P, now) : { pct: 0, amount: 0 };
   const fromComps = retail ? r(retail - spread.amount, 50) : 0;
   // Source : offres réelles (3+), moyenne offres réelles + comparables (2), sinon comparables seulement
   const source = nb >= P.BIDS_MIN ? 'offres' : nb >= P.BIDS_BLEND_MIN && fromComps ? 'mixte' : 'comparables';

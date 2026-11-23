@@ -44,7 +44,7 @@ export function internalView({ calc, market, km }) {
     offres_reseau: (calc.bids || []).map((b) => ({ annee: b.year, version: b.trim, km: b.km, offre: b.amount, ajustee: b.ajuste, date: b.at })),
     methode_wholesale: `${calc.source === 'offres' ? `Valeur wholesale = médiane de ${calc.bids.length} offre(s) réelle(s) d'acheteurs du réseau pour ce modèle (120 derniers jours), ajustées à l'année et au km. ` : calc.source === 'mixte' ? `Valeur wholesale = moyenne entre ${calc.bids.length} offre(s) réelle(s) du réseau (${calc.wholesale_bids} $) et le calcul par comparables (${calc.wholesale_comps} $). ` : ''}${market.version ? `Version identifiée par le NIV : ${market.version}${market.special ? ' (édition spéciale)' : ''}. ` : ''}Prix de détail = médiane de ${calc.used.length} annonce(s) au Québec, chacune ajustée au kilométrage${calc.excluded ? ` (${calc.excluded} annonce(s) trop loin du marché retirée(s))` : ''}. Ce modèle ${d} : le concessionnaire garde ${calc.spread.pct} % pour sa marge et la remise en état.`,
     facteurs: [`${calc.used.length} annonce(s) comparable(s) au Québec, prix ajustés à ${Number(km).toLocaleString('fr-CA')} km.`,
-      `Écart détail → wholesale de ${calc.spread.pct} % : ce modèle ${d}.`,
+      `Écart détail → wholesale de ${calc.spread.pct} % : ce modèle ${d}${(calc.spread.raisons || []).length ? ` (dont ${calc.spread.raisons.join(', ')})` : ''}.`,
       calc.ajustements.length ? `Ajustements selon les réponses : ${calc.ajustements.map((x) => x.libelle.toLowerCase()).join(', ')}.` : 'Aucun ajustement d\'état selon les réponses.'],
   };
 }

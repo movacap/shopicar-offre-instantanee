@@ -953,7 +953,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
   return `${topbar('Ton offre initiale','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    <h2 style="font-size:24px">Ton offre initiale est prête!</h2>
+    <h2 style="font-size:24px">Ton offre est prête!</h2>
     <div class="offer light">
       <span class="lbl">Ton offre initiale</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
@@ -1293,7 +1293,7 @@ function readSettingsForm(){ const v=id=>($('#'+id)||{}).value, c=id=>!!($('#'+i
   return { maxAge:v('setAge'), maxKm:v('setKm'), minOffer:v('setMin'), maxOffer:v('setMax'), useComfortList:c('setList'), listV2:true, pickupsToJulia:c('setPickup'), requireKnownTrim:c('setTrim'),
     comfort:parseComfort(v('setComfort')), luxury:String(v('setLux')||'').split(/[,\n]+/).map(x=>x.trim()).filter(Boolean),
     ...Object.fromEntries(PRICE_FIELDS.map(k=>[k, v('pf_'+k)])) }; }
-const PRICE_FIELDS=['feeMin','feeMax','feeLowAt','feeHighAt','spreadMin','spreadForte','spreadNormale','spreadFaible','spreadRecentForte','spreadRecentNormale','spreadRecentFaible','carfaxPct','carfaxCapPct','vgaPct'];
+const PRICE_FIELDS=['feeMin','feeMax','feeLowAt','feeHighAt','spreadMin','spreadForte','spreadNormale','spreadFaible','spreadRecentForte','spreadRecentNormale','spreadRecentFaible','carfaxPct','carfaxCapPct','vgaPct','fewCompsN','fewCompsPts','spreadModelTxt','spreadPriceTxt'];
 function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().getFullYear();
   const numF=(id,label,val,def,hint)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="inp num" inputmode="numeric" value="${esc(String(val))}"><div class="muted small">${hint||''}${def!==undefined?` Par défaut : ${esc(Number(def).toLocaleString('fr-CA'))}.`:''}</div></div>`;
   const tog=(id,label,on,hint)=>`<label class="small" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="${id}" ${on?'checked':''} style="margin-top:3px;width:18px;height:18px"><span><b>${label}</b>${hint?`<br><span class="muted">${hint}</span>`:''}</span></label>`;
@@ -1321,6 +1321,15 @@ function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().
       <p class="small" style="margin:0;font-weight:600">Autos de 4 ans ou moins</p>
       <div class="row">${numF('pf_spreadRecentForte','Demande forte',d.spreadRecentForte,D.spreadRecentForte)}${numF('pf_spreadRecentNormale','Normale',d.spreadRecentNormale,D.spreadRecentNormale)}${numF('pf_spreadRecentFaible','Faible',d.spreadRecentFaible,D.spreadRecentFaible)}</div>
       ${numF('pf_spreadMin','Écart minimum ($)',d.spreadMin,D.spreadMin,'Même pour une auto bon marché.')}
+      <h3 style="margin-top:10px">Points d'écart en plus</h3>
+      <p class="muted small" style="margin:0">S'ajoutent au % ci-dessus. Plus de points = offre plus basse. Le détail (« dont … ») apparaît dans le calcul Super Admin de chaque dossier.</p>
+      <div class="row">${numF('pf_fewCompsN','Si moins de … comparables',d.fewCompsN,D.fewCompsN)}${numF('pf_fewCompsPts','… ajouter (points)',d.fewCompsPts,D.fewCompsPts)}</div>
+      <div class="field"><label for="pf_spreadModelTxt">Selon la marque ou le modèle</label>
+        <textarea id="pf_spreadModelTxt" class="inp" rows="8" style="font-family:ui-monospace,Menlo,monospace;font-size:14px" placeholder="chevrolet: +10&#10;chevrolet trailblazer: +12&#10;toyota rav4: -3">${esc(d.spreadModelTxt||'')}</textarea>
+        <div class="muted small">Une ligne par règle : « marque: +10 » ou « marque modèle: +12 ». Le modèle le plus précis gagne sur la marque. Un chiffre négatif (« -3 ») monte l'offre.</div></div>
+      <div class="field"><label for="pf_spreadPriceTxt">Selon le prix de détail des comparables</label>
+        <textarea id="pf_spreadPriceTxt" class="inp" rows="4" style="font-family:ui-monospace,Menlo,monospace;font-size:14px" placeholder="0-10000: +5&#10;40000+: -2">${esc(d.spreadPriceTxt||'')}</textarea>
+        <div class="muted small">Une ligne par tranche : « 0-10000: +5 », « 40000+: -2 ». La première tranche qui correspond s'applique.</div></div>
       <h3 style="margin-top:10px">Dommages déclarés au Carfax</h3>
       <p class="muted small" style="margin:0">Quand le client déclare un accident et donne le montant des dommages au Carfax.</p>
       <div class="row">${numF('pf_carfaxPct','% du montant des dommages enlevé',d.carfaxPct,D.carfaxPct)}${numF('pf_carfaxCapPct','Jamais plus de (% de la valeur wholesale)',d.carfaxCapPct,D.carfaxCapPct)}</div>
