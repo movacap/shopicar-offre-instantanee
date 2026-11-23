@@ -680,7 +680,7 @@ const SW={ el:null, x0:0, y0:0, dx:0, dir:null, open:null };
 const SW_W=104;
 const swHide = el => setTimeout(()=>{ if(!el.style.transform) el.parentElement?.classList.remove('on'); }, 240);
 function swClose(){ if(SW.open){ const el=SW.open; el.style.transform=''; SW.open=null; swHide(el); } }
-document.addEventListener('touchstart', e=>{ const card=e.target.closest('.swipe .gcar'); if(!card){ if(!e.target.closest('.swipe-act')) swClose(); return; }
+document.addEventListener('touchstart', e=>{ const card=e.target.closest('.swipe[data-sw] .gcar'); if(!card){ if(!e.target.closest('.swipe-act')) swClose(); return; }
   if(SW.open && SW.open!==card) swClose();
   const t=e.touches[0]; Object.assign(SW,{ el:card, x0:t.clientX, y0:t.clientY, dx:0, dir:null, base:SW.open===card?-SW_W:0 }); }, {passive:true});
 document.addEventListener('touchmove', e=>{ if(!SW.el) return; const t=e.touches[0]; const dx=t.clientX-SW.x0, dy=t.clientY-SW.y0;
@@ -1396,11 +1396,12 @@ function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c);
     <button class="btn ghost" data-act="ics" style="padding:4px">Apple Calendrier / Outlook</button>
   </div>`; }
 
-function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-sw="${c.id}">
-    <div class="swipe-act ${c.archived?'un':''}"><button data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}"><span style="font-size:20px">${c.archived?'↩':'🗄'}</span>${c.archived?'Désarchiver':'Archiver'}</button></div>
+function garageCard(c){ const st=statusInfo(c); const noArch=!c.archived && hasConf(c) && c.status!=='payee'; // offre acceptée : on ne l'archive pas
+  return `<div class="swipe" ${noArch?'':`data-sw="${c.id}"`}>
+    ${noArch?'':`<div class="swipe-act ${c.archived?'un':''}"><button data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}"><span style="font-size:20px">${c.archived?'↩':'🗄'}</span>${c.archived?'Désarchiver':'Archiver'}</button></div>`}
     <div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div style="flex:1;min-width:0"><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
-      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='estimation'&&c.initialAcceptedAt?c.estimate+(c.initialBonus||0):c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
+      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span>${noArch?'':`<button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button>`}</span><span class="amt num">${money(c.finalOffer||(c.status==='estimation'&&c.initialAcceptedAt?c.estimate+(c.initialBonus||0):c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
       ${!c.archived&&hasConf(c)?`<div class="muted small">N° de confirmation <b class="num" style="color:var(--ink,#0a0a0a)">${confNo(c)}</b></div>`:''}
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
     </div></div>`; }
