@@ -354,6 +354,22 @@ details.details:not([open]){gap:0}
 .acc-bon{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--acc-soft);color:var(--acc);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:600}
 .acc-bon em{font-style:normal;font-weight:400;color:#525252}
 .acc-bon b{white-space:nowrap;font-size:15px}
+.slot .gab{width:72%;height:auto;max-height:58%;fill:none;stroke:var(--acc);stroke-width:5;stroke-linecap:round;stroke-linejoin:round;opacity:.55;margin-bottom:2px}
+#cam{position:fixed;inset:0;z-index:50;background:#000;color:#fff;display:flex;flex-direction:column}
+#cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+#cam.flash:after{content:'';position:absolute;inset:0;background:#fff;opacity:.7}
+#camUi{position:relative;flex:1;display:flex;flex-direction:column;justify-content:space-between}
+.cam-top{display:flex;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 12px) 14px 14px;background:linear-gradient(rgba(0,0,0,.6),transparent);text-align:center}
+.cam-top b{display:block;font-size:17px}.cam-top span{font-size:12.5px;color:#d4d4d4}
+.cam-x{width:40px;height:40px;border-radius:50%;border:0;background:rgba(255,255,255,.18);color:#fff;font-size:22px}
+.cam-gab{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0 18px}
+.cam-gab .gab-cam{width:min(92vw,560px);height:auto;fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:.9;filter:drop-shadow(0 0 3px rgba(0,0,0,.6))}
+.cam-gab p{margin:0;font-size:14px;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:99px}
+.cam-bot{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:16px 20px calc(env(safe-area-inset-bottom) + 20px);background:linear-gradient(transparent,rgba(0,0,0,.65))}
+.cam-alt{justify-self:start;background:rgba(255,255,255,.18);border:0;color:#fff;border-radius:99px;padding:9px 14px;font-weight:600;font-size:14px}
+.cam-shot{width:74px;height:74px;border-radius:50%;border:5px solid #fff;background:rgba(255,255,255,.25)}
+.cam-shot:active{background:#fff}
+.cam-dots{justify-self:end;display:flex;gap:5px}.cam-dots i{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.35)}.cam-dots i.ok{background:var(--acc)}.cam-dots i.on{background:#fff;outline:2px solid rgba(255,255,255,.4)}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -944,6 +960,16 @@ function vehHead(c){ const st=statusInfo(c); return `<div class="veh">${carThumb
 /* Photos guidées : 6 obligatoires, puis photos des dommages (jusqu'à 10, plusieurs à la fois) ou confirmation « aucun dommage ». */
 const PHOTO_SLOTS=[['avant','Avant'],['gauche','Côté gauche'],['droit','Côté droit'],['arriere','Arrière'],['dash','Tableau de bord','Tableau'],['interieur','Intérieur']];
 const DMG_MAX=10;
+/* Gabarits (silhouettes) pour cadrer chaque photo : affichés dans les cases vides et par-dessus la caméra. */
+const GAB_SIDE='<path d="M18 128h264M30 128c0-10 4-22 14-26l38-12 34-26c8-6 18-9 28-9h52c12 0 22 5 30 13l24 24 34 6c10 2 16 10 16 20v10"/><circle cx="78" cy="132" r="20"/><circle cx="222" cy="132" r="20"/><path d="M122 66l-26 28h68V62h-14M176 62v32h58l-22-24c-6-6-12-8-20-8z"/>';
+const GAB={
+  avant:'<path d="M60 150V112c0-8 4-14 10-18l16-34c4-8 12-13 22-13h84c10 0 18 5 22 13l16 34c6 4 10 10 10 18v38"/><path d="M92 58l-10 32h136l-10-32z"/><rect x="70" y="104" width="34" height="14" rx="5"/><rect x="196" y="104" width="34" height="14" rx="5"/><path d="M122 124h56M60 150h40v14H60zM200 150h40v14h-40z"/>',
+  gauche:GAB_SIDE,
+  droit:'<g transform="translate(300 0) scale(-1 1)">'+GAB_SIDE+'</g>',
+  arriere:'<path d="M60 150V112c0-8 4-14 10-18l16-34c4-8 12-13 22-13h84c10 0 18 5 22 13l16 34c6 4 10 10 10 18v38"/><path d="M96 60l-8 28h124l-8-28z"/><rect x="66" y="102" width="40" height="12" rx="4"/><rect x="194" y="102" width="40" height="12" rx="4"/><rect x="126" y="118" width="48" height="16" rx="3"/><path d="M60 150h40v14H60zM200 150h40v14h-40z"/>',
+  dash:'<path d="M20 70c40-20 220-20 260 0v30H20z"/><circle cx="105" cy="128" r="40"/><circle cx="105" cy="128" r="10"/><path d="M65 128h30M115 128h30M105 138v30"/><rect x="170" y="80" width="70" height="40" rx="6"/>',
+  interieur:'<path d="M60 170V90c0-20 10-30 30-30s30 10 30 30v80M180 170V90c0-20 10-30 30-30s30 10 30 30v80"/><rect x="74" y="34" width="32" height="22" rx="8"/><rect x="194" y="34" width="32" height="22" rx="8"/><path d="M40 170h100M160 170h100"/>' };
+const gabSvg = (k,cls) => GAB[k]?`<svg class="${cls||'gab'}" viewBox="0 0 300 200" aria-hidden="true">${GAB[k]}</svg>`:'';
 const needsDamagePhotos = a => !DMG_NONE(a) || (a.rouille && a.rouille!=='Aucune');
 const slotCount = c => PHOTO_SLOTS.filter(([k])=>c.slots&&c.slots[k]).length;
 /* Après les 6 photos : le client doit soit ajouter ses dommages, soit confirmer qu'il n'y en a aucun. */
@@ -953,7 +979,7 @@ function syncPhotos(c){ c.photos=[...PHOTO_SLOTS.map(([k])=>c.slots&&c.slots[k])
 function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const n=slotCount(c);
   const tile=(key,label,img,rm,short)=> img
     ? `<div class="slot on"><img src="${img}" alt="${esc(label)}"><span>${esc(short||label)}</span><button class="rm" data-act="${rm}" data-slot="${key}" aria-label="Retirer">×</button></div>`
-    : `<button class="slot" data-act="slot-add" data-slot="${key}"><b>📷</b><span>${esc(label)}</span></button>`;
+    : `<button class="slot" data-act="slot-add" data-slot="${key}">${GAB[key]?gabSvg(key):'<b>📷</b>'}<span>${esc(label)}</span></button>`;
   const next=PHOTO_SLOTS.find(([k])=>!(c.slots&&c.slots[k]));
   return `<div class="card ${prep&&n<PHOTO_SLOTS.length?'focus':''}" id="photoAsk">
     ${prep?prep:''}
@@ -1217,7 +1243,7 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
   const p1=photosDone(c), p2=docsOk(c,true), p3=pickupOk(c); const done=[p1,p2,p3].filter(Boolean).length; const isDrop=(c.pickup||{}).lieu===PK_DROP;
   const head=(n,ok,t,sub,lock)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}" style="${lock&&!ok?'background:#d4d4d4':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':lock?'À venir':'À faire'}</span></div>`;
   const wait=t=>`<p class="small muted" style="margin:0">${t}</p>`;
-  const locked=!!c.initialAcceptedAt, bon=c.initialBonus||0; // offre acceptée : pas de retour en arrière
+  fixBonus(c); const locked=!!c.initialAcceptedAt, bon=c.initialBonus||0; // offre acceptée : pas de retour en arrière
   return `${topbar('Prochaines étapes',locked?'tab-garage':'prep-back')}
   <div class="wrap">
     ${vehHead(c)}
@@ -1535,6 +1561,10 @@ document.addEventListener('click', async e=>{
       if(wi){ const n=Number(String(wi.value).replace(/[^\d]/g,'')); c.wish=n>=500?n:null; if(!c.wish){ toast('Indiquez d\'abord le prix que vous aimeriez obtenir.'); $('#bestBox')?.scrollIntoView({behavior:'smooth',block:'start'}); wi.focus({preventScroll:true}); return; } Store.save(c); }
       if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
       document.querySelectorAll('#photoAsk button.slot').forEach(x=>{ x.classList.remove('need'); void x.offsetWidth; x.classList.add('need'); }); return; } startSearch(c); }
+  else if(a==='slot-add' && el.dataset.slot!=='dmg' && camOk()){ camOpen(el.dataset.slot); }
+  else if(a==='cam-shot'){ camShot(); }
+  else if(a==='cam-close'){ camClose(); rerender(); }
+  else if(a==='cam-file'){ S.slotTarget=CAM.key; const fi=$('#slotFile'); fi.multiple=false; fi.click(); }
   else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; const fi=$('#slotFile'); fi.multiple = el.dataset.slot==='dmg'; fi.click(); }
   else if(a==='slot-rm'){ const c=S.current; Cloud.rm(c,'photo',el.dataset.slot); delete c.slots[el.dataset.slot]; if(BLOBS[c.id]) delete BLOBS[c.id].slots[el.dataset.slot]; syncPhotos(c); Store.save(c); rerender(); }
   else if(a==='dmg-rm'){ const c=S.current; const i=+el.dataset.slot; c.dmg.splice(i,1); if(BLOBS[c.id]) BLOBS[c.id].dmg.splice(i,1); Cloud.dmgAll(c); syncPhotos(c); Store.save(c); rerender(); }
@@ -1585,7 +1615,8 @@ $('#photoFile').addEventListener('change', async e=>{
   for(const f of files){ try{ const {im,u}=await loadImg(f); S.draft.photos.push(draw(im,320).toDataURL('image/jpeg',.6)); S.draft.photoBlobs.push(await toBlob(draw(im,1024),.8)); URL.revokeObjectURL(u); }catch(err){} }
   rerender(); });
 
-$('#slotFile').addEventListener('change', async e=>{ const c=S.current; const key=S.slotTarget; const files=[...e.target.files]; e.target.value=''; if(!files.length||!c||!key) return;
+$('#slotFile').addEventListener('change', async e=>{ const files=[...e.target.files]; e.target.value=''; await addSlotFiles(S.current, S.slotTarget, files); if(CAM.on) camNext(); });
+async function addSlotFiles(c, key, files){ if(!files.length||!c||!key) return;
   if(!BLOBS[c.id] || Array.isArray(BLOBS[c.id])) BLOBS[c.id]={slots:{},dmg:[]};
   const B=BLOBS[c.id]; const added=[]; let bad=0;
   for(const f of (key==='dmg'?files:files.slice(0,1))){
@@ -1598,7 +1629,27 @@ $('#slotFile').addEventListener('change', async e=>{ const c=S.current; const ke
   if(!added.length) return;
   syncPhotos(c); await Store.save(c); rerender();
   if(key==='dmg') added.forEach(i=>Cloud.file(c,'dommage','d'+i,B.dmg[i],'image/jpeg','dommage-'+(i+1)+'.jpg'));
-  else Cloud.file(c,'photo',key,B.slots[key],'image/jpeg',key+'.jpg'); });
+  else Cloud.file(c,'photo',key,B.slots[key],'image/jpeg',key+'.jpg'); }
+
+/* ===== Caméra guidée (mobile) : gabarit par-dessus la caméra; chaque prise passe au gabarit suivant ===== */
+const CAM={ on:false, stream:null, key:null };
+const camOk = () => !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia) && matchMedia('(hover:none) and (pointer:coarse)').matches;
+async function camOpen(key){ CAM.key=key; CAM.on=true; camRender();
+  try{ CAM.stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    const v=$('#camV'); if(v){ v.srcObject=CAM.stream; await v.play().catch(()=>{}); } }
+  catch(e){ camClose(); S.slotTarget=key; const fi=$('#slotFile'); fi.multiple=false; fi.click(); } }
+function camRender(){ const c=S.current; const i=PHOTO_SLOTS.findIndex(([k])=>k===CAM.key); const lab=(PHOTO_SLOTS[i]||[])[1]||'';
+  const done=slotCount(c);
+  let el=$('#cam'); if(!el){ el=document.createElement('div'); el.id='cam'; document.body.appendChild(el); el.innerHTML='<video id="camV" playsinline muted autoplay></video><div id="camUi"></div>'; if(CAM.stream){ $('#camV').srcObject=CAM.stream; } }
+  $('#camUi').innerHTML=`<div class="cam-top"><button class="cam-x" data-act="cam-close" aria-label="Fermer">×</button><div><b>${esc(lab)}</b><span>Photo ${i+1} de ${PHOTO_SLOTS.length} · ${done}/${PHOTO_SLOTS.length} faites</span></div><span style="width:40px"></span></div>
+    <div class="cam-gab">${gabSvg(CAM.key,'gab-cam')}<p>Placez ${CAM.key==='dash'?'le tableau de bord':CAM.key==='interieur'?'les sièges avant':'l\'auto'} dans le gabarit</p></div>
+    <div class="cam-bot"><button class="cam-alt" data-act="cam-file">Importer</button><button class="cam-shot" data-act="cam-shot" aria-label="Prendre la photo"></button><span class="cam-dots">${PHOTO_SLOTS.map(([k])=>`<i class="${c.slots&&c.slots[k]?'ok':''} ${k===CAM.key?'on':''}"></i>`).join('')}</span></div>`; }
+function camClose(){ CAM.on=false; if(CAM.stream){ CAM.stream.getTracks().forEach(t=>t.stop()); CAM.stream=null; } $('#cam')?.remove(); }
+function camNext(){ const c=S.current; const nx=PHOTO_SLOTS.find(([k])=>!(c.slots&&c.slots[k]));
+  if(!nx){ camClose(); toast('Les 6 photos sont ajoutées.'); rerender(); return; } CAM.key=nx[0]; camRender(); }
+async function camShot(){ const v=$('#camV'); if(!v||!v.videoWidth) return; const cv=document.createElement('canvas'); cv.width=v.videoWidth; cv.height=v.videoHeight; cv.getContext('2d').drawImage(v,0,0);
+  $('#cam')?.classList.add('flash'); setTimeout(()=>$('#cam')?.classList.remove('flash'),180);
+  const blob=await toBlob(cv,.9); await addSlotFiles(S.current, CAM.key, [blob]); camNext(); }
 
 /* ============ SCAN NIV ============ */
 let zxingP=null;
@@ -1689,7 +1740,9 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
    Règles : on n'affiche que des offres validées; la meilleure offre encore valide ne baisse jamais à cause d'une offre plus basse;
    une offre expirée ou retirée ne compte plus; l'estimation reste à part (c.estimate). */
-function screenFor(c){ if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ c.prep=true; return 'prep'; } // offre acceptée : on revient toujours au dossier
+/* Boni 24 h : un dossier accepté dans les 24 h avant l'enregistrement du boni (nov. 2026) le reçoit quand même */
+function fixBonus(c){ if(c&&c.initialAcceptedAt&&c.initialBonus==null&&!c.wantMore&&!c.initialRefusedAt&&isFast(c)&&c.initialAcceptedAt<fastBonusEnd(c)){ c.initialBonus=BONUS_24H; Store.save(c); } }
+function screenFor(c){ if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ fixBonus(c); c.prep=true; return 'prep'; } // offre acceptée : on revient toujours au dossier
   return c.status==='refusee'&&c.estimate?'estimate':c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
 const validOffers = c => ((c.search&&c.search.offers)||[]).filter(o=>o.status==='valid' && Date.now()<o.expiresAt);
 function bestOffer(c){ return validOffers(c).reduce((m,o)=>!m||o.amount>m.amount?o:m, null); }
