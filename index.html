@@ -455,7 +455,7 @@ const Store = {
     if(this.mode==='local'){ try{ return JSON.parse(localStorage.getItem('sc_cars')||'[]'); }catch(e){ return []; } }
     return this.mem.slice(); },
   async remove(id){ await this.init(); if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]').filter(c=>c.id!==id); localStorage.setItem('sc_cars', JSON.stringify(all)); }catch(e){} } this.mem=this.mem.filter(c=>c.id!==id); },
-  save(car, quiet){ if(car&&car.estimate) Cloud.key(car); const clean=JSON.parse(JSON.stringify(car)); if(!quiet) Cloud.save(car);
+  save(car, quiet){ if(car&&car.estimate) Cloud.key(car); if(car&&!quiet) car.localAt=Date.now(); // dernière modif faite sur cet appareil const clean=JSON.parse(JSON.stringify(car)); if(!quiet) Cloud.save(car);
     this.chain = this.chain.then(async()=>{ await this.init();
       if(this.mode==='db'){ try{ await this.col().doc(clean.id).set(clean); return; }catch(e){ this.toLocal(); } }
       if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]'); const i=all.findIndex(c=>c.id===clean.id); if(i>=0) all[i]=clean; else all.push(clean); localStorage.setItem('sc_cars', JSON.stringify(all)); return; }catch(e){ this.mode='memory'; } }
@@ -475,7 +475,7 @@ const Cloud = {
   run(c, fn){ this.q[c.id]=(this.q[c.id]||Promise.resolve()).then(fn).catch(e=>console.warn('[dossier]', e.message)); return this.q[c.id]; },
   payload(c){ const { slots, dmg, photos, photoBlobs, dbKey, dbSaved, ...rest } = c; return JSON.parse(JSON.stringify(rest)); },
   push(c){ const pv=PV.get(); const vt=pv&&pv.phone===phoneE164((c.answers||{}).cell)?pv.token:undefined;
-    return this.run(c, ()=>this.call({action:'save', id:c.id, key:this.key(c), demo:!!DEMO_OFFERS, verify_token:vt, car:this.payload(c)}).then(()=>{ if(!c.dbSaved){ c.dbSaved=true; Store.save(c); } })); },
+    return this.run(c, ()=>this.call({action:'save', id:c.id, key:this.key(c), demo:!!DEMO_OFFERS, verify_token:vt, car:this.payload(c)}).then(()=>{ if(!c.dbSaved){ c.dbSaved=true; Store.save(c, true); } })); },
   save(c){ if(!c||!c.estimate) return; clearTimeout(this.t[c.id]); this.t[c.id]=setTimeout(()=>{ delete this.t[c.id]; this.push(c); }, 700); },
   flush(c){ if(this.t[c.id]){ clearTimeout(this.t[c.id]); delete this.t[c.id]; return this.push(c); } if(!c.dbSaved) return this.push(c); },
   vt(c){ const pv=PV.get(); return pv&&pv.phone===phoneE164((c.answers||{}).cell)?pv.token:undefined; },
@@ -579,6 +579,11 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
       const local=S.cars.find(c=>c.id===r.id);
       if(!local){ const car=Object.assign({}, r.state, { id:r.id, archived:!!r.archived, slots:imgs.slots, dmg:imgs.dmg, photos, docs:Object.assign({}, r.state.docs||{}, r.docs||{}), dbSaved:true, fromAccount:true });
         S.cars.push(car); await Store.save(car, true); added++; if(car.search&&car.search.leadToken&&['recherche','offre'].includes(car.status)) pollLead(car); }
+      else if((Date.parse(r.updated_at)||0) > (local.localAt||0) + 5000 && !Cloud.t[local.id]){ // modifié sur un autre appareil (archivage, statut, offre…) : on prend la version du compte
+        const keep={ id:local.id, dbKey:local.dbKey, dbSaved:true };
+        for(const k of Object.keys(local)) if(!['slots','dmg','photos','photoBlobs'].includes(k)) delete local[k];
+        Object.assign(local, r.state, keep, { archived:!!r.archived, localAt:Date.parse(r.updated_at), slots:Object.assign({}, local.slots, imgs.slots), dmg:imgs.dmg.length?imgs.dmg:(local.dmg||[]), docs:Object.assign({}, r.state.docs||{}, r.docs||{}) });
+        syncPhotos(local); await Store.save(local, true); }
       else if(local.fromAccount || !Object.keys(local.slots||{}).length){ // liens des photos rafraîchis
         local.slots=Object.assign({}, local.slots, imgs.slots); if(imgs.dmg.length) local.dmg=imgs.dmg; syncPhotos(local); await Store.save(local, true); } }
     if(show && added) toast(`${added} auto${added>1?'s':''} ajoutée${added>1?'s':''} à votre garage.`);
@@ -1845,6 +1850,7 @@ ${juliaContext()}`;
   jBusy=false; renderJulia(); }
 
 /* ============ GARAGE ============ */
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && ['garage','home'].includes(S.screen)) syncGarage(false); }); // retour sur l'onglet : garage à jour
 async function loadGarage(){ const list=await Store.list(); S.cars=list; S.loaded=true; setTimeout(()=>syncGarage(false).then(inspekBackfill),0); list.forEach(c=>{ if(c.estimate&&!c.dbSaved) Cloud.save(c); }); if(S.screen==='garage'||S.screen==='home') rerender(); }
 
 /* comptes à rebours */
