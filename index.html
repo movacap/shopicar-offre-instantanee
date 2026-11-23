@@ -1177,7 +1177,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
   return `${topbar(nu&&firm?'Mon offre ferme':'Mon offre','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    ${c.autoAccepted&&['planifiee','acceptee'].includes(c.status)?`<div class="best official"><span class="tag">✓ Dossier validé · Offre confirmée</span><h2>C'est confirmé!</h2><div class="amt num">${amtHTML(c.finalOffer||c.offer)}</div><p style="margin:0">Votre dossier est conforme : votre offre est confirmée au même prix que votre offre initiale${c.status==='planifiee'?' et votre rendez-vous est confirmé.':'. Choisissez maintenant la date de votre rendez-vous.'}</p></div>`:''}
+    ${c.autoAccepted&&['planifiee','acceptee'].includes(c.status)?`<div class="best official"><span class="tag">✓ Dossier validé · Offre ferme confirmée</span><h2>C'est confirmé!</h2><div class="amt num">${amtHTML(c.finalOffer||c.offer)}</div><p style="margin:0">Votre dossier est conforme : félicitations, votre offre ferme est confirmée au même prix que votre offre initiale${c.status==='planifiee'?' et votre rendez-vous est confirmé.':'. Choisissez maintenant la date de votre rendez-vous.'}</p></div>`:''}
     ${official?`<div class="best official">
       <span class="tag">✓ Meilleure offre Shopicar · Offre ferme</span>
       <h2>${(c.search||{}).intent==='initial'?(diff<0?'Votre offre a été ajustée après la validation':'Votre offre est validée!'):'Excellente nouvelle! Votre meilleure offre est prête'}</h2>
