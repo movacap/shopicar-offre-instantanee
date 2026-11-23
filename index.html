@@ -1233,8 +1233,8 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
       ${p1?docsHTML(c,true):wait('Ajoutez d\'abord vos photos.')}</div>
     <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Votre rendez-vous de dépôt':'Votre rendez-vous','Choisissez où et quand nous nous rencontrons, sans frais.',!(p1&&p2))}
       ${p1&&p2?pickupFormHTML(c):wait('Ajoutez d\'abord vos documents.')}</div>
-    <div class="card stp">${head(4,false,'Validation du dossier','Nous vérifions que vos photos et vos documents sont conformes, puis nous vous confirmons votre offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
-      ${validationListHTML(c)}</div>
+    ${c.prepSentAt?`<div class="card stp">${head(4,false,'Validation du dossier','Nous vérifions que vos photos et vos documents sont conformes, puis nous vous confirmons votre offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+      ${validationListHTML(c)}</div>`:''}
     <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer le dossier</button>
     ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il vous reste : ${[!p1&&'vos photos',!p2&&'vos documents',!p3&&'votre rendez-vous'].filter(Boolean).join(', ')}.</p>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
