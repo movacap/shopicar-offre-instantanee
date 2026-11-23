@@ -634,7 +634,7 @@ const COLORS={'Noir':'#3f3f46','Blanc':'#ffffff','Gris':'#6b7280','Argent':'#c7c
 function monoThumb(v, color){ v=v||{}; const md=String(v.model||'Votre auto'); const fs=md.length>12?12.5:md.length>8?17:md.length>5?21:26;
   return `<div class="thumb mono"><span class="mk">${esc(v.make||'')}</span><span class="md" style="font-size:${fs}px">${esc(md)}</span><span class="yr">${esc(v.year||'')}</span>${COLORS[color]?`<i style="background:${COLORS[color]}"></i>`:''}</div>`; }
 function carThumb(car){ const p=car.photos && car.photos[0]; return p?`<div class="thumb"><img src="${p}" alt=""></div>`:monoThumb(car.vehicle, car.answers && car.answers.couleur); }
-function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
+function vTitle(v){ return [v.make,v.model,v.year].filter(Boolean).join(' '); } // en français : marque modèle année
 
 /* ============ QUESTIONNAIRE ============ */
 const NONE_EXT='Aucun dommage', NONE_INT='Aucun dommage', NONE_LIGHT='Aucun voyant', NONE_TITLE='Rien à déclarer', NONE_MOD="Aucune, tout d'origine";
