@@ -643,6 +643,7 @@ const accidentNote = a => { const n=Number(String((a||{}).accidentMontant||'').r
 const tradeNote = a => isTrade(a) ? `ÉCHANGE (trade-in) : le client recherche ${String((a||{}).recherche||'modèle non précisé').trim()}.` : ((a||{}).transaction ? 'Vente seulement (pas d\'échange).' : '');
 const STEPS=[
  {title:'Ton auto', qs:[
+  {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
   {id:'km', label:'Kilométrage actuel', type:'number', suffix:'km', req:true, ph:'ex. 84 500'},
   {id:'postal', label:'Code postal', type:'text', req:true, ph:'ex. H2X 1Y4', hint:'Pour la cueillette et le prix régional.'},
   {id:'couleur', label:'Couleur', type:'single', req:true, opts:['Noir','Blanc','Gris','Argent','Bleu','Rouge','Vert','Autre']},
@@ -661,7 +662,6 @@ const STEPS=[
  ]},
  {title:'Mécanique et historique', qs:[
   {id:'voyants', label:'Voyants ou problèmes mécaniques', type:'multi', req:true, none:NONE_LIGHT, opts:[NONE_LIGHT,'Check engine','Freins / ABS','Coussin gonflable','Bruit, fuite ou autre']},
-  {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
   {id:'accidents', label:'Accidents ou réclamations d\'assurance', type:'single', req:true, opts:['Aucun','Oui','Je ne sais pas'], hint:'On le valide avec le rapport Carfax.'},
   {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laisse vide si tu ne le sais pas : on le validera avec le rapport.'},
   {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGA','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
@@ -680,7 +680,7 @@ const STEPS=[
  ]}
 ];
 function visibleQs(step, a){ return STEPS[step].qs.filter(q=>!q.show || q.show(a)); }
-function answered(q,a){ const v=a[q.id]; if(!q.req) return true; if(q.type==='multi') return Array.isArray(v)&&v.length>0;
+function answered(q,a){ const v=a[q.id]; if(q.id==='roulable') return v==='Oui'; /* aucune offre si le véhicule ne roule pas */ if(!q.req) return true; if(q.type==='multi') return Array.isArray(v)&&v.length>0;
   if(q.id==='nom') return String(v||'').trim().split(/\s+/).filter(w=>w.length>1).length>=2;
   if(q.id==='cell') return String(v||'').replace(/\D/g,'').length>=10;
   if(q.id==='postal') return /^[A-Za-z]\d[A-Za-z]\s?\d[A-Za-z]\d$/.test(String(v||'').trim());
@@ -795,14 +795,17 @@ function qHTML(q,a){
   }
   return `<div class="q"><span class="ql">${q.type==='text'||q.type==='number'||q.type==='tel'?`<label for="q_${q.id}">${esc(q.label)}${q.suffix?` (${q.suffix})`:''}</label>`:esc(q.label)}</span>${q.hint?`<span class="hint">${esc(q.hint)}</span>`:''}${inner}</div>`;
 }
-function vQuiz(){ const st=S.step, a=S.draft.answers; const qs=visibleQs(st,a); const ok=qs.every(q=>answered(q,a));
+function vQuiz(){ const st=S.step, a=S.draft.answers; const noRun=a.roulable==='Non'; const qs=visibleQs(st,a).filter(q=>!noRun||q.id==='roulable'); const ok=qs.every(q=>answered(q,a));
   return `${topbar(vTitle(S.draft.vehicle||{}), 'quiz-back')}
   <div class="wrap">
     <div class="prog">${STEPS.map((_,i)=>`<i class="${i<=st?'on':''}"></i>`).join('')}</div>
     <div class="steplbl">Étape ${st+1} de ${STEPS.length} · ${esc(STEPS[st].title)}</div>
     <div class="card" style="gap:20px">${qs.map(q=>qHTML(q,a)).join('')}</div>
+    ${noRun?`<div class="card guard"><h3>Nous ne pouvons pas faire d'offre sur un véhicule qui ne roule pas</h3>
+      <p class="muted" style="margin:0">Shopicar achète seulement des véhicules en état de rouler. Si ton auto roule à nouveau (après une réparation, par exemple), reviens nous voir : ton offre initiale prend 3 minutes.</p>
+      <div class="row"><button class="btn sec" data-act="julia">Discuter avec Julia</button><button class="btn sec" data-act="home">Retour à l'accueil</button></div></div>`:''}
     ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
-    <button class="btn pri" id="quizNext" data-act="quiz-next" ${ok?'':'disabled'}>${st===STEPS.length-1?'Calculer mon offre':'Continuer'}</button>
+    ${noRun?'':`<button class="btn pri" id="quizNext" data-act="quiz-next" ${ok?'':'disabled'}>${st===STEPS.length-1?'Calculer mon offre':'Continuer'}</button>`}
   </div>`; }
 
 const LOAD_STEPS=['Julia analyse ton véhicule…','Analyse des véhicules comparables…','Vérification des tendances du marché…','Ajustement selon le kilométrage et l\'état…','Finalisation de ton offre initiale…'];
