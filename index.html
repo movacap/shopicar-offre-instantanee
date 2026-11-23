@@ -545,7 +545,8 @@ const Cloud = {
   key(c){ if(!c.dbKey) c.dbKey=Array.from(crypto.getRandomValues(new Uint8Array(24)),b=>b.toString(16).padStart(2,'0')).join(''); return c.dbKey; },
   async call(body){ const r=await fetch('/api/dossier',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
     const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok) throw new Error(j.error||('HTTP '+r.status)); return j; },
-  run(c, fn){ this.q[c.id]=(this.q[c.id]||Promise.resolve()).then(fn).catch(e=>console.warn('[dossier]', e.message)); return this.q[c.id]; },
+  busy:{},
+  run(c, fn){ this.busy[c.id]=(this.busy[c.id]||0)+1; this.q[c.id]=(this.q[c.id]||Promise.resolve()).then(fn).catch(e=>console.warn('[dossier]', e.message)).finally(()=>{ this.busy[c.id]--; }); return this.q[c.id]; },
   payload(c){ const { slots, dmg, photos, photoBlobs, dbKey, dbSaved, ...rest } = c; return JSON.parse(JSON.stringify(rest)); },
   push(c){ const pv=PV.get(); const vt=pv&&pv.phone===phoneE164((c.answers||{}).cell)?pv.token:undefined;
     return this.run(c, ()=>this.call({action:'save', id:c.id, key:this.key(c), demo:!!DEMO_OFFERS, verify_token:vt, car:this.payload(c)}).then(()=>{ if(!c.dbSaved){ c.dbSaved=true; Store.save(c, true); } })); },
@@ -652,7 +653,7 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
       const local=S.cars.find(c=>c.id===r.id);
       if(!local){ const car=Object.assign({}, r.state, { id:r.id, archived:!!r.archived, slots:imgs.slots, dmg:imgs.dmg, photos, docs:Object.assign({}, r.state.docs||{}, r.docs||{}), dbSaved:true, fromAccount:true });
         S.cars.push(car); await Store.save(car, true); added++; if(car.search&&car.search.leadToken&&['recherche','offre'].includes(car.status)) pollLead(car); }
-      else if((Date.parse(r.updated_at)||0) > (local.localAt||0) + 5000 && !Cloud.t[local.id]){ // modifié sur un autre appareil (archivage, statut, offre…) : on prend la version du compte
+      else if((r.state.localAt ? r.state.localAt > (local.localAt||0) : (Date.parse(r.updated_at)||0) > (local.localAt||0) + 5000) && !Cloud.t[local.id] && !Cloud.busy[local.id] && !(S.current===local && ['prep','accept','estimate','offer'].includes(S.screen))){ // modifié sur un autre appareil (archivage, statut, offre…) : on prend la version du compte
         const keep={ id:local.id, dbKey:local.dbKey, dbSaved:true };
         for(const k of Object.keys(local)) if(!['slots','dmg','photos','photoBlobs'].includes(k)) delete local[k];
         Object.assign(local, r.state, keep, { archived:!!r.archived, localAt:Date.parse(r.updated_at), slots:Object.assign({}, local.slots, imgs.slots), dmg:imgs.dmg.length?imgs.dmg:(local.dmg||[]), docs:Object.assign({}, r.state.docs||{}, r.docs||{}) });
@@ -1359,7 +1360,8 @@ function dropPickerHTML(c, dr){ const pk=c.pickup||{}; const postal=dropPostal(c
 /* N° de confirmation : un par dossier (transaction + rendez-vous), créé à l'acceptation; sans O/0 ni I/1 pour le dicter au téléphone */
 const CONF_AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const hasConf = c => !!(c.initialAcceptedAt || c.acceptedAt || c.autoAccepted || ['acceptee','planifiee','inspectee','payee'].includes(c.status));
-function confNo(c){ if(!c.confNo){ let x=''; crypto.getRandomValues(new Uint8Array(6)).forEach(n=>x+=CONF_AL[n%32]); c.confNo='SC-'+x; } return c.confNo; }
+function confNo(c){ if(!c.confNo){ let h=2166136261>>>0, x=''; for(const ch of String(c.id)+':'+(c.createdAt||'')){ h^=ch.charCodeAt(0); h=Math.imul(h,16777619)>>>0; }
+  for(let i=0;i<6;i++){ x+=CONF_AL[h%32]; h=Math.imul(h^(h>>>13),2654435761)>>>0; } c.confNo='SC-'+x; } return c.confNo; }
 const confHTML = (c, dark) => hasConf(c) ? `<div class="conf-no ${dark?'dk':''}"><span>N° de confirmation</span><b class="num">${confNo(c)}</b></div>` : '';
 function pickupWhen(c){ const pk=c.pickup||{}; if(!pk.date) return null;
   const m=String(pk.slot||'').match(/(\d{1,2})\s*h\s*à\s*(\d{1,2})/); const h1=m?+m[1]:9, h2=m?+m[2]:h1+1;
@@ -1519,7 +1521,7 @@ function bindInputs(){
       h.style.color= ok?'var(--ok)': n.length===17?'var(--bad)':'var(--muted)'; $('#vinGo').disabled = n.length!==17; }); }
   document.querySelectorAll('[data-veh]').forEach(el=>el.addEventListener('input',()=>{ S.draft.vehicle[el.dataset.veh]=el.value; }));
   document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; if(el.dataset.qi==='nom') S.draft.answers.prenom=el.value.trim().split(/\s+/)[0]||''; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
-  document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; if(el.type==='date') rerender(); const ok=$('[data-act="prep-rdv-ok"]'); if(ok) ok.disabled=!pickupOk(S.current); }));
+  document.querySelectorAll('[data-pk]').forEach(el=>el.addEventListener('input',()=>{ S.current.pickup=S.current.pickup||{}; S.current.pickup[el.dataset.pk]=el.value; Store.save(S.current); if(el.type==='date') rerender(); const ok=$('[data-act="prep-rdv-ok"]'); if(ok) ok.disabled=!pickupOk(S.current); }));
   document.querySelectorAll('[data-pk="adresse"]').forEach(el=>el.addEventListener('change',()=>setTimeout(()=>{ if(document.activeElement!==el) rerender(); },250))); // délai : le clic qui a fait perdre le focus doit d'abord aboutir
   document.querySelectorAll('[data-doc]').forEach(el=>el.addEventListener('change',async()=>{ const f=el.files[0]; if(!f) return; const c=S.current; const k=el.dataset.doc;
     let B=BLOBS[c.id]; if(!B||Array.isArray(B)) B=BLOBS[c.id]={slots:{},dmg:[]}; B.docs=B.docs||{};
@@ -1533,7 +1535,7 @@ function bindInputs(){
 document.addEventListener('click', async e=>{
   const el=e.target.closest('[data-act]'); if(!el) return; const a=el.dataset.act;
   if(a==='home'||a==='tab-sell'){ go('home'); }
-  else if(a==='tab-garage'){ go('garage'); loadGarage(); }
+  else if(a==='tab-garage'){ go('garage'); if(!S.loaded) loadGarage(); else setTimeout(()=>syncGarage(false).then(()=>{ if(S.screen==='garage') rerender(); }),0); } // garage déjà en mémoire : affichage immédiat, synchro en arrière-plan
   else if(a==='admin-settings'){ if(!IS_ADMIN) return; go('settings'); loadSettingsUI(); }
   else if(a==='set-save'){ if(!IS_ADMIN) return; saveSettingsUI(readSettingsForm()); }
   else if(a==='set-reset'){ if(!IS_ADMIN||!SET.defaults) return; SET.data=SET.defaults; rerender(); saveSettingsUI(SET.defaults); }
@@ -1633,10 +1635,10 @@ document.addEventListener('click', async e=>{
   else if(a==='open-accept'){ go('accept'); }
   else if(a==='pk'){ const pk=S.current.pickup=S.current.pickup||{}; pk[el.dataset.k]=el.dataset.v; const pf=PROFILE.get();
       if(el.dataset.k==='lieu'&&el.dataset.v==='À mon adresse'&&!pk.adresse&&pf&&pf.address) pk.adresse=[pf.address, pf.city, pf.postal].filter(Boolean).join(', ');
-      rerender(); }
+      Store.save(S.current); rerender(); }
   else if(a==='profile-edit'){ openProfile(); }
   else if(a==='profile-save'){ saveProfile(); }
-  else if(a==='pk-agent'){ const dr=S.drop; const ag=dr&&dr.agents.find(x=>x.id===el.dataset.v); if(ag){ S.current.pickup=S.current.pickup||{}; S.current.pickup.agent=ag; rerender(); } }
+  else if(a==='pk-agent'){ const dr=S.drop; const ag=dr&&dr.agents.find(x=>x.id===el.dataset.v); if(ag){ S.current.pickup=S.current.pickup||{}; S.current.pickup.agent=ag; Store.save(S.current); rerender(); } }
   else if(a==='drop-postal'){ const v=($('#dropPostal')||{}).value||''; if(!/^[A-Za-z]\d[A-Za-z]/.test(v.trim())){ toast('Entrez un code postal valide (ex. H2X 1Y4).'); return; } S.current.pickup=S.current.pickup||{}; S.current.pickup.postal=v.trim().toUpperCase(); S.current.pickup.agent=null; S.drop=null; rerender(); }
   else if(a==='ics'){ downloadIcs(S.current); }
   else if(a==='confirm-pickup'){ const c=S.current; const pk=c.pickup||{};
