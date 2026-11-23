@@ -493,8 +493,8 @@ const fmtCell = p => { const d=String(p||'').replace(/\D/g,'').slice(-10); retur
 const PV = { get(){ try{ return JSON.parse(localStorage.getItem('sc_phone_ok')||'null'); }catch(e){ return null; } },
   set(v){ try{ localStorage.setItem('sc_phone_ok', JSON.stringify(v)); }catch(e){} } };
 const phoneOk = cell => { const p=PV.get(); return !!(p && p.token && p.phone===phoneE164(cell)); };
-const OTP_ERR = { code_invalide:'Code incorrect.', code_expire:'Ce code est expiré. Demande un nouveau code.', trop_essais:'Trop d\'essais. Demande un nouveau code.',
-  trop_de_codes:'Trop de codes demandés. Réessaie dans 15 minutes.', sms:'Impossible d\'envoyer le texto. Vérifie ton numéro.', numero_invalide:'Ce numéro de cellulaire n\'est pas valide.' };
+const OTP_ERR = { code_invalide:'Code incorrect.', code_expire:'Ce code est expiré. Demandez un nouveau code.', trop_essais:'Trop d\'essais. Demandez un nouveau code.',
+  trop_de_codes:'Trop de codes demandés. Réessayez dans 15 minutes.', sms:'Impossible d\'envoyer le texto. Vérifiez votre numéro.', numero_invalide:'Ce numéro de cellulaire n\'est pas valide.' };
 let OTP = {};
 async function verifyApi(body){ const r=await fetch('/api/verify',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}); const j=await r.json().catch(()=>({})); return {ok:r.ok, j}; }
 function openOtp(){ OTP={ mode:'offer', phone:phoneE164(S.draft.answers.cell), busy:false, sending:true, err:'', info:'', code:'' }; renderOtp(); otpSend(false); }
@@ -502,20 +502,20 @@ function openLogin(){ OTP={ mode:'login', phone:null, busy:false, sending:false,
 function renderOtp(){ const busy=OTP.busy||OTP.sending;
   if(OTP.mode==='login' && !OTP.phone){ $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet">
     <div class="hd"><h2>Me connecter</h2><button class="btn ghost" data-act="close" style="width:auto;padding:0 4px" aria-label="Fermer">✕</button></div>
-    <div class="bd"><p style="margin:0">Entre ton cellulaire : on te texte un code pour retrouver ton garage et tes autos sur cet appareil.</p>
+    <div class="bd"><p style="margin:0">Entrez votre cellulaire : nous vous texterons un code pour retrouver votre garage et vos autos sur cet appareil.</p>
       <input id="loginCell" class="inp num" type="tel" inputmode="tel" autocomplete="tel" placeholder="514 555-0123" value="${esc(OTP.cellDraft||'')}">
       ${OTP.err?`<p class="small" style="margin:0;color:var(--bad)">${esc(OTP.err)}</p>`:''}
       <button class="btn pri big" data-act="login-send">Recevoir mon code</button></div></div></div>`;
     setTimeout(()=>$('#loginCell')?.focus(),60); return; }
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet">
-    <div class="hd"><h2>Confirme ton cellulaire</h2><button class="btn ghost" data-act="close" style="width:auto;padding:0 4px" aria-label="Fermer">✕</button></div>
+    <div class="hd"><h2>Confirmez votre cellulaire</h2><button class="btn ghost" data-act="close" style="width:auto;padding:0 4px" aria-label="Fermer">✕</button></div>
     <div class="bd">
-      <p style="margin:0">${OTP.sending?'Envoi du code par texto…':`On t'a texté un code à 6 chiffres au <b class="num">${esc(fmtCell(OTP.phone))}</b>.`}</p>
+      <p style="margin:0">${OTP.sending?'Envoi du code par texto…':`Nous vous avons texté un code à 6 chiffres au <b class="num">${esc(fmtCell(OTP.phone))}</b>.`}</p>
       <input id="otpIn" class="inp num" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" value="${esc(OTP.code)}" style="font-size:28px;letter-spacing:.4em;text-align:center">
       ${OTP.err?`<p class="small" style="margin:0;color:var(--bad)">${esc(OTP.err)}</p>`:OTP.info?`<p class="small" style="margin:0;color:var(--ok)">${esc(OTP.info)}</p>`:''}
       <button class="btn pri big" data-act="otp-check" ${busy||OTP.code.length!==6?'disabled':''}>${OTP.busy?'<span class="spin"></span> Vérification…':OTP.mode==='login'?'Me connecter':'Confirmer et voir mon offre'}</button>
       <div class="row"><button class="btn sec" data-act="otp-resend" ${busy?'disabled':''}>Renvoyer le code</button><button class="btn sec" data-act="otp-edit">Modifier mon numéro</button></div>
-      <p class="muted small" style="margin:0">On confirme ton numéro pour t'envoyer ton offre et protéger ton dossier. Aucun texto publicitaire.</p>
+      <p class="muted small" style="margin:0">Nous confirmons votre numéro pour vous envoyer votre offre et protéger votre dossier. Aucun texto publicitaire.</p>
     </div></div></div>`;
   const inp=$('#otpIn'); if(!inp) return;
   inp.addEventListener('input',()=>{ OTP.code=inp.value.replace(/\D/g,'').slice(0,6); if(inp.value!==OTP.code) inp.value=OTP.code; OTP.err='';
@@ -523,19 +523,19 @@ function renderOtp(){ const busy=OTP.busy||OTP.sending;
   if(!OTP.sending) setTimeout(()=>inp.focus(),60); }
 async function otpSend(resend){ OTP.sending=true; OTP.err=''; OTP.info=''; renderOtp();
   try{ const {ok,j}=await verifyApi({action:'send', phone:OTP.phone}); OTP.sending=false;
-    if(ok){ OTP.info=resend?'Nouveau code envoyé.':''; } else OTP.err=OTP_ERR[j.error]||'Envoi impossible pour l\'instant. Réessaie.'; }
-  catch(e){ OTP.sending=false; OTP.err='Envoi impossible pour l\'instant. Réessaie.'; }
+    if(ok){ OTP.info=resend?'Nouveau code envoyé.':''; } else OTP.err=OTP_ERR[j.error]||'Envoi impossible pour l\'instant. Réessayez.'; }
+  catch(e){ OTP.sending=false; OTP.err='Envoi impossible pour l\'instant. Réessayez.'; }
   if($('#otpIn')) renderOtp(); }
 async function otpCheck(){ if(OTP.busy||OTP.code.length!==6) return; OTP.busy=true; OTP.err=''; renderOtp();
   try{ const {ok,j}=await verifyApi({action:'check', phone:OTP.phone, code:OTP.code}); OTP.busy=false;
     if(ok&&j.token){ PV.set({phone:OTP.phone, token:j.token, at:Date.now()}); $('#modal').innerHTML='';
-      if(OTP.mode==='login'){ toast('Connecté. Ton garage est à jour.'); go('garage'); syncGarage(true); }
+      if(OTP.mode==='login'){ toast('Connecté. Votre garage est à jour.'); go('garage'); syncGarage(true); }
       else { const a=S.draft.answers; runValuation(); syncGarage(false).then(()=>{ const pf=PROFILE.get()||{}; const up={};
           if(!pf.full_name&&a.nom) up.full_name=a.nom.trim(); if(!pf.postal&&a.postal) up.postal=String(a.postal).trim().toUpperCase();
           if(Object.keys(up).length) profileApi(up).catch(()=>{}); }); }
       return; }
-    OTP.err=(OTP_ERR[j.error]||'Vérification impossible. Réessaie.')+(j.error==='code_invalide'&&j.restants!=null?` Il te reste ${j.restants} essai${j.restants>1?'s':''}.`:''); OTP.code=''; }
-  catch(e){ OTP.busy=false; OTP.err='Vérification impossible. Réessaie.'; }
+    OTP.err=(OTP_ERR[j.error]||'Vérification impossible. Réessayez.')+(j.error==='code_invalide'&&j.restants!=null?` Il vous reste ${j.restants} essai${j.restants>1?'s':''}.`:''); OTP.code=''; }
+  catch(e){ OTP.busy=false; OTP.err='Vérification impossible. Réessayez.'; }
   if($('#modal').innerHTML) renderOtp(); }
 
 /* ============ COMPTE (cellulaire confirmé) ============
@@ -554,15 +554,15 @@ function openProfile(){ const pf=PROFILE.get()||{};
         <div class="field" style="flex:1"><label for="pfPostal">Code postal</label><input id="pfPostal" class="inp" autocomplete="postal-code" maxlength="7" value="${esc(pf.postal||'')}" placeholder="H2X 1Y4"></div></div>
       <p id="pfErr" class="small" style="margin:0;color:var(--bad)"></p>
       <button class="btn pri big" data-act="profile-save">Enregistrer</button>
-      <p class="muted small" style="margin:0">Sert à préremplir tes prochaines offres et l'adresse de cueillette.</p>
+      <p class="muted small" style="margin:0">Sert à préremplir vos prochaines offres et l'adresse de cueillette.</p>
     </div></div></div>`; }
 async function saveProfile(){ const v=id=>(($('#'+id)||{}).value||'').trim(); const nom=v('pfNom'), postal=v('pfPostal').toUpperCase();
   const err=t=>{ const e=$('#pfErr'); if(e) e.textContent=t; };
-  if(nom.split(/\s+/).filter(w=>w.length>1).length<2) return err('Entre ton prénom et ton nom.');
+  if(nom.split(/\s+/).filter(w=>w.length>1).length<2) return err('Entrez votre prénom et votre nom.');
   if(postal && !/^[A-Z]\d[A-Z]\s?\d[A-Z]\d$/.test(postal)) return err('Code postal invalide (ex. H2X 1Y4).');
   const b=$('[data-act="profile-save"]'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span> Enregistrement…'; }
   try{ await profileApi({ full_name:nom, address:v('pfAdr'), city:v('pfVille'), postal }); $('#modal').innerHTML=''; toast('Profil enregistré.'); rerender(); }
-  catch(e){ if(b){ b.disabled=false; b.textContent='Enregistrer'; } err(/non_connecte/.test(e.message)?'Reconnecte-toi avec ton cellulaire.':'Enregistrement impossible. Réessaie.'); } }
+  catch(e){ if(b){ b.disabled=false; b.textContent='Enregistrer'; } err(/non_connecte/.test(e.message)?'Reconnectez-vous avec votre cellulaire.':'Enregistrement impossible. Réessayez.'); } }
 function profileCardHTML(){ const pv=PV.get(); const pf=PROFILE.get()||{}; const adr=[pf.address, pf.city].filter(Boolean).join(', ');
   return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:center"><h3>Mon profil</h3><button class="lnk" data-act="profile-edit" style="color:var(--acc);text-decoration:none;font-weight:600">Modifier</button></div>
     <div class="kv"><span class="k">Nom</span><span class="v">${pf.full_name?esc(pf.full_name):'<span class="muted">À compléter</span>'}</span>
@@ -581,7 +581,7 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
         S.cars.push(car); await Store.save(car, true); added++; if(car.search&&car.search.leadToken&&['recherche','offre'].includes(car.status)) pollLead(car); }
       else if(local.fromAccount || !Object.keys(local.slots||{}).length){ // liens des photos rafraîchis
         local.slots=Object.assign({}, local.slots, imgs.slots); if(imgs.dmg.length) local.dmg=imgs.dmg; syncPhotos(local); await Store.save(local, true); } }
-    if(show && added) toast(`${added} auto${added>1?'s':''} ajoutée${added>1?'s':''} à ton garage.`);
+    if(show && added) toast(`${added} auto${added>1?'s':''} ajoutée${added>1?'s':''} à votre garage.`);
     if(['garage','home'].includes(S.screen)) rerender();
   }catch(e){ if(/non_connecte/.test(e.message)){ try{ localStorage.removeItem('sc_phone_ok'); }catch(_){} if(S.screen==='garage') rerender(); } }
   syncing=false; }
@@ -590,7 +590,7 @@ async function logout(){ // vide tout le garage de cet appareil (autos, photos, 
   Object.values(Cloud.t).forEach(clearTimeout); Cloud.t={};
   Store.mem=[]; S.cars=[]; S.current=null; S.draft=null; S.drop=null; S.showArch=false;
   for(const k of Object.keys(BLOBS)) delete BLOBS[k];
-  toast('Déconnecté. Tes autos restent dans ton compte.'); go('garage'); }
+  toast('Déconnecté. Vos autos restent dans votre compte.'); go('garage'); }
 
 /* ============ GLISSER POUR ARCHIVER (mobile) ============
    Glisser une auto du garage vers la gauche révèle « Archiver » (ou « Désarchiver »); archiver demande une confirmation. */
@@ -631,7 +631,7 @@ function localDecode(v){ return { make: WMI[v.slice(0,3)] || '', year: vinYear(v
 /* Vignette sans photo : typographique (marque, modèle, année) sur fond noir, avec une pastille de la couleur déclarée.
    Dès que le client ajoute une photo, elle remplace la vignette. */
 const COLORS={'Noir':'#3f3f46','Blanc':'#ffffff','Gris':'#6b7280','Argent':'#c7ccd3','Bleu':'#006feb','Rouge':'#d1393f','Vert':'#2f7a57','Autre':'#9ca3af'};
-function monoThumb(v, color){ v=v||{}; const md=String(v.model||'Ton auto'); const fs=md.length>12?12.5:md.length>8?17:md.length>5?21:26;
+function monoThumb(v, color){ v=v||{}; const md=String(v.model||'Votre auto'); const fs=md.length>12?12.5:md.length>8?17:md.length>5?21:26;
   return `<div class="thumb mono"><span class="mk">${esc(v.make||'')}</span><span class="md" style="font-size:${fs}px">${esc(md)}</span><span class="yr">${esc(v.year||'')}</span>${COLORS[color]?`<i style="background:${COLORS[color]}"></i>`:''}</div>`; }
 function carThumb(car){ const p=car.photos && car.photos[0]; return p?`<div class="thumb"><img src="${p}" alt=""></div>`:monoThumb(car.vehicle, car.answers && car.answers.couleur); }
 function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
@@ -643,19 +643,19 @@ const isTrade = a => (a||{}).transaction===TX_TRADE;
 const accidentNote = a => { const n=Number(String((a||{}).accidentMontant||'').replace(/\D/g,'')); return (a||{}).accidents==='Oui' ? `ACCIDENT déclaré : ${n?`dommages au Carfax de ${n.toLocaleString('fr-CA')} $ selon le client`:'montant des dommages non fourni'}.` : ''; };
 const tradeNote = a => isTrade(a) ? `ÉCHANGE (trade-in) : le client recherche ${String((a||{}).recherche||'modèle non précisé').trim()}.` : ((a||{}).transaction ? 'Vente seulement (pas d\'échange).' : '');
 const STEPS=[
- {title:'Ton auto', qs:[
+ {title:'Votre auto', qs:[
   {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
   {id:'km', label:'Kilométrage actuel', type:'number', suffix:'km', req:true, ph:'ex. 84 500'},
   {id:'postal', label:'Code postal', type:'text', req:true, ph:'ex. H2X 1Y4', hint:'Pour la cueillette et le prix régional.'},
   {id:'couleur', label:'Couleur', type:'single', req:true, opts:['Noir','Blanc','Gris','Argent','Bleu','Rouge','Vert','Autre']},
-  {id:'transmission', label:'Transmission', type:'single', req:true, opts:['Automatique','Manuelle'], hint:'Préremplie selon ton NIV, corrige au besoin.'},
+  {id:'transmission', label:'Transmission', type:'single', req:true, opts:['Automatique','Manuelle'], hint:'Préremplie selon votre NIV, corrigez au besoin.'},
   {id:'propriete', label:'Immatriculée au nom de', type:'single', req:true, opts:['Moi seulement','Moi et une autre personne','Une entreprise','Une succession']},
   {id:'finance', label:'Y a-t-il un prêt ou une location ?', type:'single', req:true, opts:['Payée au complet','Prêt en cours','Location (bail)']},
-  {id:'solde', label:'Solde approximatif à rembourser', type:'number', suffix:'$', req:true, show:a=>a.finance && a.finance!=='Payée au complet', hint:"On paie ton prêteur directement. Tu reçois la différence."},
+  {id:'solde', label:'Solde approximatif à rembourser', type:'number', suffix:'$', req:true, show:a=>a.finance && a.finance!=='Payée au complet', hint:"Nous payons votre prêteur directement. Vous recevez la différence."},
   {id:'preteur', label:'Institution financière', type:'text', req:false, show:a=>a.finance && a.finance!=='Payée au complet', ph:'ex. Desjardins, Honda Finance'}
  ]},
  {title:'État', qs:[
-  {id:'condition', label:'État général du véhicule', type:'single', req:true, opts:['Mauvais','Passable','Très bon','Excellent'], hint:'Ton évaluation globale. On la compare ensuite aux photos.'},
+  {id:'condition', label:'État général du véhicule', type:'single', req:true, opts:['Mauvais','Passable','Très bon','Excellent'], hint:'Votre évaluation globale. Nous la comparons ensuite aux photos.'},
   {id:'ext', label:'Extérieur', type:'multi', req:true, none:NONE_EXT, opts:[NONE_EXT,'Petites égratignures ou bosses (moins qu\'une balle de golf)','Bosses ou éraflures plus grandes','Carrosserie fissurée','Pare-brise ou vitre fissuré']},
   {id:'rouille', label:'Rouille', type:'single', req:true, opts:['Aucune','Légère en surface','Perforée (trous)']},
   {id:'int', label:'Intérieur', type:'multi', req:true, none:NONE_INT, opts:[NONE_INT,'Taches visibles','Sièges déchirés','Tableau de bord ou panneaux abîmés']},
@@ -664,7 +664,7 @@ const STEPS=[
  {title:'Mécanique et historique', qs:[
   {id:'voyants', label:'Voyants ou problèmes mécaniques', type:'multi', req:true, none:NONE_LIGHT, opts:[NONE_LIGHT,'Check engine','Freins / ABS','Coussin gonflable','Bruit, fuite ou autre']},
   {id:'accidents', label:'Accidents ou réclamations d\'assurance', type:'single', req:true, opts:['Aucun','Oui','Je ne sais pas'], hint:'On le valide avec le rapport Carfax.'},
-  {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laisse vide si tu ne le sais pas : on le validera avec le rapport.'},
+  {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laissez vide si vous ne le savez pas : nous le validerons avec le rapport.'},
   {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGA','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
   {id:'cles', label:'Nombre de clés', type:'single', req:true, opts:['1','2 ou plus']},
   {id:'pneus', label:'Pneus inclus', type:'single', req:true, opts:['1 ensemble','2 ensembles (été + hiver)']},
@@ -674,10 +674,10 @@ const STEPS=[
  ]},
  {title:'Contact', qs:[
   {id:'transaction', label:'Vente seulement ou échange ?', type:'single', req:true, opts:[TX_SALE, TX_TRADE]},
-  {id:'recherche', label:'Quel modèle de voiture recherches-tu ?', type:'text', req:true, show:a=>a.transaction===TX_TRADE, ph:'ex. Toyota RAV4 2022 ou plus récent', hint:'Marque, modèle, année ou budget : un conseiller Shopicar te proposera des autos qui correspondent.'},
-  {id:'quand', label:'Quand veux-tu vendre ?', type:'single', req:true, opts:['Cette semaine','D\'ici 3 mois','Je veux juste savoir']},
-  {id:'nom', label:'Nom complet', type:'text', req:true, ph:'Prénom et nom', hint:'Le nom inscrit sur ton certificat d\'immatriculation.'},
-  {id:'cell', label:'Cellulaire', type:'tel', req:true, ph:'514 555-0123', hint:"Ton offre est sauvegardée dans ton garage. Julia te texte seulement pour ton dossier."}
+  {id:'recherche', label:'Quel modèle de voiture recherchez-vous ?', type:'text', req:true, show:a=>a.transaction===TX_TRADE, ph:'ex. Toyota RAV4 2022 ou plus récent', hint:'Marque, modèle, année ou budget : un conseiller Shopicar vous proposera des autos qui correspondent.'},
+  {id:'quand', label:'Quand voulez-vous vendre ?', type:'single', req:true, opts:['Cette semaine','D\'ici 3 mois','Je veux juste savoir']},
+  {id:'nom', label:'Nom complet', type:'text', req:true, ph:'Prénom et nom', hint:'Le nom inscrit sur votre certificat d\'immatriculation.'},
+  {id:'cell', label:'Cellulaire', type:'tel', req:true, ph:'514 555-0123', hint:"Votre offre est sauvegardée dans votre garage. Julia vous texte seulement pour votre dossier."}
  ]}
 ];
 function visibleQs(step, a){ return STEPS[step].qs.filter(q=>!q.show || q.show(a)); }
@@ -726,41 +726,41 @@ function vHome(){
   const active=S.cars.filter(c=>!c.archived&&['estimation','recherche','offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
   return `${topbar()}
   <div class="hero">
-    <h1>Vends ton auto.<br>Simplement.</h1>
-    <p>Ton offre initiale en 3 minutes. Julia trouve ensuite ton meilleur prix.</p>
+    <h1>Vendez votre auto.<br>Simplement.</h1>
+    <p>Votre offre initiale en 3 minutes. Julia trouve ensuite votre meilleur prix.</p>
     <button class="btn pri big" data-act="start">Scanner ou entrer mon NIV</button>
     ${active?`<button class="btn dark" data-act="tab-garage">Mon garage · ${active} auto${active>1?'s':''}</button>`:''}
   </div>
   <div class="wrap home">
     <div class="steps3">
-      ${[['Scanne ton NIV','Tout se remplit seul.'],['Reçois ton offre initiale','Basée sur le marché du Québec.'],['Julia trouve ton meilleur prix','Paiement le jour de la cueillette.']].map(([t,d],i)=>`<div class="s3"><span>${i+1}</span><div><b>${t}</b><small>${d}</small></div></div>`).join('')}
+      ${[['Scannez votre NIV','Tout se remplit seul.'],['Recevez votre offre initiale','Basée sur le marché du Québec.'],['Julia trouve votre meilleur prix','Paiement le jour de la cueillette.']].map(([t,d],i)=>`<div class="s3"><span>${i+1}</span><div><b>${t}</b><small>${d}</small></div></div>`).join('')}
     </div>
     <button class="btn ghost" data-act="julia-novin">Je n'ai pas mon NIV sous la main</button>
   </div>`; }
 
 function vVin(){ const d=S.draft; const v=d.vin; const len=v.length; const ok=len===17 && vinCheck(v);
-  const hint = len===0?'17 caractères' : len<17? `${len}/17` : ok? 'NIV valide' : 'Vérifie le NIV : un caractère semble erroné';
-  return `${topbar('Ton NIV','home')}
+  const hint = len===0?'17 caractères' : len<17? `${len}/17` : ok? 'NIV valide' : 'Vérifiez le NIV : un caractère semble erroné';
+  return `${topbar('Votre NIV','home')}
   <div class="wrap">
     <div class="card">
-      <h2>Scanne le code-barres ou entre ton NIV</h2>
-      <p class="muted" style="margin:0">Il est sur le montant de la porte conducteur, au bas du pare-brise côté conducteur, ou sur ton certificat d'immatriculation.</p>
+      <h2>Scannez le code-barres ou entrez votre NIV</h2>
+      <p class="muted" style="margin:0">Il est sur le montant de la porte conducteur, au bas du pare-brise côté conducteur, ou sur votre certificat d'immatriculation.</p>
       <button class="btn pri" data-act="scan">${S.busy==='scan'?'<span class="spin"></span> Lecture de la photo…':'Prendre une photo du NIV'}</button>
-      <div class="field"><label for="vin">Ou tape-le</label>
+      <div class="field"><label for="vin">Ou tapez-le</label>
         <input id="vin" class="inp vin-inp" maxlength="20" autocomplete="off" autocapitalize="characters" spellcheck="false" value="${esc(v)}" placeholder="1HGCV1F3XLA000000"></div>
       <div class="vin-meta"><span id="vinHint" style="color:${ok?'var(--ok)':len===17?'var(--bad)':'var(--muted)'}">${hint}</span><span>Lettres I, O, Q exclues</span></div>
       ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
-      <button class="btn pri" id="vinGo" data-act="decode" ${len===17?'':'disabled'}>${S.busy==='decode'?'<span class="spin"></span> Julia identifie ta version…':'Continuer'}</button>
+      <button class="btn pri" id="vinGo" data-act="decode" ${len===17?'':'disabled'}>${S.busy==='decode'?'<span class="spin"></span> Julia identifie votre version…':'Continuer'}</button>
     </div>
-    <button class="btn ghost" data-act="julia-novin">Pas de NIV ? Écris à Julia</button>
+    <button class="btn ghost" data-act="julia-novin">Pas de NIV ? Écrivez à Julia</button>
   </div>`; }
 
 const needTrim = v => !!((v.trims||[]).length && !v.trimUnknown && !String(v.trim||'').trim());
 function vConfirm(){ const d=S.draft, v=d.vehicle||{};
-  return `${topbar('Ton véhicule','vin')}
+  return `${topbar('Votre véhicule','vin')}
   <div class="wrap">
     <div class="card">
-      <span class="stat ${v.confiance==='faible'||needTrim(v)?'warn':'ok'}">${v.confiance==='faible'?'À vérifier':needTrim(v)?'Version à confirmer':'Trouvé avec ton NIV'}</span>
+      <span class="stat ${v.confiance==='faible'||needTrim(v)?'warn':'ok'}">${v.confiance==='faible'?'À vérifier':needTrim(v)?'Version à confirmer':'Trouvé avec votre NIV'}</span>
       <div class="veh">${carThumb({answers:d.answers,photos:[],vehicle:v})}<div><div class="t">${esc(vTitle(v))||'Véhicule'}</div><div class="muted">${esc(v.trim||(needTrim(v)?'Version à choisir':''))}</div><div class="muted small num">NIV ${esc(d.vin)}</div></div></div>
       <div class="kv">
         ${v.body?`<span class="k">Carrosserie</span><span class="v">${esc(v.body)}</span>`:''}
@@ -770,13 +770,13 @@ function vConfirm(){ const d=S.draft, v=d.vehicle||{};
       </div>
     </div>
     <div class="card">
-      <h3>Corrige si besoin</h3>
+      <h3>Corrigez si besoin</h3>
       <div class="row"><div class="field"><label for="vy">Année</label><input id="vy" class="inp" inputmode="numeric" data-veh="year" value="${esc(v.year||'')}"></div>
       <div class="field"><label for="vm">Marque</label><input id="vm" class="inp" data-veh="make" value="${esc(v.make||'')}"></div></div>
       <div class="field"><label for="vmo">Modèle</label><input id="vmo" class="inp" data-veh="model" value="${esc(v.model||'')}"></div>
       ${(v.trims||[]).length?`<div class="q"><span class="ql">Version</span><div class="chips" role="group" aria-label="Version">${v.trims.map(t=>{ const on=!v.trimOther&&!v.trimUnknown&&(v.trim||'').toLowerCase()===t.toLowerCase(); return `<button class="chip ${on?'on':''}" aria-pressed="${on}" data-act="trim" data-v="${esc(t)}">${esc(t)}</button>`; }).join('')}
         <button class="chip ${v.trimOther?'on':''}" data-act="trim" data-v="__autre">Autre</button><button class="chip ${v.trimUnknown?'on':''}" data-act="trim" data-v="__nsp">Je ne sais pas</button></div></div>
-      ${v.trimOther?`<div class="field"><label for="vt">Ta version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="Telle qu'écrite sur ton auto ou ton contrat"></div>`:''}`
+      ${v.trimOther?`<div class="field"><label for="vt">Votre version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="Telle qu'écrite sur votre auto ou votre contrat"></div>`:''}`
       :`<div class="field"><label for="vt">Version</label><input id="vt" class="inp" data-veh="trim" value="${esc(v.trim||'')}" placeholder="ex. A-Spec, EX-L, Limited"></div>`}
       ${v.notes?`<div class="note">${esc(v.notes)}</div>`:''}
     </div>
@@ -803,18 +803,18 @@ function vQuiz(){ const st=S.step, a=S.draft.answers; const noRun=a.roulable==='
     <div class="steplbl">Étape ${st+1} de ${STEPS.length} · ${esc(STEPS[st].title)}</div>
     <div class="card" style="gap:20px">${qs.map(q=>qHTML(q,a)).join('')}</div>
     ${noRun?`<div class="card guard"><h3>Nous ne pouvons pas faire d'offre sur un véhicule qui ne roule pas</h3>
-      <p class="muted" style="margin:0">Shopicar achète seulement des véhicules en état de rouler. Si ton auto roule à nouveau (après une réparation, par exemple), reviens nous voir : ton offre initiale prend 3 minutes.</p>
+      <p class="muted" style="margin:0">Shopicar achète seulement des véhicules en état de rouler. Si votre auto roule à nouveau (après une réparation, par exemple), revenez nous voir : votre offre initiale prend 3 minutes.</p>
       <div class="row"><button class="btn sec" data-act="julia">Discuter avec Julia</button><button class="btn sec" data-act="home">Retour à l'accueil</button></div></div>`:''}
     ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
     ${noRun?'':`<button class="btn pri" id="quizNext" data-act="quiz-next" ${ok?'':'disabled'}>${st===STEPS.length-1?'Calculer mon offre':'Continuer'}</button>`}
   </div>`; }
 
-const LOAD_STEPS=['Julia analyse ton véhicule…','Analyse des véhicules comparables…','Vérification des tendances du marché…','Ajustement selon le kilométrage et l\'état…','Finalisation de ton offre initiale…'];
-function vLoading(){ return `${topbar('Ton offre initiale')}
+const LOAD_STEPS=['Julia analyse votre véhicule…','Analyse des véhicules comparables…','Vérification des tendances du marché…','Ajustement selon le kilométrage et l\'état…','Finalisation de votre offre initiale…'];
+function vLoading(){ return `${topbar('Votre offre initiale')}
   <div class="load">
     <div class="jl-head"><div class="jl-pulse"><div class="julia-av">J</div></div>
-      <h2 style="font-size:22px">Julia analyse ton véhicule…</h2>
-      <p class="muted" style="margin:0">On analyse les caractéristiques de ton véhicule et les données du marché pour établir ton offre initiale.</p>
+      <h2 style="font-size:22px">Julia analyse votre véhicule…</h2>
+      <p class="muted" style="margin:0">Nous analysons les caractéristiques de votre véhicule et les données du marché pour établir votre offre initiale.</p>
       <p class="small num" style="margin:0;font-weight:500">${esc(vTitle(S.draft.vehicle||{}))} · ${esc(S.draft.answers.km||'')} km</p></div>
     <div class="jl-bar"><i></i></div>
     ${LOAD_STEPS.map((t,i)=>`<div class="ld ${i<S.loadStage?'done':i===S.loadStage?'on':''}">${i<S.loadStage?'<span style="font-weight:800">✓</span>':i===S.loadStage?'<span class="spin"></span>':'<span></span>'}<span>${t}</span></div>`).join('')}
@@ -828,7 +828,7 @@ function carGroup(c){ if(['payee','inspectee','vendue'].includes(c.status)) retu
   return 'encours'; }
 function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
-  return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
+  return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour vous'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, refusee:{cls:'bad',txt:'Offre refusée'}, inspectee:{cls:'ok',txt:'Vendue'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Vendue'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
@@ -845,16 +845,16 @@ const amtHTML = n => `${Math.round(n).toLocaleString('fr-CA')}<sup>$</sup>`;
    Super Admin : détail interne complet (adminBreakdownHTML). */
 function clientDetailsHTML(c){ const val=c.valuation||{}; const amount=c.estimate||c.offer; const adj=Array.isArray(val.ajustements)&&val.base!=null?val.ajustements:null;
   const km=Number(String(c.answers.km||'').replace(/\D/g,''));
-  const factors=`<ul class="clean"><li><span>Les véhicules semblables au tien à vendre au Québec.</span></li><li><span>Ton année, ta version${km?` et ton kilométrage (${km.toLocaleString('fr-CA')} km)`:' et ton kilométrage'}.</span></li><li><span>${adj&&adj.length?'L\'état et l\'équipement que tu as déclarés.':'L\'état que tu as déclaré : aucun ajustement.'}</span></li></ul>`;
+  const factors=`<ul class="clean"><li><span>Les véhicules semblables au vôtre à vendre au Québec.</span></li><li><span>Votre année, votre version${km?` et votre kilométrage (${km.toLocaleString('fr-CA')} km)`:' et votre kilométrage'}.</span></li><li><span>${adj&&adj.length?'L\'état et l\'équipement que vous avez déclarés.':'L\'état que vous avez déclaré : aucun ajustement.'}</span></li></ul>`;
   return `<details class="card details"><summary><span>Voir les détails de mon offre initiale</span><span class="chev" aria-hidden="true">›</span></summary>
-    <h3>Comment ton offre initiale est calculée</h3>
+    <h3>Comment votre offre initiale est calculée</h3>
     ${adj&&adj.length?`<div class="kv num">
-      <span class="k">Valeur de ton véhicule en bon état moyen, à ton kilométrage</span><span class="v">${money(val.base)}</span>
+      <span class="k">Valeur de votre véhicule en bon état moyen, à votre kilométrage</span><span class="v">${money(val.base)}</span>
       ${adj.map(a=>`<span class="k">${esc(a.libelle)}</span><span class="v" style="color:${a.montant<0?'var(--bad)':'var(--ok)'}">${a.montant>0?'+ ':'− '}${money(Math.abs(a.montant))}</span>`).join('')}
       <span class="sep"></span>
-      <span class="k tot">Ton offre initiale</span><span class="v tot">${money(amount)}</span></div>`:''}
-    <p class="small" style="margin:8px 0 0;font-weight:600">Ce qui a influencé ton offre initiale</p>${factors}
-    <p class="muted small" style="margin:0">Les ajustements viennent seulement de tes réponses. C'est une offre initiale : l'offre ferme reste sous réserve de la validation du véhicule.</p>
+      <span class="k tot">Votre offre initiale</span><span class="v tot">${money(amount)}</span></div>`:''}
+    <p class="small" style="margin:8px 0 0;font-weight:600">Ce qui a influencé votre offre initiale</p>${factors}
+    <p class="muted small" style="margin:0">Les ajustements viennent seulement de vos réponses. C'est une offre initiale : l'offre ferme reste sous réserve de la validation du véhicule.</p>
   </details>`; }
 function adminBreakdownHTML(c){ if(!IS_ADMIN) return ''; const v0=c.valuation||{}; const val=v0.internal||(v0.wholesale_final?v0:null); if(!val) return '';
   return `<div class="card"><span class="stat info">Super Admin seulement</span><h2>Détail interne du calcul</h2>
@@ -879,25 +879,25 @@ function adminBreakdownHTML(c){ if(!IS_ADMIN) return ''; const v0=c.valuation||{
 /* ---- taxes en échange : information comparative, jamais ajoutée à l'offre ---- */
 const TAX_QC = 0.14975;
 function taxHTML(c, amount){ if(!amount) return '';
-  if(c.hideTax) return `<button class="btn ghost small" data-act="tax-show" style="margin-top:-6px">Tu prévois acheter un autre véhicule? Voir l'info sur les taxes</button>`;
-  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>Tu prévois acheter un autre véhicule?</h3><button class="btn ghost" data-act="tax-hide" style="width:auto;padding:0 2px;font-size:13px">Masquer</button></div>
-    <p class="muted" style="margin:0">Un échange admissible chez un concessionnaire pourrait te permettre d'économiser des taxes sur ton prochain achat.</p>
+  if(c.hideTax) return `<button class="btn ghost small" data-act="tax-show" style="margin-top:-6px">Vous prévoyez acheter un autre véhicule? Voir l'info sur les taxes</button>`;
+  return `<div class="card"><div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h3>Vous prévoyez acheter un autre véhicule?</h3><button class="btn ghost" data-act="tax-hide" style="width:auto;padding:0 2px;font-size:13px">Masquer</button></div>
+    <p class="muted" style="margin:0">Un échange admissible chez un concessionnaire pourrait vous permettre d'économiser des taxes sur votre prochain achat.</p>
     <div class="kv num"><span class="k">Valeur de reprise</span><span class="v">${money(amount)}</span><span class="k">Économie de taxes potentielle</span><span class="v">jusqu'à ${money(amount*TAX_QC)}</span></div>
-    <p class="muted small" style="margin:0">Calcul avec le taux combiné TPS/TVQ du Québec de 14,975 %. Cette économie n'est pas incluse dans ton offre initiale ni dans ton offre ferme, et n'est pas payée par Shopicar : une vente directe à Shopicar ne donne généralement pas droit à ce crédit. L'économie réelle dépend de l'admissibilité de la transaction, du prix du véhicule acheté et des règles fiscales applicables.</p>
+    <p class="muted small" style="margin:0">Calcul avec le taux combiné TPS/TVQ du Québec de 14,975 %. Cette économie n'est pas incluse dans votre offre initiale ni dans votre offre ferme, et n'est pas payée par Shopicar : une vente directe à Shopicar ne donne généralement pas droit à ce crédit. L'économie réelle dépend de l'admissibilité de la transaction, du prix du véhicule acheté et des règles fiscales applicables.</p>
   </div>`; }
 const ADVANTAGES = `<div class="card"><ul class="clean checks">
-    <li><span>Vends sans publier d'annonce ni rencontrer des inconnus.</span></li>
-    <li><span>Évite les négociations interminables avec des acheteurs.</span></li>
-    <li><span>Profite d'un processus simple, rapide et accompagné.</span></li></ul></div>`;
+    <li><span>Vendez sans publier d'annonce ni rencontrer des inconnus.</span></li>
+    <li><span>Évitez les négociations interminables avec des acheteurs.</span></li>
+    <li><span>Profitez d'un processus simple, rapide et accompagné.</span></li></ul></div>`;
 function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre</h3>
       <ul class="clean warnl">
-        <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
+        <li><span>Rapport Carfax conforme à vos déclarations (accidents, kilométrage, titre).</span></li>
         <li><span>État et équipements tels que déclarés, confirmés par une inspection de 10 minutes à la cueillette.</span></li>
         <li><span>Aucune charge ou dette non déclarée au RDPRM.</span></li>
         <li><span>Kilométrage à la cueillette au plus 500 km de plus que déclaré.</span></li>
         <li><span>Pièces d'identité et certificat d'immatriculation au nom du vendeur.</span></li>
       </ul>
-      <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te faire une offre ajustée. Tu restes libre de refuser.</p>
+      <p class="muted small" style="margin:0">Si un point diffère, nous vous expliquons l'écart avant de vous faire une offre ajustée. Vous restez libre de refuser.</p>
     </div>`; }
 function vehHead(c){ const st=statusInfo(c); return `<div class="veh">${carThumb(c)}<div><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted">${esc(c.vehicle.trim||'')}</div><span class="stat ${st.cls}" style="margin-top:6px">${st.txt}</span></div></div>`; }
 /* Photos guidées : 6 obligatoires, puis photos des dommages (jusqu'à 10, plusieurs à la fois) ou confirmation « aucun dommage ». */
@@ -916,18 +916,18 @@ function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const 
   const next=PHOTO_SLOTS.find(([k])=>!(c.slots&&c.slots[k]));
   return `<div class="card ${prep&&n<PHOTO_SLOTS.length?'focus':''}" id="photoAsk">
     ${prep?prep:''}
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3><span class="stepk">${prep?'1 a':'Étape 1'}</span>Photos de ton auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3><span class="stepk">${prep?'1 a':'Étape 1'}</span>Photos de votre auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
     <div class="slots">${PHOTO_SLOTS.map(([k,l,sh])=>tile(k,l,c.slots&&c.slots[k],'slot-rm',sh)).join('')}</div>
     ${prep&&next?`<button class="btn pri big" data-act="slot-add" data-slot="${next[0]}">📷  Photo : ${esc(next[1])}</button>`:''}
-    ${n<PHOTO_SLOTS.length?`<p class="small muted" style="margin:2px 0 0">Ensuite : tes dommages${dmg?' déclarés':', s\'il y en a'}.</p>`:''}
+    ${n<PHOTO_SLOTS.length?`<p class="small muted" style="margin:2px 0 0">Ensuite : vos dommages${dmg?' déclarés':', s\'il y en a'}.</p>`:''}
   </div>
   ${n===PHOTO_SLOTS.length?`<div class="card dmgcard ${dmgDone(c)?'ok':''}" id="dmgAsk">
-    <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">${prep?'1 b':'Étape 2'} · ${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages te permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
-    ${c.noDmg?`<div class="dmg-ok"><span>✓ Tu as confirmé que ton auto n'a aucun dommage.</span><button class="lnk" data-act="dmg-undo">Modifier</button></div>`
-    :`<p class="small muted" style="margin:0">${dmg?'Tu as déclaré des dommages. Montre-les de près (bosses, égratignures, éclats, rouille).':'Bosses, égratignures, éclats, rouille? Montre-les de près.'}</p>
+    <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">${prep?'1 b':'Étape 2'} · ${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages vous permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
+    ${c.noDmg?`<div class="dmg-ok"><span>✓ Vous avez confirmé que votre auto n'a aucun dommage.</span><button class="lnk" data-act="dmg-undo">Modifier</button></div>`
+    :`<p class="small muted" style="margin:0">${dmg?'Vous avez déclaré des dommages. Montrez-les de près (bosses, égratignures, éclats, rouille).':'Bosses, égratignures, éclats, rouille? Montrez-les de près.'}</p>
     ${(c.dmg||[]).length?`<div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>
       ${(c.dmg||[]).length<DMG_MAX?`<button class="btn sec" data-act="slot-add" data-slot="dmg">📷  Ajouter d'autres dommages · ${(c.dmg||[]).length}/${DMG_MAX}</button>`:`<p class="small muted" style="margin:0">Maximum de ${DMG_MAX} photos atteint.</p>`}`
-      :`<button class="btn pri big" data-act="slot-add" data-slot="dmg">📷  Ajouter mes photos de dommages</button><p class="small muted" style="margin:-4px 0 0;text-align:center">Tu peux en choisir plusieurs à la fois, jusqu'à ${DMG_MAX}.</p>`}
+      :`<button class="btn pri big" data-act="slot-add" data-slot="dmg">📷  Ajouter mes photos de dommages</button><p class="small muted" style="margin:-4px 0 0;text-align:center">Vous pouvez en choisir plusieurs à la fois, jusqu'à ${DMG_MAX}.</p>`}
     ${(c.dmg||[]).length?'':`<div class="dmg-or"><span>ou</span></div><button class="btn sec" data-act="dmg-none">Je confirme : mon auto n'a aucun dommage</button>`}`}
   </div>`:''}
 `; }
@@ -935,11 +935,11 @@ function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const 
    Estimations Shopicar par âge (pas une statistique officielle) : à remplacer par les données d'inspection 360inspek quand on en aura assez. */
 const NO_DMG_PCT = age => age<=1?50 : age<=3?25 : age<=6?12 : age<=10?8 : 5;
 function openNoDmgCheck(){ const c=S.current; const v=c.vehicle||{}; const age=Math.max(0,new Date().getFullYear()-(+v.year||new Date().getFullYear())); const pct=NO_DMG_PCT(age);
-  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Es-tu certain?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Êtes-vous certain?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
   <div class="bd">
     <div style="background:var(--acc-soft);border-radius:14px;padding:16px"><div style="font-family:var(--f-display);font-weight:700;font-size:30px;letter-spacing:-.03em;color:var(--acc)">Moins de ${pct} %</div>
       <p style="margin:4px 0 0">des ${esc([v.make,v.model].filter(Boolean).join(' ')||'véhicules')} ${esc(String(v.year||''))}${age?` (${age} an${age>1?'s':''})`:''} n'ont <b>aucun</b> dommage, selon notre estimation pour des véhicules de cet âge.</p></div>
-    <p style="margin:0">Un petit éclat ou une égratignure non déclarée peut faire baisser ton offre à l'inspection. En les montrant maintenant, ton offre reste <b>ferme</b>.</p>
+    <p style="margin:0">Un petit éclat ou une égratignure non déclarée peut faire baisser votre offre à l'inspection. En les montrant maintenant, votre offre reste <b>ferme</b>.</p>
     <button class="lnk" data-act="dmg-ex" style="color:var(--acc);font-weight:600;align-self:flex-start;font-size:14px">Voir les dommages les plus souvent oubliés ›</button>
     <ul class="clean" id="dmgEx" hidden><li><span>Éclat ou fissure dans le pare-brise</span></li><li><span>Égratignures sur les pare-chocs (stationnement)</span></li><li><span>Petites bosses dans les portes</span></li><li><span>Jantes frottées sur le trottoir</span></li><li><span>Rouille au bas des portes ou autour des roues</span></li><li><span>Siège conducteur usé ou taché</span></li></ul>
     <button class="btn pri big" data-act="dmg-add-from-check">📷  Ajouter mes photos de dommages</button>
@@ -951,20 +951,20 @@ const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]
 /* Parcours rapide (véhicules courants, api/_lib/eligibility.js) : « Cette offre me convient » → validation par un conseiller.
    Sinon (camionnettes, luxe, exceptions, état à confirmer) : photos + dommages obligatoires, puis Julia en direct. */
 const isFast = c => !!(c.fastTrack && c.fastTrack.ok);
-const GUARD_TXT = { categorie:'Ton véhicule est dans une catégorie plus difficile à évaluer en raison des différentes options possibles. Nous avons besoin de plus d\'information pour te faire une offre ferme.',
-  etat:'Selon ce que tu as déclaré, nous avons besoin de voir ton auto pour te faire une offre ferme.',
-  donnees:'Il y a peu de véhicules comparables au tien sur le marché. Nous avons besoin de plus d\'information pour te faire une offre ferme.' };
+const GUARD_TXT = { categorie:'Votre véhicule est dans une catégorie plus difficile à évaluer en raison des différentes options possibles. Nous avons besoin de plus d\'information pour vous faire une offre ferme.',
+  etat:'Selon ce que vous avez déclaré, nous avons besoin de voir votre auto pour vous faire une offre ferme.',
+  donnees:'Il y a peu de véhicules comparables au vôtre sur le marché. Nous avons besoin de plus d\'information pour vous faire une offre ferme.' };
 function initialDisclosuresHTML(c){ return `<ul class="clean warnl small" style="margin:0">
-    <li><span>Tes photos, tes dommages et tes documents sont validés par un conseiller Shopicar avant l'offre ferme.</span></li>
-    <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
+    <li><span>Vos photos, vos dommages et vos documents sont validés par un conseiller Shopicar avant l'offre ferme.</span></li>
+    <li><span>Rapport Carfax conforme à vos déclarations (accidents, kilométrage, titre).</span></li>
     <li><span>État et équipements confirmés par une inspection rapide de 15 à 20 minutes à la cueillette.</span></li>
     <li><span>Aucune charge ou dette non déclarée au RDPRM; pièces d'identité et immatriculation au nom du vendeur.</span></li>
     <li><span>Kilométrage à la cueillette au plus 500 km de plus que déclaré.</span></li></ul>`; }
-function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><div class="julia-av">J</div><div><b>Prix souhaité : <span class="num">${money(c.wish)}</span></b><div class="muted small">Julia s'en sert pour chercher le meilleur prix pour toi.</div></div><button class="lnk" data-act="wish-edit">Modifier</button></div>
-    <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale de ${money(c.estimate)}.</p></div>`;
-  return `<div class="card" id="wishAsk"><div class="jrow"><div class="julia-av">J</div><div class="bubble">Pas de problème! Combien aimerais-tu obtenir pour ton auto?</div></div>
+function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><div class="julia-av">J</div><div><b>Prix souhaité : <span class="num">${money(c.wish)}</span></b><div class="muted small">Julia s'en sert pour chercher le meilleur prix pour vous.</div></div><button class="lnk" data-act="wish-edit">Modifier</button></div>
+    <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale de ${money(c.estimate)}.</p></div>`;
+  return `<div class="card" id="wishAsk"><div class="jrow"><div class="julia-av">J</div><div class="bubble">Pas de problème! Combien aimeriez-vous obtenir pour votre auto?</div></div>
     <div class="field"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${esc(c.wishDraft||'')}"></div>
-    <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale. Ensuite, ajoute tes photos et tes dommages pour que Julia travaille pour toi.</p>
+    <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale. Ensuite, ajoutez vos photos et vos dommages pour que Julia travaille pour vous.</p>
     <button class="btn pri big" data-act="wish-save">Continuer : ajouter mes photos</button></div>`; }
 function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0), expired=Date.now()>c.expiresAt;
   if(c.refused) return `<div class="best official"><span class="tag" style="background:#525252">Offre refusée</span><h2>Vous avez refusé cette offre</h2><div class="amt num" style="opacity:.6">${amtHTML(c.estimate)}</div><p style="margin:0">Vous avez changé d'idée? Parlez à un conseiller ou demandez à Julia de chercher un meilleur prix.</p><button class="btn dark" data-act="refuse-undo">Revoir mon offre</button></div>`;
@@ -980,35 +980,35 @@ function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_2
   </div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage();
   const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||more;
-  return `${topbar('Ton offre initiale','tab-garage')}
+  return `${topbar(fast&&!more?'Votre offre':'Votre offre initiale','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    ${fast&&!more?'':'<h2 style="font-size:24px">Ton offre est prête!</h2>'}
+    ${fast&&!more?'':'<h2 style="font-size:24px">Votre offre est prête!</h2>'}
     ${fast&&!more?fastOfferHTML(c):`<div class="offer light">
-      <span class="lbl">Ton offre initiale</span>
+      <span class="lbl">Votre offre initiale</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
-      <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de ton véhicule.</div>
+      <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de votre véhicule.</div>
       <ul class="clean checks"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
     </div>`}
-    ${fast&&!more?`<button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour toi</span></span><span class="mc">›</span></button>
+    ${fast&&!more?`<button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour vous</span></span><span class="mc">›</span></button>
     <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
     ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
-      <p class="muted small" style="margin:0">Ajoute 6 photos et tes dommages : Julia cherche ensuite le meilleur prix pour toi. Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale.</p></div>`:''}
+      <p class="muted small" style="margin:0">Ajoutez 6 photos et vos dommages : Julia cherche ensuite le meilleur prix pour vous. Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale.</p></div>`:''}
     ${showPhotos?`<div class="best${fast&&more?' ok':''}" id="bestBox">
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
-      ${fast&&more?`<h2>Julia va travailler pour obtenir le prix que tu espères</h2>
-      <p>Combien aimerais-tu obtenir pour ton auto? Ajoute ensuite 6 photos et tes dommages : Julia cherche le meilleur prix pour toi.</p>
+      ${fast&&more?`<h2>Julia va travailler pour obtenir le prix que vous espérez</h2>
+      <p>Combien aimeriez-vous obtenir pour votre auto? Ajoutez ensuite 6 photos et vos dommages : Julia cherche le meilleur prix pour vous.</p>
       <div class="field" style="width:100%"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${c.wish?esc(Math.round(c.wish).toLocaleString('fr-CA')+' $'):''}"></div>
-      <div class="field" style="width:100%"><label for="wishWhy">Pourquoi ton auto vaut-elle plus?</label><textarea id="wishWhy" class="inp" rows="3" style="font-family:inherit;resize:vertical" placeholder="ex. groupe Technologie, toit ouvrant, sièges chauffants, pneus d'hiver neufs, entretien chez le concessionnaire…">${esc(c.wishWhy||'')}</textarea><div class="muted small">Options, groupes (packages), équipements ou entretiens qu'on devrait connaître : Julia s'en sert pour défendre ton prix.</div></div>
-      <div class="small" style="width:100%;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px 14px">⚠️ <b>Ton offre initiale de ${money(c.estimate)} ne sera plus garantie.</b> Les offres reçues peuvent être plus hautes ou plus basses.</div>`
-      :`<h2>Obtiens le meilleur prix Shopicar</h2>
-      <p>Ajoute 6 photos de ton auto, plus les dommages s'il y en a, et laisse Julia travailler pour toi.</p>`}
+      <div class="field" style="width:100%"><label for="wishWhy">Pourquoi votre auto vaut-elle plus?</label><textarea id="wishWhy" class="inp" rows="3" style="font-family:inherit;resize:vertical" placeholder="ex. groupe Technologie, toit ouvrant, sièges chauffants, pneus d'hiver neufs, entretien chez le concessionnaire…">${esc(c.wishWhy||'')}</textarea><div class="muted small">Options, groupes (packages), équipements ou entretiens qu'on devrait connaître : Julia s'en sert pour défendre votre prix.</div></div>
+      <div class="small" style="width:100%;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px 14px">⚠️ <b>Votre offre initiale de ${money(c.estimate)} ne sera plus garantie.</b> Les offres reçues peuvent être plus hautes ou plus basses.</div>`
+      :`<h2>Obtenez le meilleur prix Shopicar</h2>
+      <p>Ajoutez 6 photos de votre auto, plus les dommages s'il y en a, et laissez Julia travailler pour vous.</p>`}
       <button class="btn ${fast&&more?'pri':'dark'} big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':slotCount(c)<6?`Ajouter mes photos · ${slotCount(c)}/6`:'Étape 2 : mes photos de dommages'}</button>
     </div>
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
-    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoute les 6 photos pour continuer.':'Ajoute une photo des dommages ou confirme qu\'il n\'y en a aucun.'}</p>`}`:''}
-    ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complète ton dossier : un conseiller le valide et te confirme ton offre ferme</span></span><span class="mc">›</span></button>`:''}
+    ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoutez les 6 photos pour continuer.':'Ajoutez une photo des dommages ou confirmez qu\'il n\'y en a aucun.'}</p>`}`:''}
+    ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complétez votre dossier : un conseiller le valide et vous confirme votre offre ferme</span></span><span class="mc">›</span></button>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     ${ADVANTAGES}
     ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller demandé':'Rendez-vous demandé'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
@@ -1025,10 +1025,10 @@ function ladderHTML(c, growLast){ const steps=bestSteps(c); const vals=[c.estima
   return `<div class="ladder" aria-hidden="true">${vals.map((v,i)=>`<i class="b ${i===0?'est':''} ${i&&i===vals.length-1?'last':''} ${growLast&&i&&i===vals.length-1?'grow':''}" style="height:${h(v)}%"></i>`).join('')}</div>
     <div class="ladder-lbl num"><span>Offre initiale ${money(c.estimate)}</span><span>${steps.length?steps.length+' offre'+(steps.length>1?'s':'')+' validée'+(steps.length>1?'s':''):'En attente d\'offres'}</span></div>`; }
 /* Bloc « Julia travaille » : avatar animé, message en gros, sous-message qui change, barre de progression animée (aucun faux prix) */
-const LIVE_SUBS=['Recherche du meilleur prix d\'achat pour ton véhicule…','Chaque offre est validée par Shopicar avant de s\'afficher.','On te texte dès que ton prix augmente.'];
+const LIVE_SUBS=['Recherche du meilleur prix d\'achat pour votre véhicule…','Chaque offre est validée par Shopicar avant de s\'afficher.','Nous vous textons dès que votre prix augmente.'];
 function juliaLiveHTML(b){ return `<div class="jlive" id="liveMsg">
     <div class="jl-pulse sm"><div class="julia-av">J</div></div>
-    <div class="txt"><b id="liveText">${b?'Julia continue de travailler pour toi':'Julia poursuit ses recherches…'}</b><span id="liveSub">${LIVE_SUBS[0]}</span></div>
+    <div class="txt"><b id="liveText">${b?'Julia continue de travailler pour vous':'Julia poursuit ses recherches…'}</b><span id="liveSub">${LIVE_SUBS[0]}</span></div>
     <div class="jl-bar"><i></i></div></div>`; }
 let subTimer=null, subIdx=0;
 setInterval(()=>{ const el=$('#liveSub'); if(!el||$('#liveMsg').classList.contains('good')) return; subIdx=(subIdx+1)%LIVE_SUBS.length; el.style.opacity=0; setTimeout(()=>{ if(!$('#liveMsg')?.classList.contains('good')) el.textContent=LIVE_SUBS[subIdx]; el.style.opacity=1; },250); }, 3500);
@@ -1037,37 +1037,37 @@ function vSearch(){ const c=S.current; if(!c) return vGarage(); const b=bestOffe
   return `${topbar('Julia travaille','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    <div><h2 style="font-size:24px">Julia travaille pour toi!</h2>
-    <p class="muted" style="margin:6px 0 0">Suis l'évolution de ton offre en direct.</p></div>
+    <div><h2 style="font-size:24px">Julia travaille pour vous!</h2>
+    <p class="muted" style="margin:6px 0 0">Suivez l'évolution de votre offre en direct.</p></div>
     ${juliaLiveHTML(b)}
     <div class="offer" id="liveCard">
       <div class="tophd"><span class="lbl" id="liveLbl">${b?'Meilleure offre validée':'Offre initiale'}</span><span class="live">En direct</span></div>
       <div class="amt num" id="liveAmt">${amtHTML(b?b.amount:c.estimate)}</div>
-      <div class="small" id="liveGain" style="color:#66a9f3;min-height:20px">${b&&b.amount>c.estimate?`+${money(b.amount-c.estimate)} par rapport à ton offre initiale`:''}</div>
+      <div class="small" id="liveGain" style="color:#66a9f3;min-height:20px">${b&&b.amount>c.estimate?`+${money(b.amount-c.estimate)} par rapport à votre offre initiale`:''}</div>
       <div id="liveLadder">${ladderHTML(c)}</div>
     </div>
-    ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton prix augmente. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
+    ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">Nous vous textons${c.answers.cell?' au '+esc(c.answers.cell):''} dès que votre prix augmente. Votre dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
     ${!s.leadToken&&canNotify?`<div class="card"><h3>Pas besoin d'attendre ici</h3>
-      <p class="muted small" style="margin:0">${s.notify&&Notification.permission==='granted'?'C\'est noté : tu seras avisé sur cet appareil dès qu\'une meilleure offre est validée. Garde l\'onglet ouvert en arrière-plan.':'On peut t\'aviser sur cet appareil dès qu\'une meilleure offre est validée. Ton dossier reste aussi dans Mon garage.'}</p>
+      <p class="muted small" style="margin:0">${s.notify&&Notification.permission==='granted'?'C\'est noté : vous serez avisé sur cet appareil dès qu\'une meilleure offre est validée. Gardez l\'onglet ouvert en arrière-plan.':'Nous pouvons vous aviser sur cet appareil dès qu\'une meilleure offre est validée. Votre dossier reste aussi dans Mon garage.'}</p>
       ${s.notify&&Notification.permission==='granted'?'':`<button class="btn sec" data-act="notify">M'aviser quand mon prix augmente</button>`}</div>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
-    <p class="muted small" style="margin:0;text-align:center">On ne te montre que des offres validées par Shopicar. Ton offre initiale reste de ${money(c.estimate)}.</p>
+    <p class="muted small" style="margin:0;text-align:center">Nous ne vous montrons que des offres validées par Shopicar. Votre offre initiale reste de ${money(c.estimate)}.</p>
     ${s.demo?`<p class="muted small" style="margin:0;text-align:center;opacity:.7">Mode démo : offres simulées.</p>`:''}
   </div>`; }
 
 /* ---- 3 bis. Parcours rapide : le client a accepté son offre initiale, un conseiller valide le dossier ---- */
 function vValidation(c){ const s=c.search||{}; const canNotify='Notification' in window && Notification.permission!=='denied';
-  return `${topbar('Validation de ton offre','tab-garage')}
+  return `${topbar('Validation de votre offre','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    <div><h2 style="font-size:24px">C'est noté! Un conseiller valide ton offre.</h2>
-    <p class="muted" style="margin:6px 0 0">Tu as choisi ton offre initiale de <b class="num">${money(c.estimate)}</b>. On vérifie que tes photos, tes dommages et tes documents sont conformes, puis on te confirme ton offre ferme ici et par texto.</p></div>
+    <div><h2 style="font-size:24px">C'est noté! Un conseiller valide votre offre.</h2>
+    <p class="muted" style="margin:6px 0 0">Vous avez choisi votre offre initiale de <b class="num">${money(c.estimate)}</b>. Nous vérifions que vos photos, vos dommages et vos documents sont conformes, puis nous vous confirmons votre offre ferme ici et par texto.</p></div>
     <div class="jlive" id="liveMsg"><div class="jl-pulse sm"><div class="julia-av">J</div></div>
-      <div class="txt"><b>Validation en cours</b><span>Un conseiller Shopicar vérifie tes photos et tes documents.</span></div><div class="jl-bar"><i></i></div></div>
-    ${pickupOk(c)?pickupCardHTML(c, (c.pickup||{}).lieu===PK_DROP?'Ton dépôt est réservé':'Ton rendez-vous est réservé'):''}
+      <div class="txt"><b>Validation en cours</b><span>Un conseiller Shopicar vérifie vos photos et vos documents.</span></div><div class="jl-bar"><i></i></div></div>
+    ${pickupOk(c)?pickupCardHTML(c, (c.pickup||{}).lieu===PK_DROP?'Votre dépôt est réservé':'Votre rendez-vous est réservé'):''}
     <div class="card"><h3>Ce qu'on valide</h3>${validationListHTML(c)}
-      <p class="muted small" style="margin:0">Si un point diffère, on t'explique l'écart avant de te proposer une offre ajustée. Tu restes libre de refuser.</p></div>
-    ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">On te texte${c.answers.cell?' au '+esc(c.answers.cell):''} dès que ton offre ferme est confirmée. Ton dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
+      <p class="muted small" style="margin:0">Si un point diffère, nous vous expliquons l'écart avant de vous proposer une offre ajustée. Vous restez libre de refuser.</p></div>
+    ${s.leadToken?`<div class="card"><h3>Pas besoin d'attendre ici</h3><p class="muted small" style="margin:0">Nous vous textons${c.answers.cell?' au '+esc(c.answers.cell):''} dès que votre offre ferme est confirmée. Votre dossier reste aussi dans Mon garage.</p>${canNotify&&!(s.notify&&Notification.permission==='granted')?`<button class="btn sec" data-act="notify">M'aviser aussi sur cet appareil</button>`:''}</div>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     ${s.demo?`<p class="muted small" style="margin:0;text-align:center;opacity:.7">Mode démo : validation simulée.</p>`:''}
   </div>`; }
@@ -1076,38 +1076,38 @@ function vValidation(c){ const s=c.search||{}; const canNotify='Notification' in
 function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusInfo(c);
   const expired = st.txt==='Offre expirée'; const firm=c.status==='offre'; const nu=!!c.estimate;
   const shown = c.finalOffer || c.offer; const diff=nu?c.offer-c.estimate:0;
-  const intro = !nu||!firm||expired?'':`<h2 style="font-size:24px">Excellente nouvelle! Ta meilleure offre Shopicar est prête!</h2>`;
-  const story = !nu||!firm||expired?'':`<p style="margin:0">${diff>0?`Shopicar a travaillé pour toi : ton prix a augmenté de <b class="num">${money(diff)}</b> par rapport à ton offre initiale (${money(c.estimate)}).`
-      : diff===0?`Ta meilleure offre est égale à notre offre initiale.`
-      : `Ta meilleure offre est de <b class="num">${money(-diff)}</b> de moins que notre offre initiale (${money(c.estimate)}). L'offre initiale se base sur les annonces comparables; l'offre validée tient compte de l'état déclaré et de la demande réelle des acheteurs. Tu restes libre de refuser.`}</p>
-    <p style="margin:0">Tu peux maintenant vendre ton véhicule à Shopicar!</p>`;
+  const intro = !nu||!firm||expired?'':`<h2 style="font-size:24px">Excellente nouvelle! Votre meilleure offre Shopicar est prête!</h2>`;
+  const story = !nu||!firm||expired?'':`<p style="margin:0">${diff>0?`Shopicar a travaillé pour vous : votre prix a augmenté de <b class="num">${money(diff)}</b> par rapport à votre offre initiale (${money(c.estimate)}).`
+      : diff===0?`Votre meilleure offre est égale à notre offre initiale.`
+      : `Votre meilleure offre est de <b class="num">${money(-diff)}</b> de moins que notre offre initiale (${money(c.estimate)}). L'offre initiale se base sur les annonces comparables; l'offre validée tient compte de l'état déclaré et de la demande réelle des acheteurs. Vous restez libre de refuser.`}</p>
+    <p style="margin:0">Vous pouvez maintenant vendre votre véhicule à Shopicar!</p>`;
   const official = nu&&firm&&!expired;
   return `${topbar(nu&&firm?'Mon offre ferme':'Mon offre','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    ${c.autoAccepted&&['planifiee','acceptee'].includes(c.status)?`<div class="best official"><span class="tag">✓ Dossier validé · Offre confirmée</span><h2>C'est confirmé!</h2><div class="amt num">${amtHTML(c.finalOffer||c.offer)}</div><p style="margin:0">Ton dossier est conforme : ton offre est confirmée au même prix que ton offre initiale${c.status==='planifiee'?' et ton rendez-vous est confirmé.':'. Choisis maintenant la date de ton rendez-vous.'}</p></div>`:''}
+    ${c.autoAccepted&&['planifiee','acceptee'].includes(c.status)?`<div class="best official"><span class="tag">✓ Dossier validé · Offre confirmée</span><h2>C'est confirmé!</h2><div class="amt num">${amtHTML(c.finalOffer||c.offer)}</div><p style="margin:0">Votre dossier est conforme : votre offre est confirmée au même prix que votre offre initiale${c.status==='planifiee'?' et votre rendez-vous est confirmé.':'. Choisissez maintenant la date de votre rendez-vous.'}</p></div>`:''}
     ${official?`<div class="best official">
       <span class="tag">✓ Meilleure offre Shopicar · Offre ferme</span>
-      <h2>${(c.search||{}).intent==='initial'?(diff<0?'Ton offre a été ajustée après la validation':'Ton offre est validée!'):'Excellente nouvelle! Ta meilleure offre est prête'}</h2>
-      ${(c.search||{}).intent==='initial'&&diff<0?`<div class="small" style="width:100%;background:#1f1f1f;border-radius:12px;padding:12px 14px;color:#e5e5e5"><b style="color:#fff">Pourquoi ce prix</b><br>${esc((bestOffer(c)||{}).note||'Un point de ton dossier diffère de tes déclarations. Parle à un conseiller pour le détail.')}<br><span style="color:#a3a3a3">Offre initiale : ${money(c.estimate)} · écart de ${money(-diff)}. Tu restes libre de refuser.</span></div>`:''}
+      <h2>${(c.search||{}).intent==='initial'?(diff<0?'Votre offre a été ajustée après la validation':'Votre offre est validée!'):'Excellente nouvelle! Votre meilleure offre est prête'}</h2>
+      ${(c.search||{}).intent==='initial'&&diff<0?`<div class="small" style="width:100%;background:#1f1f1f;border-radius:12px;padding:12px 14px;color:#e5e5e5"><b style="color:#fff">Pourquoi ce prix</b><br>${esc((bestOffer(c)||{}).note||'Un point de votre dossier diffère de vos déclarations. Parlez à un conseiller pour le détail.')}<br><span style="color:#a3a3a3">Offre initiale : ${money(c.estimate)} · écart de ${money(-diff)}. Vous restez libre de refuser.</span></div>`:''}
       <div class="amt num">${amtHTML(shown)}</div>
-      ${diff>0?`<span class="gain num">+${money(diff)} de plus que ton offre initiale</span>`:''}
-      ${bonusLive(c)?`<div class="bonus" style="width:100%"><span>Accepte d'ici <b class="num" data-cd="${bonusEnd(c)}">${timeLeft(bonusEnd(c)-Date.now())}</b> et reçois</span><b>+${money(BONUS_24H)}</b></div>`:''}
+      ${diff>0?`<span class="gain num">+${money(diff)} de plus que votre offre initiale</span>`:''}
+      ${bonusLive(c)?`<div class="bonus" style="width:100%"><span>Acceptez d'ici <b class="num" data-cd="${bonusEnd(c)}">${timeLeft(bonusEnd(c)-Date.now())}</b> et recevez</span><b>+${money(BONUS_24H)}</b></div>`:''}
       <div class="cd num">Offre valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>
       <button class="btn pri big" data-act="accept">${bonusLive(c)?(prepReady(c)?`Accepter ${money(shown+BONUS_24H)}`:`Accepter ${money(shown+BONUS_24H)} et prendre rendez-vous`):(prepReady(c)?'Accepter mon offre':'Accepter mon offre et prendre rendez-vous')}</button>
-      ${prepReady(c)?`<div class="small" style="color:#d4d4d4;text-align:center;width:100%">Ton rendez-vous est déjà réservé. Il est confirmé dès que tu acceptes.</div>`:''}
+      ${prepReady(c)?`<div class="small" style="color:#d4d4d4;text-align:center;width:100%">Votre rendez-vous est déjà réservé. Il est confirmé dès que vous acceptez.</div>`:''}
     </div>
-    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>${bonusLive(c)?'Avec bonus 24 h':'Ton offre'}</span><b>${money(shown+(bonusLive(c)?BONUS_24H:0))}</b></div><button class="btn pri" data-act="accept">${prepReady(c)?'Accepter':'Accepter et prendre RDV'}</button></div></div>`:c.autoAccepted?'':`${intro}
+    <div class="sticky-cta"><div class="in"><div class="amt-s num"><span>${bonusLive(c)?'Avec bonus 24 h':'Votre offre'}</span><b>${money(shown+(bonusLive(c)?BONUS_24H:0))}</b></div><button class="btn pri" data-act="accept">${prepReady(c)?'Accepter':'Accepter et prendre RDV'}</button></div></div>`:c.autoAccepted?'':`${intro}
     <div class="offer">
       <span class="lbl">${nu?(['acceptee','planifiee'].includes(c.status)?'Offre acceptée*':'Meilleure offre Shopicar · Offre ferme*'):firm||c.status==='acceptee'||c.status==='planifiee'?'Offre ferme*':'Offre préliminaire'}</span>
       <div class="amt num">${amtHTML(shown)}</div>
       ${['offre','a_valider'].includes(c.status)?`<div class="cd"><span>Valide encore</span><b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
-      ${nu&&diff>0?`<div class="small" style="color:#66a9f3">+${money(diff)} par rapport à ton offre initiale (${money(c.estimate)})</div>`:''}
+      ${nu&&diff>0?`<div class="small" style="color:#66a9f3">+${money(diff)} par rapport à votre offre initiale (${money(c.estimate)})</div>`:''}
       ${c.status==='a_valider'?`<div class="small" style="color:#a3a3a3">Un acheteur Shopicar valide quelques points avant de rendre l'offre ferme, en général en moins de 2 h.</div>`:''}
-      ${bonusLive(c)&&!expired?`<div class="bonus"><span>Accepte d'ici <b class="num" data-cd="${bonusEnd(c)}" style="font-size:14px;font-family:var(--f-body)">${timeLeft(bonusEnd(c)-Date.now())}</b></span><b>+${money(BONUS_24H)}</b></div>`:''}
+      ${bonusLive(c)&&!expired?`<div class="bonus"><span>Acceptez d'ici <b class="num" data-cd="${bonusEnd(c)}" style="font-size:14px;font-family:var(--f-body)">${timeLeft(bonusEnd(c)-Date.now())}</b></span><b>+${money(BONUS_24H)}</b></div>`:''}
       ${c.finalOffer&&c.finalOffer>c.offer?`<div class="small" style="color:#66a9f3">Bonus 24 h inclus : +${money(c.finalOffer-c.offer)}</div>`:''}
     </div>`}
-    ${official&&prepReady(c)?pickupCardHTML(c, (c.pickup||{}).lieu===PK_DROP?'Ton dépôt est réservé':'Ton rendez-vous est réservé'):''}
+    ${official&&prepReady(c)?pickupCardHTML(c, (c.pickup||{}).lieu===PK_DROP?'Votre dépôt est réservé':'Votre rendez-vous est réservé'):''}
     ${official&&diff>=0?'':story}
     ${expired?`<button class="btn pri" data-act="reeval">Réévaluer mon auto</button>`:''}
     ${firm&&!expired&&!official?`<button class="btn pri" data-act="accept">${nu?'Accepter mon offre et prendre rendez-vous':'Accepter '+money(c.offer+(bonusLive(c)?BONUS_24H:0))}</button>`:''}
@@ -1126,13 +1126,13 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
     <p class="muted small num" style="text-align:center;margin:0">NIV ${esc(c.vin)} · ${esc(c.answers.km)} km · ${nu&&c.offerAt?'offre':'offre'} du ${new Date(c.offerAt||c.createdAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}</p>
   </div>`; }
 
-function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','payee']; const labels=[c.estimate?['Offre ferme reçue','Validée par Shopicar']:['Offre reçue','Calculée par l\'AI'],['Offre acceptée','Documents à téléverser'],['Cueillette planifiée','Chez toi ou chez un garage partenaire'],['Inspection de 10 min','Confirmation de l\'état'],['Payé','Virement le jour même']];
+function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','payee']; const labels=[c.estimate?['Offre ferme reçue','Validée par Shopicar']:['Offre reçue','Calculée par l\'AI'],['Offre acceptée','Documents à téléverser'],['Cueillette planifiée','Chez vous ou chez un garage partenaire'],['Inspection de 10 min','Confirmation de l\'état'],['Payé','Virement le jour même']];
   let idx=order.indexOf(c.status==='a_valider'?'offre':c.status); if(idx<0) idx=0;
   return `<div class="tl">${labels.map((l,i)=>`<div class="s ${i<idx||(i===idx&&i===0)?'done':i===idx?'cur':''}"><div class="dot">${i<idx||(i===idx&&i===0)?'✓':i+1}</div><div><b>${l[0]}</b><div class="muted small">${l[1]}</div></div></div>`).join('')}</div>`; }
 
 /* Documents et rendez-vous : partagés entre le dossier avant validation (parcours rapide) et l'écran après acceptation. */
 function docsNeed(c){ const fin=c.answers.finance!=='Payée au complet';
-  return [['immat','Certificat d\'immatriculation','Le document de la SAAQ'],['permis','Permis de conduire','Le recto suffit'], ...(fin?[['pret','État de compte du prêteur','Pour rembourser ton prêt']]:[])]; }
+  return [['immat','Certificat d\'immatriculation','Le document de la SAAQ'],['permis','Permis de conduire','Le recto suffit'], ...(fin?[['pret','État de compte du prêteur','Pour rembourser votre prêt']]:[])]; }
 /* Avant validation, un document compte seulement si son fichier est encore sur l'appareil (il part avec le dossier). Après envoi ou en démo, le nom suffit. */
 const docBlob = (c,k) => { const B=BLOBS[c.id]; return B&&!Array.isArray(B)&&B.docs&&B.docs[k]; };
 const docHas = (c,k,strict) => !!(c.docs||{})[k] && (!strict || DEMO_OFFERS || !!c.prepSentAt || !!docBlob(c,k));
@@ -1161,9 +1161,9 @@ function pickupApi(c){ const pk=c.pickup||{};
 /* Parcours rapide : le rendez-vous choisi avant la validation est encore à venir → l'acceptation le confirme directement. */
 const prepReady = c => (c.search||{}).intent==='initial' && !!c.prepSentAt && pickupOk(c) && (c.pickup||{}).date > todayIso();
 function validationListHTML(c){ const fin=c.answers.finance!=='Payée au complet'; return `<ul class="clean warnl small" style="margin:0">
-    <li><span>Tes photos et tes dommages correspondent à tes déclarations.</span></li>
-    <li><span>Tes documents sont conformes : immatriculation et permis au nom du vendeur${fin?', état de compte du prêteur':''}.</span></li>
-    <li><span>Rapport Carfax conforme à tes déclarations (accidents, kilométrage, titre).</span></li>
+    <li><span>Vos photos et vos dommages correspondent à vos déclarations.</span></li>
+    <li><span>Vos documents sont conformes : immatriculation et permis au nom du vendeur${fin?', état de compte du prêteur':''}.</span></li>
+    <li><span>Rapport Carfax conforme à vos déclarations (accidents, kilométrage, titre).</span></li>
     <li><span>Aucune charge ou dette non déclarée au RDPRM.</span></li>
     <li><span>Au rendez-vous : inspection rapide de 15 à 20 minutes, kilométrage au plus 500 km de plus que déclaré.</span></li></ul>`; }
 
@@ -1176,17 +1176,17 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
   <div class="wrap">
     ${vehHead(c)}
     <div class="offer-mini"><span>Offre initiale choisie</span><b class="num">${money(c.estimate)}</b></div>
-    <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Ton dossier est complet!'}</h2>
+    <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
-    ${photoSlotsHTML(c, head(1,p1,'Tes photos et tes dommages','Commence par 6 photos de ton auto, puis tes dommages s\'il y en a.'))}
-    <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Tes documents','Prends une photo claire de chaque document.',!p1)}
-      ${p1?docsHTML(c,true):wait('Ajoute d\'abord tes photos et tes dommages.')}</div>
-    <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Ton rendez-vous de dépôt':'Ton rendez-vous','Choisis où et quand on se rencontre, sans frais.',!(p1&&p2))}
-      ${p1&&p2?pickupFormHTML(c):wait('Ajoute d\'abord tes documents.')}</div>
-    <div class="card stp">${head(4,false,'Validation du dossier','On vérifie que tes photos et tes documents sont conformes, puis on te confirme ton offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+    ${photoSlotsHTML(c, head(1,p1,'Vos photos et vos dommages','Commencez par 6 photos de votre auto, puis vos dommages s\'il y en a.'))}
+    <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Vos documents','Prenez une photo claire de chaque document.',!p1)}
+      ${p1?docsHTML(c,true):wait('Ajoutez d\'abord vos photos et vos dommages.')}</div>
+    <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Votre rendez-vous de dépôt':'Votre rendez-vous','Choisissez où et quand nous nous rencontrons, sans frais.',!(p1&&p2))}
+      ${p1&&p2?pickupFormHTML(c):wait('Ajoutez d\'abord vos documents.')}</div>
+    <div class="card stp">${head(4,false,'Validation du dossier','Nous vérifions que vos photos et vos documents sont conformes, puis nous vous confirmons votre offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       ${validationListHTML(c)}</div>
     <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer le dossier</button>
-    ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!p1&&'tes photos et tes dommages',!p2&&'tes documents',!p3&&'ton rendez-vous'].filter(Boolean).join(', ')}.</p>`:''}
+    ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il vous reste : ${[!p1&&'vos photos et vos dommages',!p2&&'vos documents',!p3&&'votre rendez-vous'].filter(Boolean).join(', ')}.</p>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     <button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>
   </div>`; }
@@ -1198,23 +1198,23 @@ function vAccept(){ const c=S.current; const pk=c.pickup||{}; const fin=c.answer
   return `${topbar('Prochaines étapes','open-offer')}
   <div class="wrap">
     <div class="offer"><span class="lbl">Offre acceptée</span><div class="amt num">${Math.round(c.finalOffer||c.offer).toLocaleString('fr-CA')}<sup>$</sup></div>
-      ${fin?`<div class="small" style="color:#d4d4d4">On rembourse ${esc(c.answers.preteur||'ton prêteur')} (environ ${money(Number(String(c.answers.solde).replace(/\D/g,''))||0)}). Tu reçois la différence.</div>`:''}</div>
+      ${fin?`<div class="small" style="color:#d4d4d4">On rembourse ${esc(c.answers.preteur||'votre prêteur')} (environ ${money(Number(String(c.answers.solde).replace(/\D/g,''))||0)}). Vous recevez la différence.</div>`:''}</div>
     <div><h2 style="font-size:22px">Plus que 2 étapes pour être payé</h2>
       <div class="stp-prog"><i style="width:${done*50}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/2 complétées · ça prend environ 2 minutes</p></div>
 
-    <div class="card stp ${dOk?'ok':''}">${head(1,dOk,'Tes documents','Prends une photo claire de chaque document.')}
+    <div class="card stp ${dOk?'ok':''}">${head(1,dOk,'Vos documents','Prenez une photo claire de chaque document.')}
       ${docsHTML(c)}
     </div>
 
-    <div class="card stp ${pkOk?'ok':''}">${isDrop?head(2,pkOk,'Ton dépôt','Choisis l\'agent Shopicar le plus près de chez toi.'):head(2,pkOk,'Ta cueillette','On vient chercher ton auto, sans frais.')}
+    <div class="card stp ${pkOk?'ok':''}">${isDrop?head(2,pkOk,'Votre dépôt','Choisissez l\'agent Shopicar le plus près de chez vous.'):head(2,pkOk,'Votre cueillette','Nous venons chercher votre auto, sans frais.')}
       ${pickupFormHTML(c)}
     </div>
 
-    <div class="card stp">${head(3,c.status==='payee','Ton paiement','Tu es payé le jour même.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
+    <div class="card stp">${head(3,c.status==='payee','Votre paiement','Vous êtes payé le jour même.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       <div class="pay"><div><b>1</b><span>On arrive à l'heure choisie</span></div><div><b>2</b><span>Inspection rapide de 15 à 20 minutes</span></div><div><b>3</b><span>Virement de ${money(c.finalOffer||c.offer)}${fin?' (moins le solde du prêt)':''} le jour même</span></div></div>
     </div>
     <button class="btn pri big" data-act="confirm-pickup" ${dOk&&pkOk?'':'disabled'}>${c.status==='planifiee'?(isDrop?'Mettre à jour mon dépôt':'Mettre à jour ma cueillette'):(isDrop?'Confirmer mon dépôt':'Confirmer ma cueillette')}</button>
-    ${!dOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il te reste : ${[!dOk&&'tes documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
+    ${!dOk||!pkOk?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il vous reste : ${[!dOk&&'vos documents',!pkOk&&'les détails de cueillette'].filter(Boolean).join(' et ')}.</p>`:''}
   </div>`; }
 
 /* ---- Cueillette / dépôt : agents les plus proches, détails du RDV, ajout à l'agenda ---- */
@@ -1231,11 +1231,11 @@ function dropState(c){ const postal=dropPostal(c);
 const mapsUrl = q => 'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q);
 const agentAddr = a => a.demo ? `${a.ville} (${a.postal})` : `${a.adresse}, ${a.ville} ${a.postal||''}`.trim();
 function dropPickerHTML(c, dr){ const pk=c.pickup||{}; const postal=dropPostal(c);
-  const postalForm = `<div class="row" style="margin-top:10px"><input id="dropPostal" class="inp" value="${esc(postal)}" placeholder="Ton code postal" maxlength="7" style="flex:2"><button class="btn sec" data-act="drop-postal" style="flex:1">Chercher</button></div>`;
+  const postalForm = `<div class="row" style="margin-top:10px"><input id="dropPostal" class="inp" value="${esc(postal)}" placeholder="Votre code postal" maxlength="7" style="flex:2"><button class="btn sec" data-act="drop-postal" style="flex:1">Chercher</button></div>`;
   if(!postal) return postalForm;
   if(dr.loading) return `<p class="muted small" style="margin:10px 0 0">Recherche des agents près de ${esc(postal)}…</p>`;
-  if(dr.error==='code_postal') return `<p class="small" style="margin:10px 0 0;color:var(--bad)">Code postal introuvable. Vérifie-le.</p>${postalForm}`;
-  if(!dr.agents.length) return `<p class="muted small" style="margin:10px 0 0">Un conseiller Shopicar te confirme l'agent le plus près de ${esc(postal)}, avec son adresse, avant ton rendez-vous.</p>`;
+  if(dr.error==='code_postal') return `<p class="small" style="margin:10px 0 0;color:var(--bad)">Code postal introuvable. Vérifiez-le.</p>${postalForm}`;
+  if(!dr.agents.length) return `<p class="muted small" style="margin:10px 0 0">Un conseiller Shopicar vous confirme l'agent le plus près de ${esc(postal)}, avec son adresse, avant votre rendez-vous.</p>`;
   return `<p class="muted small" style="margin:12px 0 6px">Les plus près de <b>${esc(postal)}</b> · <a href="#" onclick="event.preventDefault();document.getElementById('dropBox').style.display='block'">changer</a></p>
     <div id="dropBox" style="display:none">${postalForm}</div>
     <div style="display:flex;flex-direction:column;gap:8px">${dr.agents.map((a,i)=>{ const on=pk.agent&&pk.agent.id===a.id;
@@ -1251,7 +1251,7 @@ function pickupWhere(c){ const pk=c.pickup||{}; if(pk.lieu==='À mon adresse') r
   return pk.agent ? (pk.agent.demo ? `${pk.agent.nom}, ${pk.agent.ville}` : `${pk.agent.nom}, ${agentAddr(pk.agent)}`) : 'Agent Shopicar (adresse à confirmer)'; }
 function pickupEvent(c){ const w=pickupWhen(c); if(!w) return null; const drop=(c.pickup||{}).lieu===PK_DROP; const a=(c.pickup||{}).agent;
   return {...w, title:`${drop?'Dépôt':'Cueillette'} Shopicar · ${vTitle(c.vehicle)}`, where:pickupWhere(c),
-    details:`${drop?'Dépôt de ton auto chez l\'agent Shopicar':'Cueillette de ton auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 10 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
+    details:`${drop?'Dépôt de votre auto chez l\'agent Shopicar':'Cueillette de votre auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 10 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
 function gcalUrl(ev){ return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(ev.title)+'&dates='+ev.start+'/'+ev.end+'&ctz=America/Toronto&location='+encodeURIComponent(ev.where)+'&details='+encodeURIComponent(ev.details); }
 function downloadIcs(c){ const ev=pickupEvent(c); if(!ev) return; const x=s=>String(s).replace(/\\/g,'\\\\').replace(/[,;]/g,m=>'\\'+m).replace(/\n/g,'\\n');
   const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Shopicar//Offre//FR','BEGIN:VEVENT',`UID:${c.id||c.vin}-pickup@shopicar.com`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
@@ -1263,10 +1263,10 @@ function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c);
   const mapQ = drop ? (a ? (a.demo ? a.ville+' '+a.postal : agentAddr(a)) : '') : (pk.adresse||'');
   return `<div class="card">
     <span class="stat info">${tag||(drop?'Dépôt planifié':'Cueillette planifiée')}</span>
-    ${line('📅', ev.label.charAt(0).toUpperCase()+ev.label.slice(1), drop?'Présente-toi pendant cette plage':'On arrive pendant cette plage')}
+    ${line('📅', ev.label.charAt(0).toUpperCase()+ev.label.slice(1), drop?'Présentez-vous pendant cette plage':'Nous arrivons pendant cette plage')}
     ${line('🕒', esc(pk.slot||''), '')}
-    ${drop ? line('📍', a?esc(a.nom):'Agent Shopicar', a ? `${esc(agentAddr(a))}${a.km!=null?` · ${a.km<1?'moins de 1':a.km} km de chez toi`:''}${a.heures?`<br>${esc(a.heures)}`:''}${a.tel?`<br><a href="tel:${esc(a.tel.replace(/[^\d+]/g,''))}">${esc(a.tel)}</a>`:''}` : 'Un conseiller te confirme l\'adresse')
-      : line('📍', esc(pk.adresse||'À ton adresse'), 'Cueillette sans frais')}
+    ${drop ? line('📍', a?esc(a.nom):'Agent Shopicar', a ? `${esc(agentAddr(a))}${a.km!=null?` · ${a.km<1?'moins de 1':a.km} km de chez vous`:''}${a.heures?`<br>${esc(a.heures)}`:''}${a.tel?`<br><a href="tel:${esc(a.tel.replace(/[^\d+]/g,''))}">${esc(a.tel)}</a>`:''}` : 'Un conseiller vous confirme l\'adresse')
+      : line('📍', esc(pk.adresse||'À votre adresse'), 'Cueillette sans frais')}
     ${mapQ?`<a class="small" target="_blank" rel="noopener" href="${mapsUrl(mapQ)}" style="color:var(--acc);font-weight:600;margin-left:34px">Ouvrir dans Google Maps</a>`:''}
     <a class="btn pri" target="_blank" rel="noopener" href="${gcalUrl(ev)}">Ajouter à mon Google Agenda</a>
     <button class="btn ghost" data-act="ics" style="padding:4px">Apple Calendrier / Outlook</button>
@@ -1282,14 +1282,14 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get(); const gf=S.gf||(GROUPS.map(g=>g[0]).find(k=>cars.some(c=>carGroup(c)===k))||'encours'); const shown=cars.filter(c=>carGroup(c)===gf);
   return `${topbar('Mon garage', null, profileBtn())}
   <div class="wrap garage">
-    ${pv&&pv.token?'':`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
-    ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
-    ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
+    ${pv&&pv.token?'':`<div class="card"><h3>Retrouvez toutes vos autos</h3><p class="muted small" style="margin:0">Connectez-vous avec votre cellulaire pour voir votre garage sur tous vos appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
+    ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de votre garage…</span></div></div>`:''}
+    ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Votre garage est vide'}</h2><p class="muted" style="margin:0">Ajoutez votre auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
     ${cars.length?`<div class="g-head"><h2>Mes autos <span class="muted num">· ${cars.length}</span></h2><button class="btn pri g-add" data-act="start">+ Vendre une auto</button></div>
     <div class="g-filt" role="tablist" aria-label="Filtrer mes autos">${GROUPS.map(([k,l])=>{ const n=cars.filter(c=>carGroup(c)===k).length; const on=gf===k; return `<button class="chip ${on?'on':''}" role="tab" aria-selected="${on}" data-act="gf" data-v="${k}">${l}<span class="num">${n}</span></button>`; }).join('')}</div>`:''}
     ${cars.length&&!shown.length?`<p class="muted g-none">Aucune auto ${({encours:'en cours',expire:'avec une offre expirée',refuse:'refusée',vendu:'vendue'})[gf]}.</p>`:''}
     ${shown.map(garageCard).join('')}
-    ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
+    ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glissez une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
     ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages Super Admin (parcours rapide et marge)</button>`:''}
@@ -1301,7 +1301,7 @@ function vProfile(){ const pv=PV.get(); const on=!!(pv&&pv.token);
   <div class="wrap">
     ${on?`${profileCardHTML()}
       <div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>`
-      :`<div class="card"><h3>Connecte-toi</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton profil et ton garage sur tous tes appareils.</p><button class="btn pri" data-act="login">Me connecter avec mon cellulaire</button></div>`}
+      :`<div class="card"><h3>Connectez-vous</h3><p class="muted small" style="margin:0">Connectez-vous avec votre cellulaire pour voir votre profil et votre garage sur tous vos appareils.</p><button class="btn pri" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages Super Admin (parcours rapide et marge)</button>`:''}
   </div>`; }
 
@@ -1395,7 +1395,7 @@ function bindInputs(){
   const ww=$('#wishWhy'); if(ww&&S.current){ ww.addEventListener('input',()=>{ S.current.wishWhy=ww.value.slice(0,800); }); ww.addEventListener('change',()=>Store.save(S.current)); }
   const wi=$('#wishIn'); if(wi&&S.current){ wi.addEventListener('change',()=>{ const n=Number(String(wi.value).replace(/[^\d]/g,'')); S.current.wish=n>=500?n:null; wi.value=S.current.wish?Math.round(S.current.wish).toLocaleString('fr-CA')+' $':''; Store.save(S.current); }); }
   const vin=$('#vin'); if(vin){ vin.addEventListener('input',()=>{ const n=normVin(vin.value).slice(0,17); S.draft.vin=n; if(vin.value!==n) vin.value=n;
-      const ok=n.length===17&&vinCheck(n); const h=$('#vinHint'); h.textContent= n.length===0?'17 caractères': n.length<17?`${n.length}/17`: ok?'NIV valide':'Vérifie le NIV : un caractère semble erroné';
+      const ok=n.length===17&&vinCheck(n); const h=$('#vinHint'); h.textContent= n.length===0?'17 caractères': n.length<17?`${n.length}/17`: ok?'NIV valide':'Vérifiez le NIV : un caractère semble erroné';
       h.style.color= ok?'var(--ok)': n.length===17?'var(--bad)':'var(--muted)'; $('#vinGo').disabled = n.length!==17; }); }
   document.querySelectorAll('[data-veh]').forEach(el=>el.addEventListener('input',()=>{ S.draft.vehicle[el.dataset.veh]=el.value; }));
   document.querySelectorAll('[data-qi]').forEach(el=>el.addEventListener('input',()=>{ S.draft.answers[el.dataset.qi]=el.value; if(el.dataset.qi==='nom') S.draft.answers.prenom=el.value.trim().split(/\s+/)[0]||''; const b=$('#quizNext'); if(b) b.disabled=!visibleQs(S.step,S.draft.answers).every(q=>answered(q,S.draft.answers)); }));
@@ -1405,8 +1405,8 @@ function bindInputs(){
     let B=BLOBS[c.id]; if(!B||Array.isArray(B)) B=BLOBS[c.id]={slots:{},dmg:[]}; B.docs=B.docs||{};
     try{ if(/^image\//.test(f.type)||/\.(jpe?g|png|heic|heif|webp)$/i.test(f.name)){ const {im,u}=await loadImg(f); B.docs[k]={blob:await toBlob(draw(im,1600),.75), mime:'image/jpeg', name:f.name}; URL.revokeObjectURL(u); }
       else if(f.size<=1000000 && (/pdf/i.test(f.type)||/\.pdf$/i.test(f.name))) B.docs[k]={blob:f, mime:'application/pdf', name:f.name};
-      else { toast('Fichier trop lourd. Prends plutôt une photo du document.'); return; } }
-    catch(e){ toast('Document illisible. Prends une photo du document.'); return; }
+      else { toast('Fichier trop lourd. Prenez plutôt une photo du document.'); return; } }
+    catch(e){ toast('Document illisible. Prenez une photo du document.'); return; }
     c.docs=c.docs||{}; c.docs[k]=f.name; await Store.save(c); rerender(); Cloud.file(c,'document',k,B.docs[k].blob,B.docs[k].mime==='application/pdf'?'application/pdf':B.docs[k].mime,f.name); }));
 }
 
@@ -1423,8 +1423,8 @@ document.addEventListener('click', async e=>{
   else if(a==='decode'){ decodeVin(); }
   else if(a==='trim'){ const v=S.draft.vehicle, t=el.dataset.v; v.trimUnknown=t==='__nsp'; v.trimOther=t==='__autre';
       v.trim = (t==='__nsp'||t==='__autre') ? '' : t; rerender(); if(v.trimOther){ const i=$('#vt'); if(i) i.focus(); } }
-  else if(a==='confirm-veh'){ const v=S.draft.vehicle; if(!v.year||!v.make||!v.model){ toast('Indique au moins l\'année, la marque et le modèle.'); return; }
-      if(needTrim(v)){ toast('Choisis ta version (ou « Je ne sais pas »).'); return; }
+  else if(a==='confirm-veh'){ const v=S.draft.vehicle; if(!v.year||!v.make||!v.model){ toast('Indiquez au moins l\'année, la marque et le modèle.'); return; }
+      if(needTrim(v)){ toast('Choisissez votre version (ou « Je ne sais pas »).'); return; }
       if(v.transmission && !S.draft.answers.transmission){ S.draft.answers.transmission = /manu/i.test(v.transmission)?'Manuelle':'Automatique'; }
       S.step=0; go('quiz'); }
   else if(a==='quiz-back'){ if(S.step>0){ S.step--; go('quiz'); } else go('confirm'); }
@@ -1435,10 +1435,10 @@ document.addEventListener('click', async e=>{
   else if(a==='quiz-next'){ if(S.step<STEPS.length-1){ S.step++; go('quiz'); } else if(phoneOk(S.draft.answers.cell)) runValuation(); else openOtp(); }
   else if(a==='otp-check'){ otpCheck(); }
   else if(a==='login'){ openLogin(); }
-  else if(a==='login-send'){ const v=($('#loginCell')||{}).value||''; OTP.cellDraft=v; const p=phoneE164(v); if(!p){ OTP.err='Entre un numéro de cellulaire à 10 chiffres.'; renderOtp(); return; } OTP.phone=p; OTP.err=''; otpSend(false); }
+  else if(a==='login-send'){ const v=($('#loginCell')||{}).value||''; OTP.cellDraft=v; const p=phoneE164(v); if(!p){ OTP.err='Entrez un numéro de cellulaire à 10 chiffres.'; renderOtp(); return; } OTP.phone=p; OTP.err=''; otpSend(false); }
   else if(a==='logout'){ logout(); }
   else if(a==='profile-open'){ go('profile'); }
-  else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans ton garage.'); rerender(); } }
+  else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans votre garage.'); rerender(); } }
   else if(a==='gf'){ S.gf=el.dataset.v; rerender(); }
   else if(a==='show-arch'){ S.showArch=!S.showArch; rerender(); }
   else if(a==='otp-resend'){ otpSend(true); }
@@ -1447,7 +1447,7 @@ document.addEventListener('click', async e=>{
   else if(a==='archive-ask'){ const c=S.cars.find(x=>x.id===el.dataset.id); if(!c) return;
       $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="bd">
         <h2 style="font-size:20px">Archiver cette auto?</h2>
-        <p style="margin:0"><b>${esc(vTitle(c.vehicle))}</b> ne sera plus dans ton garage. Tu la retrouves en tout temps dans « Autos archivées ».</p>
+        <p style="margin:0"><b>${esc(vTitle(c.vehicle))}</b> ne sera plus dans votre garage. Vous la retrouvez en tout temps dans « Autos archivées ».</p>
         <button class="btn big" style="background:#e5484d;color:#fff" data-act="archive" data-id="${c.id}">Archiver</button>
         <button class="btn sec" data-act="close">Annuler</button></div></div></div>`; }
   else if(a==='open' && SW.open){ swClose(); return; }
@@ -1468,17 +1468,17 @@ document.addEventListener('click', async e=>{
   else if(a==='refuse'){ $('#modal').innerHTML=''; const c=S.current; c.refused=true; c.refusedAt=Date.now(); c.status='refusee'; await Store.save(c); toast('Offre refusée.'); rerender(); }
   else if(a==='refuse-undo'){ const c=S.current; c.refused=false; delete c.refusedAt; c.status='estimation'; await Store.save(c); rerender(); }
   else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
-  else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complète les 3 étapes avant d\'envoyer ton dossier.'); return; } startSearch(c, 'initial'); }
+  else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complétez les 3 étapes avant d\'envoyer votre dossier.'); return; } startSearch(c, 'initial'); }
   else if(a==='want-more'){ openMoreModal(); }
   else if(a==='more-keep'){ $('#modal').innerHTML=''; const b=document.querySelector('[data-act="initial-ok"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); } }
   else if(a==='more-go'){ $('#modal').innerHTML=''; S.current.wantMore=true; await Store.save(S.current); rerender(); setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
   else if(a==='want-more-undo'){ const c=S.current; c.wantMore=false; c.wish=null; c.wishWhy=''; c.prep=true; await Store.save(c); go('prep'); }
   else if(a==='wish-edit'){ const c=S.current; c.wishDraft=c.wish?String(c.wish):''; c.wish=null; await Store.save(c); rerender(); $('#wishIn')?.focus(); }
   else if(a==='wish-save'){ const c=S.current; const n=Number(String(($('#wishIn')||{}).value||'').replace(/[^\d]/g,''));
-      if(!(n>=500)){ toast('Indique le montant que tu aimerais obtenir.'); return; }
+      if(!(n>=500)){ toast('Indiquez le montant que vous aimeriez obtenir.'); return; }
       c.wish=n; c.wishDraft=''; await Store.save(c); rerender(); setTimeout(()=>$('#photoAsk')?.scrollIntoView({behavior:'smooth',block:'start'}),50); }
   else if(a==='best-price'){ const c=S.current; const wi=$('#wishIn');
-      if(wi){ const n=Number(String(wi.value).replace(/[^\d]/g,'')); c.wish=n>=500?n:null; if(!c.wish){ toast('Indique d\'abord le prix que tu aimerais obtenir.'); $('#bestBox')?.scrollIntoView({behavior:'smooth',block:'start'}); wi.focus({preventScroll:true}); return; } Store.save(c); }
+      if(wi){ const n=Number(String(wi.value).replace(/[^\d]/g,'')); c.wish=n>=500?n:null; if(!c.wish){ toast('Indiquez d\'abord le prix que vous aimeriez obtenir.'); $('#bestBox')?.scrollIntoView({behavior:'smooth',block:'start'}); wi.focus({preventScroll:true}); return; } Store.save(c); }
       if(!photosDone(c)){ const card=document.getElementById(slotCount(c)===PHOTO_SLOTS.length?'dmgAsk':'photoAsk'); if(card&&card.id==='dmgAsk'){ card.classList.remove('need'); void card.offsetWidth; card.classList.add('need'); } card?.scrollIntoView({behavior:'smooth',block:'start'});
       document.querySelectorAll('#photoAsk button.slot').forEach(x=>{ x.classList.remove('need'); void x.offsetWidth; x.classList.add('need'); }); return; } startSearch(c); }
   else if(a==='slot-add'){ S.slotTarget=el.dataset.slot; const fi=$('#slotFile'); fi.multiple = el.dataset.slot==='dmg'; fi.click(); }
@@ -1492,10 +1492,10 @@ document.addEventListener('click', async e=>{
       if(c.search&&c.search.leadToken){ const b=bestOffer(c); if(!b){ toast('Cette offre n\'est plus valide.'); return; }
         el.disabled=true; el.innerHTML='<span class="spin"></span> Confirmation…';
         try{ await leadApi({action:'accept', token:c.search.leadToken, offer_id:b.id, bonus, final_amount:c.offer+bonus}); }
-        catch(e){ toast(e.message==='expired'?'Cette offre est expirée.':e.message==='withdrawn'?'Cette offre a été retirée.':'Acceptation impossible pour l\'instant. Réessaie.'); pollLead(c); rerender(); return; } }
+        catch(e){ toast(e.message==='expired'?'Cette offre est expirée.':e.message==='withdrawn'?'Cette offre a été retirée.':'Acceptation impossible pour l\'instant. Réessayez.'); pollLead(c); rerender(); return; } }
       const ready=prepReady(c); c.finalOffer = c.offer + bonus; c.acceptedAt=Date.now();
       if(ready){ if(c.search&&c.search.leadToken) await leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}).catch(()=>{});
-        c.status='planifiee'; await Store.save(c); toast((c.pickup||{}).lieu===PK_DROP?'Offre acceptée et dépôt confirmé. Julia te texte la veille.':'Offre acceptée et rendez-vous confirmé. Julia te texte la veille.'); go('offer'); return; }
+        c.status='planifiee'; await Store.save(c); toast((c.pickup||{}).lieu===PK_DROP?'Offre acceptée et dépôt confirmé. Julia vous texte la veille.':'Offre acceptée et rendez-vous confirmé. Julia vous texte la veille.'); go('offer'); return; }
       c.status='acceptee'; await Store.save(c); go('accept'); }
   else if(a==='open-accept'){ go('accept'); }
   else if(a==='pk'){ const pk=S.current.pickup=S.current.pickup||{}; pk[el.dataset.k]=el.dataset.v; const pf=PROFILE.get();
@@ -1504,12 +1504,12 @@ document.addEventListener('click', async e=>{
   else if(a==='profile-edit'){ openProfile(); }
   else if(a==='profile-save'){ saveProfile(); }
   else if(a==='pk-agent'){ const dr=S.drop; const ag=dr&&dr.agents.find(x=>x.id===el.dataset.v); if(ag){ S.current.pickup=S.current.pickup||{}; S.current.pickup.agent=ag; rerender(); } }
-  else if(a==='drop-postal'){ const v=($('#dropPostal')||{}).value||''; if(!/^[A-Za-z]\d[A-Za-z]/.test(v.trim())){ toast('Entre un code postal valide (ex. H2X 1Y4).'); return; } S.current.pickup=S.current.pickup||{}; S.current.pickup.postal=v.trim().toUpperCase(); S.current.pickup.agent=null; S.drop=null; rerender(); }
+  else if(a==='drop-postal'){ const v=($('#dropPostal')||{}).value||''; if(!/^[A-Za-z]\d[A-Za-z]/.test(v.trim())){ toast('Entrez un code postal valide (ex. H2X 1Y4).'); return; } S.current.pickup=S.current.pickup||{}; S.current.pickup.postal=v.trim().toUpperCase(); S.current.pickup.agent=null; S.drop=null; rerender(); }
   else if(a==='ics'){ downloadIcs(S.current); }
   else if(a==='confirm-pickup'){ const c=S.current; const pk=c.pickup||{};
       if(c.search&&c.search.leadToken){ try{ await leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}); }
-        catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
-      c.status='planifiee'; await Store.save(c); toast(pk.lieu===PK_DROP?'Dépôt confirmé. Julia te texte la veille.':'Cueillette confirmée. Julia te texte la veille.'); go('offer'); }
+        catch(e){ toast('Envoi impossible pour l\'instant. Réessayez.'); return; } }
+      c.status='planifiee'; await Store.save(c); toast(pk.lieu===PK_DROP?'Dépôt confirmé. Julia vous texte la veille.':'Cueillette confirmée. Julia vous texte la veille.'); go('offer'); }
   else if(a==='rdv'){ openRdv(el.dataset.t); }
   else if(a==='rdv-slot'){ RD.slot=el.dataset.v; renderRdv(); }
   else if(a==='rdv-save'){ saveRdv(); }
@@ -1540,7 +1540,7 @@ $('#slotFile').addEventListener('change', async e=>{ const c=S.current; const ke
       if(key==='dmg'){ c.dmg=c.dmg||[]; c.dmg.push(thumb); B.dmg.push(blob); added.push(c.dmg.length-1); }
       else { c.slots=c.slots||{}; c.slots[key]=thumb; B.slots[key]=blob; added.push(key); }
     }catch(err){ bad++; } }
-  if(bad) toast(bad>1?'Certaines photos sont illisibles. Réessaie.':'Photo illisible. Réessaie.');
+  if(bad) toast(bad>1?'Certaines photos sont illisibles. Réessayez.':'Photo illisible. Réessayez.');
   if(!added.length) return;
   syncPhotos(c); await Store.save(c); rerender();
   if(key==='dmg') added.forEach(i=>Cloud.file(c,'dommage','d'+i,B.dmg[i],'image/jpeg','dommage-'+(i+1)+'.jpg'));
@@ -1563,8 +1563,8 @@ $('#scanFile').addEventListener('change', async e=>{ const f=e.target.files[0]; 
   S.busy=false;
   // NIV lu et valide : on décode tout de suite et on passe à l'écran du véhicule (pas besoin de « Continuer »)
   if(vin && vin.length===17 && vinCheck(vin)){ S.draft.vin=vin; rerender(); toast('NIV lu : '+vin); decodeVin(); return; }
-  if(vin && vin.length===17){ S.draft.vin=vin; toast('NIV lu, vérifie-le : '+vin); }
-  else S.error="On n'a pas pu lire le NIV sur la photo. Rapproche-toi de l'étiquette, évite les reflets, ou tape-le.";
+  if(vin && vin.length===17){ S.draft.vin=vin; toast('NIV lu, vérifiez-le : '+vin); }
+  else S.error="Nous n'avons pas pu lire le NIV sur la photo. Rapprochez-vous de l'étiquette, évitez les reflets, ou tapez-le.";
   rerender(); });
 
 /* ============ DÉCODAGE ============ */
@@ -1581,13 +1581,13 @@ Utilise ta connaissance des structures de NIV (WMI, VDS positions 4 à 8, usine)
 Réponds UNIQUEMENT en JSON, en français pour les champs descriptifs :
 {"year":nombre,"make":"","model":"","trim":"version probable ou vide","body":"VUS, berline, camionnette, etc.","engine":"ex. 2.0 L 4 cyl. turbo","drivetrain":"Traction intégrale / Traction avant / Propulsion / 4x4","transmission":"Automatique ou Manuelle","confiance":"haute|moyenne|faible","notes":"une phrase si la version est incertaine, sinon vide"}`, {modelTier:'default'});
     veh=parseJSON(t);
-    if(loc.make && veh.make && veh.make.toLowerCase()!==loc.make.toLowerCase()){ veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Modèle non confirmé : entre le modèle et la version ci-dessous." }; }
+    if(loc.make && veh.make && veh.make.toLowerCase()!==loc.make.toLowerCase()){ veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Modèle non confirmé : entrez le modèle et la version ci-dessous." }; }
     else { veh.confiance='faible'; veh.notes=(veh.notes?veh.notes+' ':'')+"Modèle estimé, à confirmer."; }
   }catch(err){
-    if(!loc.make && !loc.year){ S.busy=false; S.error = err.code==='not_granted' ? "Le décodage AI n'est pas disponible ici. Ouvre l'app dans Claude, ou entre ton véhicule à l'étape suivante." : "Décodage impossible pour l'instant. Réessaie dans un instant."; }
-    veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Décodage partiel : complète le modèle et la version." };
+    if(!loc.make && !loc.year){ S.busy=false; S.error = err.code==='not_granted' ? "Le décodage AI n'est pas disponible ici. Ouvrez l'app dans Claude, ou entrez votre véhicule à l'étape suivante." : "Décodage impossible pour l'instant. Réessayez dans un instant."; }
+    veh={ year:loc.year, make:loc.make, model:'', trim:'', confiance:'faible', notes:"Décodage partiel : complétez le modèle et la version." };
   }
-  if(!cs && veh) veh.notes = (veh.notes?veh.notes+' ':'') + "Le chiffre de contrôle du NIV ne concorde pas : vérifie qu'il n'y a pas d'erreur de frappe.";
+  if(!cs && veh) veh.notes = (veh.notes?veh.notes+' ':'') + "Le chiffre de contrôle du NIV ne concorde pas : vérifiez qu'il n'y a pas d'erreur de frappe.";
   S.busy=false; d.vehicle=veh; go('confirm'); }
 
 /* ============ ÉVALUATION AI ============ */
@@ -1619,7 +1619,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
     val={ base:est.base, ajustements:est.ajustements||[], enough:!!est.enough, drapeaux, internal: est.internal||null };
   }catch(e){ err=e; }
   clearInterval(loadTimer);
-  if(!val||!est||!est.estimate){ go('quiz', {error: err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
+  if(!val||!est||!est.estimate){ go('quiz', {error: err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessayez dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessayez." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
   const offer=est.estimate, fee=(est.internal&&est.internal.fee)||null;
   const t=a.titre||[]; const review = !est.enough || a.roulable==='Non' || t.includes('Reconstruit / VGA') || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
   const now=Date.now();
@@ -1679,12 +1679,12 @@ async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.l
   c.search=Object.assign(c.search||{ status:'idle', demo:false, notify:false, offers:[] }, { leadToken:j.token }); await Store.save(c); return j.token; }
 async function startSearch(c, intent){ if(starting) return;
   starting=true; c.intent = intent || 'meilleur_prix';
-  const btn=document.querySelector(intent==='initial'?'[data-act="prep-send"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de ton dossier à Shopicar…'; }
+  const btn=document.querySelector(intent==='initial'?'[data-act="prep-send"]':'[data-act="best-price"]'); if(btn&&!DEMO_OFFERS){ btn.disabled=true; btn.innerHTML='<span class="spin"></span> Envoi de votre dossier à Shopicar…'; }
   const had = !!(c.search&&c.search.leadToken);
   try{ const tok=await ensureLead(c);
     // Dossier déjà créé (ex. rendez-vous demandé avant) : on avise quand même l'équipe de l'intention du client.
     if(had && tok) await leadApi({action:'callback', token:tok, when: intent==='initial' ? `Le client accepte son offre initiale de ${money(c.estimate)} : à valider` : `Le client veut le meilleur prix${c.wish?' (souhaité : '+money(c.wish)+')':''}`}).catch(()=>{});
-  }catch(e){ starting=false; toast("Impossible d'envoyer ton dossier pour l'instant. Réessaie dans un instant."); rerender(); return; }
+  }catch(e){ starting=false; toast("Impossible d'envoyer votre dossier pour l'instant. Réessayez dans un instant."); rerender(); return; }
   starting=false;
   if(!c.search) c.search={ status:'idle', demo:DEMO_OFFERS, notify:false, offers:[] };
   c.search.intent = c.intent;
@@ -1743,7 +1743,7 @@ function onFeed(c, prev, added, wasStatus){
   if(onIt && S.screen==='search'){ animateRise(c, prev); if(added.length && document.hidden) notifyRise(c); if(c.status==='offre') setTimeout(()=>{ if(S.screen==='search'&&S.current===c) go('offer'); }, 3200); }
   else if(onIt && S.screen==='offer' && c.status!==wasStatus){ go(screenFor(c)); }
   else if(onIt && S.screen==='offer'){ rerender(); }
-  else if(added.length){ if(document.hidden) notifyRise(c); else toast('Bonne nouvelle! Ton prix Shopicar vient d\'augmenter.'); if(S.screen==='garage'||S.screen==='home') rerender(); }
+  else if(added.length){ if(document.hidden) notifyRise(c); else toast('Bonne nouvelle! Votre prix Shopicar vient d\'augmenter.'); if(S.screen==='garage'||S.screen==='home') rerender(); }
 }
 setInterval(()=>{ S.cars.forEach(c=>{ if(c.search&&c.search.leadToken&&['recherche','offre'].includes(c.status)) pollLead(c); }); }, LEAD_POLL_MS);
 
@@ -1754,26 +1754,26 @@ function animateRise(c, prevAmt){ const b=bestOffer(c); if(!b) return; const car
   if(b.amount>prevAmt){
     tween($('#liveAmt'), prevAmt, b.amount, 1300);
     $('#liveLbl').textContent='Meilleure offre validée';
-    $('#liveGain').textContent = b.amount>c.estimate ? `+${money(b.amount-c.estimate)} par rapport à ton offre initiale` : '';
+    $('#liveGain').textContent = b.amount>c.estimate ? `+${money(b.amount-c.estimate)} par rapport à votre offre initiale` : '';
     $('#liveLadder').innerHTML=ladderHTML(c, true);
     card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
     const chip=document.createElement('div'); chip.className='bump num'; chip.textContent='+'+money(b.amount-prevAmt); card.appendChild(chip); setTimeout(()=>chip.remove(),1900);
-    const m=$('#liveMsg'); m.classList.add('good'); $('#liveText').textContent='Bonne nouvelle! Ton prix Shopicar vient d\'augmenter!'; $('#liveSub').textContent='+'+money(b.amount-prevAmt)+' grâce à une nouvelle offre validée.';
-    clearTimeout(msgTimer); msgTimer=setTimeout(()=>{ const m=$('#liveMsg'); if(m){ m.classList.remove('good'); $('#liveText').textContent= c.status==='recherche'?'Julia continue de travailler pour toi':'Recherche terminée'; $('#liveSub').textContent=LIVE_SUBS[0]; } }, 3500);
+    const m=$('#liveMsg'); m.classList.add('good'); $('#liveText').textContent='Bonne nouvelle! Votre prix Shopicar vient d\'augmenter!'; $('#liveSub').textContent='+'+money(b.amount-prevAmt)+' grâce à une nouvelle offre validée.';
+    clearTimeout(msgTimer); msgTimer=setTimeout(()=>{ const m=$('#liveMsg'); if(m){ m.classList.remove('good'); $('#liveText').textContent= c.status==='recherche'?'Julia continue de travailler pour vous':'Recherche terminée'; $('#liveSub').textContent=LIVE_SUBS[0]; } }, 3500);
   } else { $('#liveLadder').innerHTML=ladderHTML(c); }
 }
 function notifyRise(c){ try{ if(c.search.notify && 'Notification' in window && Notification.permission==='granted'){
-  const n=new Notification('Shopicar', { body:'Bonne nouvelle! Ton prix Shopicar vient d\'augmenter. Découvre ta nouvelle offre!', icon:'/favicon.png', tag:'sc-'+c.id });
+  const n=new Notification('Shopicar', { body:'Bonne nouvelle! Votre prix Shopicar vient d\'augmenter. Découvrez votre nouvelle offre!', icon:'/favicon.png', tag:'sc-'+c.id });
   n.onclick=()=>{ window.focus(); S.current=c; go(screenFor(c)); n.close(); }; } }catch(e){} }
-async function askNotify(c){ if(!('Notification' in window)){ toast('Ton navigateur ne permet pas les notifications.'); return; }
+async function askNotify(c){ if(!('Notification' in window)){ toast('Votre navigateur ne permet pas les notifications.'); return; }
   const p = Notification.permission==='granted' ? 'granted' : await Notification.requestPermission();
-  c.search.notify = p==='granted'; await Store.save(c); toast(p==='granted'?'Parfait, on t\'avise dès que ton prix augmente.':'Notifications refusées. Ton dossier reste dans Mon garage.'); rerender(); }
+  c.search.notify = p==='granted'; await Store.save(c); toast(p==='granted'?'Parfait, nous vous avisons dès que votre prix augmente.':'Notifications refusées. Votre dossier reste dans Mon garage.'); rerender(); }
 setInterval(()=>{ S.cars.forEach(c=>{ if(!c.search || !c.search.demo || c.status!=='recherche') return;
   const onIt = S.screen==='search' && S.current && S.current.id===c.id; if(onIt) S.current=c;
   const prev=(bestOffer(c)||{amount:c.estimate}).amount; const r=feedPoll(c); if(!r.changed) return;
   Store.save(c);
   if(onIt){ animateRise(c, prev); if(r.added.length && document.hidden) notifyRise(c); if(c.status==='offre') setTimeout(()=>{ if(S.screen==='search'&&S.current===c) go('offer'); }, 3200); }
-  else if(r.added.length){ if(document.hidden) notifyRise(c); else toast('Bonne nouvelle! Ton prix Shopicar vient d\'augmenter.'); if(S.screen==='garage'||S.screen==='home') rerender(); }
+  else if(r.added.length){ if(document.hidden) notifyRise(c); else toast('Bonne nouvelle! Votre prix Shopicar vient d\'augmenter.'); if(S.screen==='garage'||S.screen==='home') rerender(); }
 }); }, 1000);
 
 /* ============ RENDEZ-VOUS / APPEL ============ */
@@ -1781,7 +1781,7 @@ const RD={type:'',date:'',slot:''};
 function openRdv(t){ RD.type=t; RD.date=''; RD.slot=''; renderRdv(); }
 function renderRdv(){ const tmr=new Date(Date.now()+86400000).toISOString().slice(0,10); const slots=RD.type==='appel'?['9 h','11 h','13 h','15 h','17 h','19 h']:['9 h 30','11 h','13 h 30','15 h','16 h 30','18 h'];
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>${RD.type==='appel'?(S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'):'Prendre un rendez-vous'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
-  <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?(S.current&&S.current.estimate?`Choisis le moment qui te convient : un conseiller Shopicar te rappelle${S.current.answers.cell?' au '+esc(S.current.answers.cell):''} pour répondre à tes questions.`:'Un acheteur Shopicar te rappelle pour répondre à tes questions sur l\'offre.'):'Viens montrer ton auto à notre centre ou à un garage partenaire. L\'inspection prend 10 minutes.'}</p>
+  <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?(S.current&&S.current.estimate?`Choisissez le moment qui vous convient : un conseiller Shopicar vous rappelle${S.current.answers.cell?' au '+esc(S.current.answers.cell):''} pour répondre à vos questions.`:'Un acheteur Shopicar vous rappelle pour répondre à vos questions sur l\'offre.'):'Venez montrer votre auto à notre centre ou à un garage partenaire. L\'inspection prend 10 minutes.'}</p>
   <div class="field"><label for="rdd">Date</label><input id="rdd" type="date" class="inp" min="${tmr}" value="${RD.date}"></div>
   <div class="q"><span class="ql">Heure</span><div class="chips">${slots.map(s=>`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}">${s}</button>`).join('')}</div></div>
   <button class="btn pri" data-act="rdv-save" ${RD.date&&RD.slot?'':'disabled'}>Confirmer</button></div></div></div>`;
@@ -1789,20 +1789,20 @@ function renderRdv(){ const tmr=new Date(Date.now()+86400000).toISOString().slic
 async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); const label=dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot;
   if(c.estimate && !DEMO_OFFERS){ const b=$('[data-act="rdv-save"]'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span> Envoi…'; }
     try{ const tok=await ensureLead(c); await leadApi({action:RD.type==='appel'?'callback':'rdv', token:tok, when:label}); }
-    catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); renderRdv(); return; } }
-  else if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessaie.'); return; } }
+    catch(e){ toast('Envoi impossible pour l\'instant. Réessayez.'); renderRdv(); return; } }
+  else if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessayez.'); return; } }
   c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label};
-  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller te rappelle à l\'heure choisie.':(c.estimate?'Demande de rendez-vous envoyée. Un conseiller te confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
+  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller vous rappelle à l\'heure choisie.':(c.estimate?'Demande de rendez-vous envoyée. Un conseiller vous confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
 
 /* « Je veux plus » : avertissement avant de quitter l'offre initiale */
 function openMoreModal(){ const c=S.current;
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Avant de continuer</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
   <div class="bd">
-    <div class="jrow"><div class="julia-av">J</div><div class="bubble">Je vais essayer d'obtenir le meilleur prix possible, le plus proche de ce que tu veux.</div></div>
+    <div class="jrow"><div class="julia-av">J</div><div class="bubble">Je vais essayer d'obtenir le meilleur prix possible, le plus proche de ce que vous voulez.</div></div>
     <ul class="clean warnl">
-      <li><span>Les offres reçues peuvent être <b>plus hautes ou plus basses</b> que ton offre initiale.</span></li>
-      <li><span>Ton offre initiale de <b class="num">${money(c.estimate)}</b> <b>ne sera plus garantie</b>.</span></li>
-      <li><span>Tu devras ajouter 6 photos et tes dommages pour que Julia travaille pour toi.</span></li>
+      <li><span>Les offres reçues peuvent être <b>plus hautes ou plus basses</b> que votre offre initiale.</span></li>
+      <li><span>Votre offre initiale de <b class="num">${money(c.estimate)}</b> <b>ne sera plus garantie</b>.</span></li>
+      <li><span>Vous devrez ajouter 6 photos et vos dommages pour que Julia travaille pour vous.</span></li>
     </ul>
     <button class="btn pri big" data-act="more-keep">Ok, je garde mon offre initiale de ${money(c.estimate)}</button>
     <button class="btn sec" data-act="more-go">Je veux quand même que Julia cherche un meilleur prix</button>
@@ -1815,22 +1815,22 @@ function juliaContext0(c){
     return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}, ${(c.photos||[]).length} photo(s). Offre initiale Shopicar : ${money(c.estimate)} (offre initiale conditionnelle suite à la réception des photos et dommages; pas une offre garantie, le prix final peut être plus haut ou plus bas). ${c.status==='recherche'?(b?`Shopicar cherche le meilleur prix; meilleure offre validée jusqu'ici : ${money(b.amount)}.`:'Shopicar cherche le meilleur prix; aucune offre validée pour l\'instant.'):'Le client n\'a pas encore lancé la recherche du meilleur prix (bouton « Obtenir mon meilleur prix Shopicar »). Encourage-le à ajouter des photos (avant, arrière, côtés, tableau de bord, dommages) s\'il n\'en a pas.'} Ne donne jamais d'autre montant que ceux-ci.`; }
   if(c.estimate) return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}. Offre initiale : ${money(c.estimate)}. Meilleure offre Shopicar (offre ferme) : ${money(c.finalOffer||c.offer)} (statut : ${statusInfo(c).txt}), valide jusqu'au ${new Date(c.expiresAt).toLocaleString('fr-CA')}.${bonusLive(c)?` Bonus de ${money(BONUS_24H)} si le client accepte avant le ${new Date(bonusEnd(c)).toLocaleString('fr-CA')} (24 h après l'offre officielle).`:''} Pour accepter : bouton « Accepter mon offre et prendre rendez-vous »; pour un humain : « Parler à un conseiller Shopicar ».`;
   return `Dossier du client : ${vTitle(c.vehicle)} ${c.vehicle.trim||''}, ${c.answers.km} km, NIV ${c.vin}. Offre Shopicar : ${money(c.finalOffer||c.offer)} (statut : ${statusInfo(c).txt}), valide jusqu'au ${new Date(c.expiresAt).toLocaleString('fr-CA')}. Calcul : wholesale ${money(c.valuation.wholesale_final)} moins frais Shopicar ${money(c.fee||FEE)}. Bonus de ${money(BONUS_24H)} si acceptée dans les 24 h suivant l'offre.`; }
-function openJulia(prefill){ if(!S.chat.length) S.chat.push({role:'assistant',content:`Salut${S.current&&S.current.answers.prenom?' '+S.current.answers.prenom:''} ! Moi c'est Julia de Shopicar. Je peux t'aider avec ton offre, tes documents ou ta cueillette. Qu'est-ce que je peux faire pour toi ?`});
+function openJulia(prefill){ if(!S.chat.length) S.chat.push({role:'assistant',content:`Bonjour${S.current&&S.current.answers.prenom?' '+S.current.answers.prenom:''} ! Moi c'est Julia de Shopicar. Je peux vous aider avec votre offre, vos documents ou votre cueillette. Qu'est-ce que je peux faire pour vous ?`});
   renderJulia(); if(prefill){ $('#jin').value=prefill; sendJulia(); } }
 function renderJulia(typing){ $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet" style="height:86%">
   <div class="hd"><div style="display:flex;gap:10px;align-items:center"><div class="julia-av">J</div><div><b>Julia</b><div class="muted small">Shopicar · répond par texto</div></div></div><button class="x" data-act="close" aria-label="Fermer">×</button></div>
   <div class="bd" id="jbd"><div class="chat">${S.chat.map(m=>`<div class="msg ${m.role==='user'?'u':'j'}">${esc(m.content)}</div>`).join('')}${typing?'<div class="msg j"><span class="spin" style="display:inline-block;width:16px;height:16px;border-width:2px"></span></div>':''}</div></div>
-  <div class="chatbar"><input id="jin" class="inp" placeholder="Écris à Julia…" autocomplete="off"><button class="btn pri" data-act="julia-send">Envoyer</button></div></div></div>`;
+  <div class="chatbar"><input id="jin" class="inp" placeholder="Écrivez à Julia…" autocomplete="off"><button class="btn pri" data-act="julia-send">Envoyer</button></div></div></div>`;
   const b=$('#jbd'); b.scrollTop=b.scrollHeight; }
 let jBusy=false;
 async function sendJulia(){ const inp=$('#jin'); const t=(inp&&inp.value||'').trim(); if(!t||jBusy) return; S.chat.push({role:'user',content:t}); jBusy=true; renderJulia(true);
-  const sys=`Tu es Julia, conseillère de Shopicar, entreprise québécoise qui achète les véhicules des particuliers. Tu écris comme par texto : 1 à 3 phrases, chaleureuse, français québécois neutre, tutoiement, pas d'emoji en excès.
+  const sys=`Tu es Julia, conseillère de Shopicar, entreprise québécoise qui achète les véhicules des particuliers. Tu écris comme par texto : 1 à 3 phrases, chaleureuse, français québécois neutre, vouvoiement (toujours « vous », jamais « tu »), pas d'emoji en excès.
 Règles : ${!(S.current&&!S.current.estimate)?'l\'offre est basée sur les données du marché (véhicules semblables à vendre au Québec) et les caractéristiques du véhicule; ne parle jamais de marge, de valeur wholesale, de frais internes ni du modèle d\'affaires de Shopicar; ensuite Shopicar cherche le meilleur prix et seules les offres validées par Shopicar comptent. Ce n\'est pas une enchère et tu ne nommes jamais d\'acheteur ou de concessionnaire;':'l\'offre est ferme et sans négociation, basée sur la valeur wholesale moins le frais Shopicar ('+money(FEE_MIN)+' à '+money(FEE_MAX)+' selon la valeur, montant exact dans le dossier);'} ne change jamais un montant et ne promets rien hors des conditions (Carfax conforme, état confirmé par inspection de 10 min, aucune dette non déclarée au RDPRM). Si le client veut discuter du prix ou parler à quelqu'un, propose un conseiller (bouton « ${S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'} »). Sans NIV : il est au bas du pare-brise côté conducteur, sur le montant de la porte conducteur, sur le certificat d'immatriculation SAAQ ou la carte d'assurance; on peut aussi prendre une photo dans l'app. Paiement par virement le jour de la cueillette; on rembourse le prêteur directement.
 ${juliaContext()}`;
   const msgs=S.chat.slice(-12).map(m=>({role:m.role,content:m.content})); while(msgs.length&&msgs[0].role!=='user') msgs.shift();
   if(msgs.length) msgs[0]={role:'user',content:`[Contexte pour Julia, ne pas citer]\n${sys}\n\n[Message du client]\n${msgs[0].content}`};
   try{ const r=await ask(msgs,{modelTier:'quick', cache:false}); S.chat.push({role:'assistant',content:r.trim()}); }
-  catch(e){ S.chat.push({role:'assistant',content: e.code==='not_granted'?"Je ne suis pas disponible dans cette vue. Ouvre l'app dans Claude pour me parler.":"Petit pépin de mon côté, réessaie dans un instant."}); }
+  catch(e){ S.chat.push({role:'assistant',content: e.code==='not_granted'?"Je ne suis pas disponible dans cette vue. Ouvrez l'app dans Claude pour me parler.":"Petit pépin de mon côté, réessayez dans un instant."}); }
   jBusy=false; renderJulia(); }
 
 /* ============ GARAGE ============ */

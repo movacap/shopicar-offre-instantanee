@@ -95,7 +95,7 @@ export default async function handler(req, res) {
     if (/tesla/i.test(make) && !vehicle.trim) { const t = teslaVersion(vin, model); if (t) { vehicle.trim = t.trim; vehicle.drivetrain = t.drivetrain; vehicle.confiance = 'haute'; vehicle.notes = ''; } }
     // Édition spéciale confirmée par une source : elle remplace la version NHTSA (le client peut encore corriger)
     const ref = await refineVersion(vin, vehicle);
-    if (ref && ref.version && ref.special) { ref.version = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec ton NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
+    if (ref && ref.version && ref.special) { ref.version = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.trim = ref.version; vehicle.confiance = 'haute'; vehicle.notes = `Édition spéciale identifiée avec votre NIV : ${ref.version}.`; vehicle.edition_speciale = true; }
     // Version courante confirmée par une source : seulement si la NHTSA n'en donne aucune
     else if (ref && ref.version && !vehicle.trim) { vehicle.trim = ref.version.replace(/\s*\(.*\)\s*$/, '').trim(); vehicle.confiance = 'haute'; vehicle.notes = ''; }
     // Versions canadiennes : liste à choisir. Si la version NHTSA (souvent un nom américain) n'y figure pas, le client doit choisir.
@@ -103,7 +103,7 @@ export default async function handler(req, res) {
       vehicle.trims = ref.trims;
       if (vehicle.trim && !ref.trims.some((t) => t.toLowerCase() === vehicle.trim.toLowerCase())) vehicle.trim = '';
     }
-    if (vehicle.trims && vehicle.trims.length && !vehicle.trim) { vehicle.trim_a_choisir = true; vehicle.confiance = 'moyenne'; vehicle.notes = 'Ton NIV ne précise pas la version exacte : choisis la tienne ci-dessous.'; }
+    if (vehicle.trims && vehicle.trims.length && !vehicle.trim) { vehicle.trim_a_choisir = true; vehicle.confiance = 'moyenne'; vehicle.notes = 'Votre NIV ne précise pas la version exacte : choisissez la vôtre ci-dessous.'; }
     console.log('[vin] ok', { vin, v: `${year} ${vehicle.make} ${model} ${vehicle.trim}`, ref });
     return res.status(200).json({ found: true, vehicle });
   } catch (e) {
