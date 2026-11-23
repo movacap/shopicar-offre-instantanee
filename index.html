@@ -865,11 +865,11 @@ function vLoading(){ return `${topbar('Votre offre initiale')}
 const GROUPS=[['encours','En cours'],['expire','Expiré'],['refuse','Refusé'],['vendu','Vendu']];
 function carGroup(c){ if(['payee','inspectee','vendue'].includes(c.status)) return 'vendu';
   if(['refusee','refused'].includes(c.status)||c.refused) return 'refuse';
-  if((['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt) return 'expire';
+  if((['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && !c.initialAcceptedAt && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt) return 'expire';
   return 'encours'; }
-function statusInfo(c){ const exp = (['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt;
+function statusInfo(c){ const exp = (['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && !c.initialAcceptedAt && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
-  return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour vous'},
+  return ({estimation:(c.prep||c.initialAcceptedAt)&&!c.wantMore?{cls:'warn',txt:c.initialAcceptedAt?'Offre acceptée · dossier à compléter':'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour vous'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, refusee:{cls:'bad',txt:'Offre refusée'}, inspectee:{cls:'ok',txt:'Vendue'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Vendue'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
@@ -1025,7 +1025,7 @@ function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_2
     <button class="btn refuse" data-act="refuse-ask">Je refuse ${nbsp(money(tot))}${bl?` et le boni de ${nbsp(money(BONUS_24H))}`:''}</button>
     <div class="small note-c">*Offre conditionnelle à la vérification des informations, photos et de l’état du véhicule.</div>`}
   </div>`; }
-function vEstimate(){ const c=S.current; if(!c) return vGarage();
+function vEstimate(){ const c=S.current; if(!c) return vGarage(); if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ c.prep=true; S.screen='prep'; return vPrep(); }
   const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||more;
   return `${topbar(fast&&!more?'Votre offre':'Votre offre initiale','tab-garage')}
   <div class="wrap">
@@ -1689,7 +1689,8 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
    Règles : on n'affiche que des offres validées; la meilleure offre encore valide ne baisse jamais à cause d'une offre plus basse;
    une offre expirée ou retirée ne compte plus; l'estimation reste à part (c.estimate). */
-function screenFor(c){ return c.status==='refusee'&&c.estimate?'estimate':c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
+function screenFor(c){ if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ c.prep=true; return 'prep'; } // offre acceptée : on revient toujours au dossier
+  return c.status==='refusee'&&c.estimate?'estimate':c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
 const validOffers = c => ((c.search&&c.search.offers)||[]).filter(o=>o.status==='valid' && Date.now()<o.expiresAt);
 function bestOffer(c){ return validOffers(c).reduce((m,o)=>!m||o.amount>m.amount?o:m, null); }
 function bestSteps(c){ let m=-Infinity; return validOffers(c).slice().sort((a,b)=>a.at-b.at).filter(o=>o.amount>m && (m=o.amount, true)); } // chaque nouvelle meilleure offre
