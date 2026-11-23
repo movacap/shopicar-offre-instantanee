@@ -1453,7 +1453,9 @@ document.addEventListener('click', async e=>{
         <button class="btn big" style="background:#e5484d;color:#fff" data-act="archive" data-id="${c.id}">Archiver</button>
         <button class="btn sec" data-act="close">Annuler</button></div></div></div>`; }
   else if(a==='open' && SW.open){ swClose(); return; }
-  else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); S.liveShown=null; go(screenFor(S.current)); }
+  else if(a==='open'){ S.current=S.cars.find(c=>c.id===el.dataset.id); S.liveShown=null;
+      const c=S.current; if(c&&c.refused&&c.status==='refusee'){ c.refused=false; c.status='estimation'; c.wantMore=true; c.initialRefusedAt=c.refusedAt||Date.now(); c.initialRefusedAmount=c.estimate; Store.save(c); } // anciens refus → parcours Julia
+      go(screenFor(S.current)); }
   else if(a==='open-offer'){ go('offer'); }
   else if(a==='dmg-none'){ openNoDmgCheck(); }
   else if(a==='dmg-add-from-check'){ $('#modal').innerHTML=''; S.slotTarget='dmg'; const fi=$('#slotFile'); fi.multiple=true; fi.click(); }
@@ -1467,7 +1469,9 @@ document.addEventListener('click', async e=>{
       <div class="bd"><p style="margin:0">${bl?`Vous refusez l'offre de <b class="num">${money(tot)}</b> (boni de ${money(BONUS_24H)} inclus) pour votre ${esc(vTitle(c.vehicle))}. Le boni de ${money(BONUS_24H)} sera perdu.`:`Vous refusez l'offre de <b class="num">${money(tot)}</b> pour votre ${esc(vTitle(c.vehicle))}.`}</p>
       <p class="muted small" style="margin:0">Vous pouvez parler à un conseiller ou discuter avec Julia, notre conseillère IA.</p>
       <button class="btn pri" data-act="close">Non, je garde mon offre</button><button class="btn sec" data-act="refuse">Oui, je refuse cette offre</button></div></div></div>`; }
-  else if(a==='refuse'){ $('#modal').innerHTML=''; const c=S.current; c.refused=true; c.refusedAt=Date.now(); c.status='refusee'; await Store.save(c); toast('Offre refusée.'); rerender(); }
+  else if(a==='refuse'){ // Refus de l'offre : même parcours que « Je veux plus » (prix souhaité, pourquoi, photos, puis Julia en direct)
+      $('#modal').innerHTML=''; const c=S.current; c.initialRefusedAt=Date.now(); c.initialRefusedAmount=c.estimate+(fastBonusLive(c)?BONUS_24H:0); c.wantMore=true; delete c.initialBonus; await Store.save(c); rerender();
+      setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
   else if(a==='refuse-undo'){ const c=S.current; c.refused=false; delete c.refusedAt; c.status='estimation'; await Store.save(c); rerender(); }
   else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
   else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complétez les 3 étapes avant d\'envoyer votre dossier.'); return; } startSearch(c, 'initial'); }
@@ -1663,7 +1667,7 @@ async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.l
   const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
   for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
-  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(accidentNote(c.answers)) notes.unshift(accidentNote(c.answers)); if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
+  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(c.initialRefusedAt) notes.unshift(`Le client a REFUSÉ l'offre de ${money(c.initialRefusedAmount||c.estimate)}${c.wish?` : il souhaite ${money(c.wish)}`:''}.`); if(accidentNote(c.answers)) notes.unshift(accidentNote(c.answers)); if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
   const D=B.docs||{}; const documents=[]; for(const [k,label] of docsNeed(c)){ const d=D[k]; if(d&&d.blob) documents.push({ type:k, label, name:d.name, mime:d.mime, data:await blobToB64(d.blob) }); }
   if(c.intent==='initial'){
     if(pickupOk(c)) notes.unshift(`Rendez-vous choisi par le client : ${pickupLabel(c)} (confirmé à l'acceptation de l'offre ferme).`);
