@@ -1055,7 +1055,7 @@ const DMG_NONE = a => !(a.ext||[]).filter(x=>x!==NONE_EXT).length && !(a.int||[]
 /* Parcours rapide (véhicules courants, api/_lib/eligibility.js) : « Cette offre me convient » → validation par un conseiller.
    Sinon (camionnettes, luxe, exceptions, état à confirmer) : photos + dommages obligatoires, puis Julia en direct. */
 const isFast = c => !!(c.fastTrack && c.fastTrack.ok);
-const GUARD_TXT = { categorie:'Votre véhicule est dans une catégorie plus difficile à évaluer en raison des différentes options possibles. Nous avons besoin de plus d\'information pour vous faire une offre ferme.',
+const GUARD_TXT = { categorie:'Votre véhicule nécessite une évaluation plus approfondie en raison de ses caractéristiques et des différentes options possibles.',
   etat:'Selon ce que vous avez déclaré, nous avons besoin de voir votre auto pour vous faire une offre ferme.',
   donnees:'Il y a peu de véhicules comparables au vôtre sur le marché. Nous avons besoin de plus d\'information pour vous faire une offre ferme.' };
 function initialDisclosuresHTML(c){ return `<ul class="clean warnl small" style="margin:0">
@@ -1102,7 +1102,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage(); if(c.status===
       <ul class="clean checks"><li><span>Estimation personnalisée par notre agent AI Julia</span></li><li><span>Aucun engagement</span></li><li><span>Estimation initiale : le prix peut évoluer selon les offres que Shopicar recevra par son réseau de concessionnaires</span></li></ul>
     </div>`}
         ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
-      <p class="muted small" style="margin:0">Ajoutez 6 photos et vos dommages : Julia cherche ensuite le meilleur prix pour vous. Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale.</p></div>`:''}
+      <p class="muted small" style="margin:0">Ajoutez simplement 6 photos et indiquez les dommages éventuels. Julia consultera ensuite les centaines d'acheteurs de notre réseau pour vous obtenir la meilleure offre possible.</p></div>`:''}
     ${showPhotos?`<div class="best${fast&&more?' ok':''}" id="bestBox">
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
       ${fast&&more?`<h2>Julia va travailler pour obtenir le prix que vous espérez</h2>
