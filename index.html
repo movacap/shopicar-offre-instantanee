@@ -309,6 +309,9 @@ details.details:not([open]){gap:0}
 #app:has(.sticky-cta){padding-bottom:180px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#000;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%}
 
+.g-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
+.g-head h2{font-size:20px}.g-head .muted{font-size:inherit;font-weight:500}
+.g-head .g-add{width:auto;padding:10px 16px;font-size:14.5px;border-radius:99px;flex:0 0 auto}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -331,6 +334,7 @@ details.details:not([open]){gap:0}
   .wrap.garage .gcar .bot{flex-direction:column-reverse;align-items:flex-start;gap:10px;margin-top:auto}
   .wrap.garage>*:not(.swipe){grid-column:1/-1}
   .wrap.garage>.btn{width:auto;justify-self:start;min-width:280px}
+  .g-head h2{font-size:24px}.g-head .g-add{padding:12px 22px;font-size:15.5px}
   .slots{grid-template-columns:repeat(4,1fr)}
   .tabs .in,.sticky-cta .in{max-width:760px}
   .tab{font-size:12px}
@@ -1236,6 +1240,7 @@ function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt
     ${pv&&pv.token?'':`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
     ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
+    ${cars.length?`<div class="g-head"><h2>Mes autos <span class="muted num">· ${cars.length}</span></h2><button class="btn pri g-add" data-act="start">+ Vendre une auto</button></div>`:''}
     ${cars.map(garageCard).join('')}
     ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
