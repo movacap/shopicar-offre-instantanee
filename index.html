@@ -654,10 +654,13 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
       if(!local){ const car=Object.assign({}, r.state, { id:r.id, archived:!!r.archived, slots:imgs.slots, dmg:imgs.dmg, photos, docs:Object.assign({}, r.state.docs||{}, r.docs||{}), dbSaved:true, fromAccount:true });
         S.cars.push(car); await Store.save(car, true); added++; if(car.search&&car.search.leadToken&&['recherche','offre'].includes(car.status)) pollLead(car); }
       else if((r.state.localAt ? r.state.localAt > (local.localAt||0) : (Date.parse(r.updated_at)||0) > (local.localAt||0) + 5000) && !Cloud.t[local.id] && !Cloud.busy[local.id] && !(S.current===local && ['prep','accept','estimate','offer'].includes(S.screen))){ // modifié sur un autre appareil (archivage, statut, offre…) : on prend la version du compte
-        const keep={ id:local.id, dbKey:local.dbKey, dbSaved:true };
+        const keep={ id:local.id, dbKey:local.dbKey, dbSaved:true }; const la=local.archivedAt||0, lArch=!!local.archived;
         for(const k of Object.keys(local)) if(!['slots','dmg','photos','photoBlobs'].includes(k)) delete local[k];
         Object.assign(local, r.state, keep, { archived:!!r.archived, localAt:Date.parse(r.updated_at), slots:Object.assign({}, local.slots, imgs.slots), dmg:imgs.dmg.length?imgs.dmg:(local.dmg||[]), docs:Object.assign({}, r.state.docs||{}, r.docs||{}) });
+        if(la>(r.state.archivedAt||0)){ local.archived=lArch; local.archivedAt=la; Cloud.save(local); } // archivé ici plus récemment
         syncPhotos(local); await Store.save(local, true); }
+      else if((r.state.archivedAt||0) > (local.archivedAt||0)){ local.archived=!!r.archived; local.archivedAt=r.state.archivedAt; await Store.save(local, true); }
+      else if((local.archivedAt||0) > (r.state.archivedAt||0) && !!local.archived !== !!r.archived && !Cloud.t[local.id]) Cloud.save(local); // un autre appareil a renvoyé l'ancien état : on corrige
       else if(local.fromAccount || !Object.keys(local.slots||{}).length){ // liens des photos rafraîchis
         local.slots=Object.assign({}, local.slots, imgs.slots); if(imgs.dmg.length) local.dmg=imgs.dmg; syncPhotos(local); await Store.save(local, true); } }
     if(show && added) toast(`${added} auto${added>1?'s':''} ajoutée${added>1?'s':''} à votre garage.`);
@@ -803,7 +806,7 @@ const PROFILE_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none
 const profileBtn = () => { const pv=PV.get(); const on=!!(pv&&pv.token); return `<button class="pf-btn${on?' on':''}" data-act="profile-open" aria-label="Mon profil">${PROFILE_ICON}</button>`; };
 
 function vHome(){
-  const active=S.cars.filter(c=>!c.archived&&['estimation','recherche','offre','a_valider','acceptee','planifiee'].includes(c.status)).length;
+  const active=S.cars.filter(c=>!c.archived).length; // même compte que « Mes autos » dans Mon garage
   return `${topbar()}
   <div class="hero">
     <h1>Vendez votre auto.<br>Simplement.</h1>
@@ -1560,7 +1563,7 @@ document.addEventListener('click', async e=>{
   else if(a==='login-send'){ const v=($('#loginCell')||{}).value||''; OTP.cellDraft=v; const p=phoneE164(v); if(!p){ OTP.err='Entrez un numéro de cellulaire à 10 chiffres.'; renderOtp(); return; } OTP.phone=p; OTP.err=''; otpSend(false); }
   else if(a==='logout'){ logout(); }
   else if(a==='profile-open'){ go('profile'); }
-  else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans votre garage.'); rerender(); } }
+  else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; c.archivedAt=Date.now(); await Store.save(c); Cloud.flush(c); toast(c.archived?'Auto archivée.':'Auto remise dans votre garage.'); rerender(); } }
   else if(a==='gf'){ S.gf=el.dataset.v; rerender(); }
   else if(a==='show-arch'){ S.showArch=!S.showArch; rerender(); }
   else if(a==='otp-resend'){ otpSend(true); }
