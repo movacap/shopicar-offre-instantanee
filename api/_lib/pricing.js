@@ -105,7 +105,8 @@ export function conditionAdjustments(a, wholesale) {
   if ((a.accidents === 'Oui' || a.accidents === '1') && dmg > 0) add(`Dommages au Carfax (25 % de ${dmg.toLocaleString('fr-CA')} $)`, -r(0.25 * dmg, 50));
   else if (a.accidents === 'Oui' || a.accidents === '1') add('Accident ou réclamation déclaré', pctOf(4, 500));
   if (a.accidents === '2 ou plus') add('2 accidents ou plus', pctOf(8, 1000));
-  if (has('titre', 'Reconstruit / VGR')) add('Titre reconstruit (VGR)', pctOf(30, 2000));
+  // VGA (véhicule gravement accidenté) : −35 % de la valeur évaluée (nov. 2026). « VGR » = ancienne étiquette, dossiers existants
+  if (has('titre', 'Reconstruit / VGA') || has('titre', 'Reconstruit / VGR')) add('Titre reconstruit (VGA) : −35 %', pctOf(35, 0));
   if (has('titre', 'Inondation ou feu')) add('Inondation ou feu', pctOf(50, 3000));
   if (has('titre', 'Déjà volé')) add('Déjà volé', pctOf(5, 500));
   if (has('titre', 'Ancien taxi, location ou police')) add('Ancien taxi, location ou police', pctOf(10, 1000));

@@ -663,7 +663,7 @@ const STEPS=[
   {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
   {id:'accidents', label:'Accidents ou réclamations d\'assurance', type:'single', req:true, opts:['Aucun','Oui','Je ne sais pas'], hint:'On le valide avec le rapport Carfax.'},
   {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laisse vide si tu ne le sais pas : on le validera avec le rapport.'},
-  {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGR','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
+  {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGA','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
   {id:'cles', label:'Nombre de clés', type:'single', req:true, opts:['1','2 ou plus']},
   {id:'pneus', label:'Pneus inclus', type:'single', req:true, opts:['1 ensemble','2 ensembles (été + hiver)']},
   {id:'pneusAge', label:'Pneus actuellement installés achetés il y a', type:'single', req:true, opts:['Moins de 12 mois','1 à 3 ans','Plus de 3 ans']},
@@ -1551,7 +1551,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
   clearInterval(loadTimer);
   if(!val||!est||!est.estimate){ go('quiz', {error: err && err.code==='rate_limited' ? "Beaucoup de demandes en ce moment. Réessaie dans une minute." : err && err.code==='no_key' ? "Le serveur n'est pas configuré : la clé ANTHROPIC_API_KEY manque dans Vercel." : "Le calcul n'a pas abouti. Réessaie." + (err&&err.message?" (détail : "+err.message+")":"")}); return; }
   const offer=est.estimate, fee=(est.internal&&est.internal.fee)||null;
-  const t=a.titre||[]; const review = !est.enough || a.roulable==='Non' || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
+  const t=a.titre||[]; const review = !est.enough || a.roulable==='Non' || t.includes('Reconstruit / VGA') || t.includes('Reconstruit / VGR') || t.includes('Inondation ou feu') || (val.drapeaux||[]).length>2 || offer<1000;
   const now=Date.now();
   // L'offre calculée devient la première estimation (non garantie). Les règles de calcul ne changent pas.
   const ft = est.fastTrack||{}; const fastTrack = ft.ok && !review ? {ok:true} : {ok:false, raison: ft.raison || (review?'etat':'categorie')};
