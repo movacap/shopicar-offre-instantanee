@@ -1091,15 +1091,15 @@ function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_2
   </div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage(); if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ c.prep=true; S.screen='prep'; return vPrep(); }
   const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||more;
-  return `${topbar(fast&&!more?'Votre offre':'Votre offre initiale','tab-garage')}
+  return `${topbar(fast&&!more?'Votre offre':'Votre estimation','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    ${fast&&!more?'':'<h2 style="font-size:24px">Votre offre est prête!</h2>'}
+    ${fast&&!more?'':'<h2 style="font-size:24px">Votre estimation est prête!</h2>'}
     ${fast&&!more?fastOfferHTML(c)+fastStickyHTML(c):`<div class="offer light">
-      <span class="lbl">Votre offre initiale</span>
+      <span class="lbl">Votre estimation</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
-      <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de votre véhicule.</div>
-      <ul class="clean checks"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
+      <div class="small">Cette estimation est basée sur les données du marché et les caractéristiques de votre véhicule.</div>
+      <ul class="clean checks"><li><span>Estimation personnalisée par notre agent AI Julia</span></li><li><span>Aucun engagement</span></li><li><span>Estimation initiale : le prix peut évoluer selon les offres que Shopicar recevra par son réseau de concessionnaires</span></li></ul>
     </div>`}
         ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoutez 6 photos et vos dommages : Julia cherche ensuite le meilleur prix pour vous. Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale.</p></div>`:''}
