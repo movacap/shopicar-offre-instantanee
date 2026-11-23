@@ -335,6 +335,18 @@ details.details:not([open]){gap:0}
 .best.fastbox .bonus b{white-space:nowrap}
 @media (min-width:768px){ .sticky-cta.mob-only{display:none} #app:has(.sticky-cta.mob-only){padding-bottom:120px} }
 @media (max-width:767px){ .best.fastbox{padding:22px 18px}.best.fastbox .amt{font-size:64px}.best.fastbox .btn.refuse{font-size:14px;padding:13px 10px}.best.fastbox .btn.pri{font-size:16px} }
+.congrats{position:relative;overflow:hidden;display:flex;gap:14px;align-items:center;background:var(--acc-soft);border:1px solid #cfe3fb;border-radius:16px;padding:16px;animation:cgIn .5s cubic-bezier(.2,.8,.2,1) both}
+.congrats b{display:block;font-size:16.5px;line-height:1.3}.congrats span{display:block;font-size:13.5px;color:#525252;margin-top:2px}
+.congrats .ck{flex:0 0 46px;height:46px}.congrats .ck svg{width:46px;height:46px}
+.congrats .ck circle{fill:var(--acc);transform-origin:center;animation:cgPop .45s .1s cubic-bezier(.2,1.4,.4,1) both}
+.congrats .ck path{fill:none;stroke:#fff;stroke-width:4.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:cgDraw .4s .45s ease-out forwards}
+.congrats .cf{position:absolute;inset:0;pointer-events:none}
+.congrats .cf i{position:absolute;top:-10px;left:var(--x);width:7px;height:11px;border-radius:2px;background:var(--c);opacity:0;animation:cgFall 1.6s var(--d) ease-in forwards}
+@keyframes cgIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+@keyframes cgPop{from{transform:scale(0)}to{transform:scale(1)}}
+@keyframes cgDraw{to{stroke-dashoffset:0}}
+@keyframes cgFall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(110px) rotate(260deg)}}
+@media (prefers-reduced-motion:reduce){.congrats,.congrats .ck circle,.congrats .cf i{animation:none}.congrats .ck path{animation:none;stroke-dashoffset:0}.congrats .cf{display:none}}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -1203,9 +1215,12 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
   return `${topbar('Prochaines étapes',locked?'tab-garage':'prep-back')}
   <div class="wrap">
     ${vehHead(c)}
+    ${S.celebrate===c.id?`<div class="congrats" role="status"><div class="cf" aria-hidden="true">${Array.from({length:14},(_,i)=>`<i style="--x:${(i*37)%100}%;--d:${(i%5)*0.12}s;--c:${['#006feb','#ffc53d','#0a0a0a','#66a9f3'][i%4]}"></i>`).join('')}</div>
+      <div class="ck"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
+      <div><b>Félicitations! Vous avez accepté l'offre${(c.initialBonus||0)?` de ${nbsp(money(c.estimate+c.initialBonus))}`:''}.</b><span>Encore 3 petites étapes et un conseiller valide votre dossier.</span></div></div>`:''}
     ${locked?`<div class="offer-mini" style="flex-wrap:wrap"><span>Offre acceptée</span><b class="num">${money(c.estimate+bon)}</b>
       ${bon?`<div style="flex-basis:100%;display:flex;justify-content:space-between;gap:10px;background:#ffc53d;color:#0a0a0a;border-radius:10px;padding:8px 12px;font-size:14px;margin-top:4px"><span style="text-transform:none;letter-spacing:0;color:#0a0a0a;font-size:14px">Boni 24 h inclus (offre de ${nbsp(money(c.estimate))})</span><b class="num" style="font-size:15px;white-space:nowrap">+${nbsp(money(bon))}</b></div>`:''}</div>`
-    :`<div class="offer-mini"><span>Offre initiale choisie</span><b class="num">${money(c.estimate)}</b></div>`}
+    :`<div class="offer-mini"><span>Offre acceptée</span><b class="num">${money(c.estimate)}</b></div>`}
     <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
     ${photoSlotsHTML(c, head(1,p1,'Vos photos et vos dommages','Commencez par 6 photos de votre auto, puis vos dommages s\'il y en a.'))}
@@ -1491,7 +1506,7 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-none-ok'){ $('#modal').innerHTML=''; const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
-      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; await Store.save(c); go('prep'); }
+      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; S.celebrate=c.id; await Store.save(c); go('prep'); scrollTo(0,0); }
   else if(a==='refuse-ask'){ const c=S.current; const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0);
       $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Refuser l'offre?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
       <div class="bd"><p style="margin:0">${bl?`Vous refusez l'offre de <b class="num">${money(tot)}</b> (boni de ${money(BONUS_24H)} inclus) pour votre ${esc(vTitle(c.vehicle))}. Le boni de ${money(BONUS_24H)} sera perdu.`:`Vous refusez l'offre de <b class="num">${money(tot)}</b> pour votre ${esc(vTitle(c.vehicle))}.`}</p>
