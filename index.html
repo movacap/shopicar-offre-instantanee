@@ -347,6 +347,13 @@ details.details:not([open]){gap:0}
 @keyframes cgDraw{to{stroke-dashoffset:0}}
 @keyframes cgFall{0%{opacity:1;transform:translateY(0) rotate(0)}100%{opacity:0;transform:translateY(110px) rotate(260deg)}}
 @media (prefers-reduced-motion:reduce){.congrats,.congrats .ck circle,.congrats .cf i{animation:none}.congrats .ck path{animation:none;stroke-dashoffset:0}.congrats .cf{display:none}}
+.acc-card{background:#fff;border:1.5px solid var(--ink);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px}
+.acc-top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.acc-top span{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--acc)}
+.acc-top b{font-family:var(--f-display);font-size:30px;font-weight:700;letter-spacing:-.03em;white-space:nowrap}
+.acc-bon{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--acc-soft);color:var(--acc);border-radius:10px;padding:9px 12px;font-size:14px;font-weight:600}
+.acc-bon em{font-style:normal;font-weight:400;color:#525252}
+.acc-bon b{white-space:nowrap;font-size:15px}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -1218,9 +1225,8 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
     ${S.celebrate===c.id?`<div class="congrats" role="status"><div class="cf" aria-hidden="true">${Array.from({length:14},(_,i)=>`<i style="--x:${(i*37)%100}%;--d:${(i%5)*0.12}s;--c:${['#006feb','#ffc53d','#0a0a0a','#66a9f3'][i%4]}"></i>`).join('')}</div>
       <div class="ck"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
       <div><b>Félicitations! Vous avez accepté l'offre${(c.initialBonus||0)?` de ${nbsp(money(c.estimate+c.initialBonus))}`:''}.</b><span>Encore 3 petites étapes et un conseiller valide votre dossier.</span></div></div>`:''}
-    ${locked?`<div class="offer-mini" style="flex-wrap:wrap"><span>Offre acceptée</span><b class="num">${money(c.estimate+bon)}</b>
-      ${bon?`<div style="flex-basis:100%;display:flex;justify-content:space-between;gap:10px;background:#ffc53d;color:#0a0a0a;border-radius:10px;padding:8px 12px;font-size:14px;margin-top:4px"><span style="text-transform:none;letter-spacing:0;color:#0a0a0a;font-size:14px">Boni 24 h inclus (offre de ${nbsp(money(c.estimate))})</span><b class="num" style="font-size:15px;white-space:nowrap">+${nbsp(money(bon))}</b></div>`:''}</div>`
-    :`<div class="offer-mini"><span>Offre acceptée</span><b class="num">${money(c.estimate)}</b></div>`}
+    <div class="acc-card"><div class="acc-top"><span>Offre acceptée</span><b class="num">${nbsp(money(c.estimate+(locked?bon:0)))}</b></div>
+      ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
     <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
     ${photoSlotsHTML(c, head(1,p1,'Vos photos et vos dommages','Commencez par 6 photos de votre auto, puis vos dommages s\'il y en a.'))}
