@@ -659,6 +659,7 @@ const STEPS=[
   {id:'voyants', label:'Voyants ou problèmes mécaniques', type:'multi', req:true, none:NONE_LIGHT, opts:[NONE_LIGHT,'Check engine','Freins / ABS','Coussin gonflable','Bruit, fuite ou autre']},
   {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
   {id:'accidents', label:'Accidents ou réclamations d\'assurance', type:'single', req:true, opts:['Aucun','Oui','Je ne sais pas'], hint:'On le valide avec le rapport Carfax.'},
+  {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laisse vide si tu ne le sais pas.'},
   {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGR','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
   {id:'cles', label:'Nombre de clés', type:'single', req:true, opts:['1','2 ou plus']},
   {id:'pneus', label:'Pneus inclus', type:'single', req:true, opts:['1 ensemble','2 ensembles (été + hiver)']},
@@ -1519,7 +1520,7 @@ Réponds UNIQUEMENT en JSON, en français pour les champs descriptifs :
 /* ============ ÉVALUATION AI ============ */
 function answersText(a){ const L=[]; const add=(k,v)=>{ if(v!==undefined&&v!==''&&!(Array.isArray(v)&&!v.length)) L.push(`- ${k} : ${Array.isArray(v)?v.join(', '):v}`); };
   add('Kilométrage',a.km+' km'); add('Code postal',a.postal); add('Couleur',a.couleur); add('Transmission',a.transmission); add('Propriété',a.propriete); add('Financement',a.finance); if(a.finance!=='Payée au complet') add('Solde du prêt',a.solde+' $');
-  add('Extérieur',a.ext); add('Rouille',a.rouille); add('Intérieur',a.int); add('Odeur',a.odeur); add('Voyants / mécanique',a.voyants); add('Roulable',a.roulable); add('Accidents / réclamations',a.accidents);
+  add('Extérieur',a.ext); add('Rouille',a.rouille); add('Intérieur',a.int); add('Odeur',a.odeur); add('Voyants / mécanique',a.voyants); add('Roulable',a.roulable); add('Accidents / réclamations',a.accidents); if(a.accidents==='Oui'&&String(a.accidentMontant||'').replace(/\D/g,'')) add('Montant des dommages au Carfax',Number(String(a.accidentMontant).replace(/\D/g,'')).toLocaleString('fr-CA')+' $');
   add('Titre / historique',a.titre); add('Clés',a.cles); add('Pneus inclus',a.pneus); add('Âge des pneus installés',a.pneusAge); add('Jantes',a.mags); add('Modifications',a.modifs); add('Intention de vente',a.quand); return L.join('\n'); }
 
 let loadTimer=null;
