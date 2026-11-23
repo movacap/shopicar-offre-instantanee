@@ -22,6 +22,8 @@ export const PRICING = {
   FEE_MIN: 700, FEE_MAX: 1200, FEE_LOW_AT: 10000, FEE_HIGH_AT: 40000,
   // Dommages déclarés au Carfax : on enlève CARFAX_PCT % du montant, jamais plus de CARFAX_CAP_PCT % de la valeur wholesale
   CARFAX_PCT: 17, CARFAX_CAP_PCT: 50,
+  // Titre reconstruit (VGA) : on enlève VGA_PCT % de la valeur wholesale
+  VGA_PCT: 35,
 };
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -110,7 +112,7 @@ export function conditionAdjustments(a, wholesale, P = PRICING) {
   else if (a.accidents === 'Oui' || a.accidents === '1') add('Accident ou réclamation déclaré', pctOf(4, 500));
   if (a.accidents === '2 ou plus') add('2 accidents ou plus', pctOf(8, 1000));
   // VGA (véhicule gravement accidenté) : −35 % de la valeur évaluée (nov. 2026). « VGR » = ancienne étiquette, dossiers existants
-  if (has('titre', 'Reconstruit / VGA') || has('titre', 'Reconstruit / VGR')) add('Titre reconstruit (VGA) : −35 %', pctOf(35, 0));
+  if (has('titre', 'Reconstruit / VGA') || has('titre', 'Reconstruit / VGR')) add(`Titre reconstruit (VGA) : −${P.VGA_PCT} %`, pctOf(P.VGA_PCT, 0));
   if (has('titre', 'Inondation ou feu')) add('Inondation ou feu', pctOf(50, 3000));
   if (has('titre', 'Déjà volé')) add('Déjà volé', pctOf(5, 500));
   if (has('titre', 'Ancien taxi, location ou police')) add('Ancien taxi, location ou police', pctOf(10, 1000));
