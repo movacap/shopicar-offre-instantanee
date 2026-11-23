@@ -99,7 +99,8 @@ export function conditionAdjustments(a, wholesale) {
   if (has('voyants', 'Coussin gonflable')) add('Voyant coussin gonflable', -1500);
   if (has('voyants', 'Bruit, fuite ou autre')) add('Bruit ou fuite à diagnostiquer', -800);
   if (a.roulable === 'Non') add('Ne roule pas (remorquage, diagnostic)', -1000);
-  if (a.accidents === '1') add('1 accident déclaré', pctOf(4, 500));
+  // « Oui » (nouveau choix, nov. 2026) = même ajustement que l'ancien « 1 »; le nombre réel est validé avec Carfax
+  if (a.accidents === 'Oui' || a.accidents === '1') add('Accident ou réclamation déclaré', pctOf(4, 500));
   if (a.accidents === '2 ou plus') add('2 accidents ou plus', pctOf(8, 1000));
   if (has('titre', 'Reconstruit / VGR')) add('Titre reconstruit (VGR)', pctOf(30, 2000));
   if (has('titre', 'Inondation ou feu')) add('Inondation ou feu', pctOf(50, 3000));
