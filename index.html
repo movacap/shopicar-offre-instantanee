@@ -528,7 +528,7 @@ const Store = {
     if(this.mode==='local'){ try{ return JSON.parse(localStorage.getItem('sc_cars')||'[]'); }catch(e){ return []; } }
     return this.mem.slice(); },
   async remove(id){ await this.init(); if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]').filter(c=>c.id!==id); localStorage.setItem('sc_cars', JSON.stringify(all)); }catch(e){} } this.mem=this.mem.filter(c=>c.id!==id); },
-  save(car, quiet){ if(car&&car.estimate) Cloud.key(car); if(car&&!quiet) car.localAt=Date.now(); // dernière modif faite sur cet appareil const clean=JSON.parse(JSON.stringify(car)); if(!quiet) Cloud.save(car);
+  save(car, quiet){ if(car&&car.estimate) Cloud.key(car); if(car&&!quiet) car.localAt=Date.now(); /* dernière modif faite sur cet appareil */ const clean=JSON.parse(JSON.stringify(car)); if(!quiet) Cloud.save(car);
     this.chain = this.chain.then(async()=>{ await this.init();
       if(this.mode==='db'){ try{ await this.col().doc(clean.id).set(clean); return; }catch(e){ this.toLocal(); } }
       if(this.mode==='local'){ try{ const all=JSON.parse(localStorage.getItem('sc_cars')||'[]'); const i=all.findIndex(c=>c.id===clean.id); if(i>=0) all[i]=clean; else all.push(clean); localStorage.setItem('sc_cars', JSON.stringify(all)); return; }catch(e){ this.mode='memory'; } }
