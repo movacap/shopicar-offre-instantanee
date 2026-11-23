@@ -957,12 +957,12 @@ function photoSlotsHTML(c, prep){ const dmg=needsDamagePhotos(c.answers); const 
   const next=PHOTO_SLOTS.find(([k])=>!(c.slots&&c.slots[k]));
   return `<div class="card ${prep&&n<PHOTO_SLOTS.length?'focus':''}" id="photoAsk">
     ${prep?prep:''}
-    <div style="display:flex;justify-content:space-between;align-items:baseline"><h3><span class="stepk">${prep?'1 a':'Étape 1'}</span>Photos de votre auto</h3><span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline">${prep?'<span></span>':'<h3><span class="stepk">Étape 1</span>Photos de votre auto</h3>'}<span class="small num" style="color:${n===6?'var(--acc)':'var(--muted)'};font-weight:600">${n}/6</span></div>
     <div class="slots">${PHOTO_SLOTS.map(([k,l,sh])=>tile(k,l,c.slots&&c.slots[k],'slot-rm',sh)).join('')}</div>
     ${prep&&next?`<button class="btn pri big" data-act="slot-add" data-slot="${next[0]}">📷  Photo : ${esc(next[1])}</button>`:''}
   </div>
   ${n===PHOTO_SLOTS.length?`<div class="card dmgcard ${dmgDone(c)?'ok':''}" id="dmgAsk">
-    <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">${prep?'1 b':'Étape 2'} · ${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages vous permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
+    <div class="dmg-h"><span class="dmg-i">${dmgDone(c)?'✓':'!'}</span><div style="flex:1"><span class="stepk">${prep?'':'Étape 2 · '}${dmgDone(c)?'Complétée':'À faire'}</span><h3 style="font-size:19px">Photos des dommages</h3><p class="small" style="margin:3px 0 0">Mentionner <b>tous</b> les dommages vous permet d'obtenir une <b>offre ferme</b>, sans surprise à l'inspection.</p></div></div>
     ${c.noDmg?`<div class="dmg-ok"><span>✓ Vous avez confirmé que votre auto n'a aucun dommage.</span><button class="lnk" data-act="dmg-undo">Modifier</button></div>`
     :`<p class="small muted" style="margin:0">${dmg?'Vous avez déclaré des dommages. Montrez-les de près (bosses, égratignures, éclats, rouille).':'Bosses, égratignures, éclats, rouille? Montrez-les de près.'}</p>
     ${(c.dmg||[]).length?`<div class="slots">${(c.dmg||[]).map((img,i)=>tile(i,'Dommage '+(i+1),img,'dmg-rm')).join('')}${(c.dmg||[]).length<DMG_MAX?tile('dmg','Dommage',null):''}</div>
