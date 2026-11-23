@@ -969,7 +969,7 @@ const ADVANTAGES = `<div class="card"><ul class="clean checks">
 function conditionsHTML(){ return `<div class="card"><h3>* Conditions de l'offre</h3>
       <ul class="clean warnl">
         <li><span>Rapport Carfax conforme à vos déclarations (accidents, kilométrage, titre).</span></li>
-        <li><span>État et équipements tels que déclarés, confirmés par une inspection de 10 minutes à la cueillette.</span></li>
+        <li><span>État et équipements tels que déclarés, confirmés par une inspection de 15 à 20 minutes à la cueillette.</span></li>
         <li><span>Aucune charge ou dette non déclarée au RDPRM.</span></li>
         <li><span>Kilométrage à la cueillette au plus 500 km de plus que déclaré.</span></li>
         <li><span>Pièces d'identité et certificat d'immatriculation au nom du vendeur.</span></li>
@@ -1218,7 +1218,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
     <p class="muted small num" style="text-align:center;margin:0">NIV ${esc(c.vin)} · ${esc(c.answers.km)} km · ${nu&&c.offerAt?'offre':'offre'} du ${new Date(c.offerAt||c.createdAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}</p>
   </div>`; }
 
-function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','payee']; const labels=[c.estimate?['Offre ferme reçue','Validée par Shopicar']:['Offre reçue','Calculée par l\'AI'],['Offre acceptée','Documents à téléverser'],['Cueillette planifiée','Chez vous ou chez un garage partenaire'],['Inspection de 10 min','Confirmation de l\'état'],['Payé','Virement le jour même']];
+function timeline(c){ const order=['offre','acceptee','planifiee','inspectee','payee']; const labels=[c.estimate?['Offre ferme reçue','Validée par Shopicar']:['Offre reçue','Calculée par l\'AI'],['Offre acceptée','Documents à téléverser'],['Cueillette planifiée','Chez vous ou chez un garage partenaire'],['Inspection de 15 min à 20 min','Confirmation de l\'état'],['Payé','Virement le jour même']];
   let idx=order.indexOf(c.status==='a_valider'?'offre':c.status); if(idx<0) idx=0;
   return `<div class="tl">${labels.map((l,i)=>`<div class="s ${i<idx||(i===idx&&i===0)?'done':i===idx?'cur':''}"><div class="dot">${i<idx||(i===idx&&i===0)?'✓':i+1}</div><div><b>${l[0]}</b><div class="muted small">${l[1]}</div></div></div>`).join('')}</div>`; }
 
@@ -1362,7 +1362,7 @@ function pickupWhere(c){ const pk=c.pickup||{}; if(pk.lieu==='À mon adresse') r
   return pk.agent ? (pk.agent.demo ? `${pk.agent.nom}, ${pk.agent.ville}` : `${pk.agent.nom}, ${agentAddr(pk.agent)}`) : 'Agent Shopicar (adresse à confirmer)'; }
 function pickupEvent(c){ const w=pickupWhen(c); if(!w) return null; const drop=(c.pickup||{}).lieu===PK_DROP; const a=(c.pickup||{}).agent;
   return {...w, title:`${drop?'Dépôt':'Cueillette'} Shopicar · ${vTitle(c.vehicle)}`, where:pickupWhere(c),
-    details:`${drop?'Dépôt de votre auto chez l\'agent Shopicar':'Cueillette de votre auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 10 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
+    details:`${drop?'Dépôt de votre auto chez l\'agent Shopicar':'Cueillette de votre auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 15 min à 20 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
 function gcalUrl(ev){ return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(ev.title)+'&dates='+ev.start+'/'+ev.end+'&ctz=America/Toronto&location='+encodeURIComponent(ev.where)+'&details='+encodeURIComponent(ev.details); }
 function downloadIcs(c){ const ev=pickupEvent(c); if(!ev) return; const x=s=>String(s).replace(/\\/g,'\\\\').replace(/[,;]/g,m=>'\\'+m).replace(/\n/g,'\\n');
   const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Shopicar//Offre//FR','BEGIN:VEVENT',`UID:${c.id||c.vin}-pickup@shopicar.com`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
@@ -1936,7 +1936,7 @@ function renderRdv(){ const appel=RD.type==='appel'; const today=localIso(new Da
   // Appel : « Immédiatement » en premier (aujourd'hui seulement); les heures déjà passées aujourd'hui sont retirées
   const slots=appel?[...(isToday?[RDV_NOW]:[]), ...['9 h','11 h','13 h','15 h','17 h','19 h'].filter(x=>!isToday||parseInt(x)>hNow)]:['9 h 30','11 h','13 h 30','15 h','16 h 30','18 h'];
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>${RD.type==='appel'?(S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'):'Prendre un rendez-vous'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
-  <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?(S.current&&S.current.estimate?`Choisissez le moment qui vous convient : un conseiller Shopicar vous rappelle${S.current.answers.cell?' au '+esc(S.current.answers.cell):''} pour répondre à vos questions.`:'Un acheteur Shopicar vous rappelle pour répondre à vos questions sur l\'offre.'):'Venez montrer votre auto à notre centre ou à un garage partenaire. L\'inspection prend 10 minutes.'}</p>
+  <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?(S.current&&S.current.estimate?`Choisissez le moment qui vous convient : un conseiller Shopicar vous rappelle${S.current.answers.cell?' au '+esc(S.current.answers.cell):''} pour répondre à vos questions.`:'Un acheteur Shopicar vous rappelle pour répondre à vos questions sur l\'offre.'):'Venez montrer votre auto à notre centre ou à un garage partenaire. L\'inspection prend de 15 à 20 minutes.'}</p>
   <div class="field"><label for="rdd">Date</label><input id="rdd" type="date" class="inp" min="${appel?today:tmr}" value="${RD.date}"></div>
   <div class="q"><span class="ql">Heure</span><div class="chips">${slots.map(s=>s===RDV_NOW?`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}" style="${RD.slot===s?'':'border-color:var(--acc);color:var(--acc);'}font-weight:700">⚡ ${s.toUpperCase()}</button>`:`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}">${s}</button>`).join('')}</div></div>
   <button class="btn pri" data-act="rdv-save" ${RD.date&&RD.slot?'':'disabled'}>Confirmer</button></div></div></div>`;
