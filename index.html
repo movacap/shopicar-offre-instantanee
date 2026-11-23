@@ -923,7 +923,7 @@ const amtHTML = n => `${Math.round(n).toLocaleString('fr-CA')}<sup>$</sup>`;
 function clientDetailsHTML(c){ const val=c.valuation||{}; const amount=c.estimate||c.offer; const adj=Array.isArray(val.ajustements)&&val.base!=null?val.ajustements:null;
   const km=Number(String(c.answers.km||'').replace(/\D/g,''));
   const factors=`<ul class="clean"><li><span>Les véhicules semblables au vôtre à vendre au Québec.</span></li><li><span>Votre année, votre version${km?` et votre kilométrage (${km.toLocaleString('fr-CA')} km)`:' et votre kilométrage'}.</span></li><li><span>${adj&&adj.length?'L\'état et l\'équipement que vous avez déclarés.':'L\'état que vous avez déclaré : aucun ajustement.'}</span></li></ul>`;
-  return `<details class="card details"><summary><span>Voir les détails de mon offre initiale</span><span class="chev" aria-hidden="true">›</span></summary>
+  return `<details class="card details"><summary><span>Voir les détails de mon offre</span><span class="chev" aria-hidden="true">›</span></summary>
     <h3>Comment votre offre initiale est calculée</h3>
     ${adj&&adj.length?`<div class="kv num">
       <span class="k">Valeur de votre véhicule en bon état moyen, à votre kilométrage</span><span class="v">${money(val.base)}</span>
@@ -931,7 +931,7 @@ function clientDetailsHTML(c){ const val=c.valuation||{}; const amount=c.estimat
       <span class="sep"></span>
       <span class="k tot">Votre offre initiale</span><span class="v tot">${money(amount)}</span></div>`:''}
     <p class="small" style="margin:8px 0 0;font-weight:600">Ce qui a influencé votre offre initiale</p>${factors}
-    <p class="muted small" style="margin:0">Les ajustements viennent seulement de vos réponses. C'est une offre initiale : l'offre ferme reste sous réserve de la validation du véhicule.</p>
+    <p class="muted small" style="margin:0">Les ajustements viennent seulement de vos réponses.</p>
   </details>`; }
 function adminBreakdownHTML(c){ if(!IS_ADMIN) return ''; const v0=c.valuation||{}; const val=v0.internal||(v0.wholesale_final?v0:null); if(!val) return '';
   return `<div class="card"><span class="stat info">Super Admin seulement</span><h2>Détail interne du calcul</h2>
