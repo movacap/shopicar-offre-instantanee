@@ -1780,21 +1780,26 @@ setInterval(()=>{ S.cars.forEach(c=>{ if(!c.search || !c.search.demo || c.status
 
 /* ============ RENDEZ-VOUS / APPEL ============ */
 const RD={type:'',date:'',slot:''};
-function openRdv(t){ RD.type=t; RD.date=''; RD.slot=''; renderRdv(); }
-function renderRdv(){ const tmr=new Date(Date.now()+86400000).toISOString().slice(0,10); const slots=RD.type==='appel'?['9 h','11 h','13 h','15 h','17 h','19 h']:['9 h 30','11 h','13 h 30','15 h','16 h 30','18 h'];
+function openRdv(t){ RD.type=t; RD.date=t==='appel'?localIso(new Date()):''; RD.slot=''; renderRdv(); }
+const localIso = d => { const z=new Date(d.getTime()-d.getTimezoneOffset()*60000); return z.toISOString().slice(0,10); };
+const RDV_NOW='Immédiatement';
+function renderRdv(){ const appel=RD.type==='appel'; const today=localIso(new Date()); const tmr=localIso(new Date(Date.now()+86400000));
+  const isToday=RD.date===today, hNow=new Date().getHours();
+  // Appel : « Immédiatement » en premier (aujourd'hui seulement); les heures déjà passées aujourd'hui sont retirées
+  const slots=appel?[...(isToday?[RDV_NOW]:[]), ...['9 h','11 h','13 h','15 h','17 h','19 h'].filter(x=>!isToday||parseInt(x)>hNow)]:['9 h 30','11 h','13 h 30','15 h','16 h 30','18 h'];
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>${RD.type==='appel'?(S.current&&S.current.estimate?'Parler à un conseiller Shopicar':'Planifier un appel'):'Prendre un rendez-vous'}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
   <div class="bd"><p class="muted" style="margin:0">${RD.type==='appel'?(S.current&&S.current.estimate?`Choisissez le moment qui vous convient : un conseiller Shopicar vous rappelle${S.current.answers.cell?' au '+esc(S.current.answers.cell):''} pour répondre à vos questions.`:'Un acheteur Shopicar vous rappelle pour répondre à vos questions sur l\'offre.'):'Venez montrer votre auto à notre centre ou à un garage partenaire. L\'inspection prend 10 minutes.'}</p>
-  <div class="field"><label for="rdd">Date</label><input id="rdd" type="date" class="inp" min="${tmr}" value="${RD.date}"></div>
-  <div class="q"><span class="ql">Heure</span><div class="chips">${slots.map(s=>`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}">${s}</button>`).join('')}</div></div>
+  <div class="field"><label for="rdd">Date</label><input id="rdd" type="date" class="inp" min="${appel?today:tmr}" value="${RD.date}"></div>
+  <div class="q"><span class="ql">Heure</span><div class="chips">${slots.map(s=>s===RDV_NOW?`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}" style="${RD.slot===s?'':'border-color:var(--acc);color:var(--acc);'}font-weight:700">⚡ ${s.toUpperCase()}</button>`:`<button class="chip ${RD.slot===s?'on':''}" data-act="rdv-slot" data-v="${s}">${s}</button>`).join('')}</div></div>
   <button class="btn pri" data-act="rdv-save" ${RD.date&&RD.slot?'':'disabled'}>Confirmer</button></div></div></div>`;
-  $('#rdd').addEventListener('input',e=>{ RD.date=e.target.value; renderRdv(); }); }
-async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); const label=dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot;
+  $('#rdd').addEventListener('input',e=>{ RD.date=e.target.value; if(RD.slot===RDV_NOW&&RD.date!==localIso(new Date())) RD.slot=''; renderRdv(); }); }
+async function saveRdv(){ const c=S.current; const dt=new Date(RD.date+'T12:00:00'); const label=RD.slot===RDV_NOW?'Immédiatement (aujourd\'hui, dès que possible)':dt.toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})+' à '+RD.slot;
   if(c.estimate && !DEMO_OFFERS){ const b=$('[data-act="rdv-save"]'); if(b){ b.disabled=true; b.innerHTML='<span class="spin"></span> Envoi…'; }
     try{ const tok=await ensureLead(c); await leadApi({action:RD.type==='appel'?'callback':'rdv', token:tok, when:label}); }
     catch(e){ toast('Envoi impossible pour l\'instant. Réessayez.'); renderRdv(); return; } }
   else if(c.search&&c.search.leadToken){ try{ await leadApi({action:RD.type==='appel'?'callback':'pickup', token:c.search.leadToken, when:label}); }catch(e){ toast('Envoi impossible pour l\'instant. Réessayez.'); return; } }
   c.rdv={type:RD.type, date:RD.date, slot:RD.slot, label};
-  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?'Rappel demandé. Un conseiller vous rappelle à l\'heure choisie.':(c.estimate?'Demande de rendez-vous envoyée. Un conseiller vous confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
+  await Store.save(c); $('#modal').innerHTML=''; toast(RD.type==='appel'?(RD.slot===RDV_NOW?'Rappel demandé. Un conseiller vous appelle dans les prochaines minutes.':'Rappel demandé. Un conseiller vous rappelle à l\'heure choisie.'):(c.estimate?'Demande de rendez-vous envoyée. Un conseiller vous confirme le rendez-vous.':'Rendez-vous confirmé.')); rerender(); }
 
 /* « Je veux plus » : avertissement avant de quitter l'offre initiale */
 function openMoreModal(){ const c=S.current;
