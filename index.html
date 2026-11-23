@@ -1264,7 +1264,7 @@ function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt
     ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
-    ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages du parcours rapide (Super Admin)</button>`:''}
+    ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages Super Admin (parcours rapide et marge)</button>`:''}
   </div>`; }
 
 /* ============ MON PROFIL (icône en haut à droite de Mon garage) ============ */
@@ -1274,7 +1274,7 @@ function vProfile(){ const pv=PV.get(); const on=!!(pv&&pv.token);
     ${on?`${profileCardHTML()}
       <div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>`
       :`<div class="card"><h3>Connecte-toi</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton profil et ton garage sur tous tes appareils.</p><button class="btn pri" data-act="login">Me connecter avec mon cellulaire</button></div>`}
-    ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages du parcours rapide (Super Admin)</button>`:''}
+    ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages Super Admin (parcours rapide et marge)</button>`:''}
   </div>`; }
 
 /* ============ SUPER ADMIN : RÉGLAGES DU PARCOURS RAPIDE (api/settings.js → api/_lib/settings.js) ============ */
@@ -1288,13 +1288,15 @@ const comfortTxt = c => Object.entries(c||{}).map(([m,l])=>`${m}: ${l.join(', ')
 function parseComfort(t){ const o={}; String(t||'').split(/\n+/).forEach(line=>{ const i=line.indexOf(':'); if(i<1) return; const mk=line.slice(0,i).trim().toLowerCase(); const ms=line.slice(i+1).split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); if(mk&&ms.length) o[mk]=(o[mk]||[]).concat(ms); }); return o; }
 function readSettingsForm(){ const v=id=>($('#'+id)||{}).value, c=id=>!!($('#'+id)||{}).checked;
   return { maxAge:v('setAge'), maxKm:v('setKm'), minOffer:v('setMin'), maxOffer:v('setMax'), useComfortList:c('setList'), pickupsToJulia:c('setPickup'), requireKnownTrim:c('setTrim'),
-    comfort:parseComfort(v('setComfort')), luxury:String(v('setLux')||'').split(/[,\n]+/).map(x=>x.trim()).filter(Boolean) }; }
+    comfort:parseComfort(v('setComfort')), luxury:String(v('setLux')||'').split(/[,\n]+/).map(x=>x.trim()).filter(Boolean),
+    ...Object.fromEntries(PRICE_FIELDS.map(k=>[k, v('pf_'+k)])) }; }
+const PRICE_FIELDS=['feeMin','feeMax','feeLowAt','feeHighAt','spreadMin','spreadForte','spreadNormale','spreadFaible','spreadRecentForte','spreadRecentNormale','spreadRecentFaible'];
 function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().getFullYear();
   const numF=(id,label,val,def,hint)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="inp num" inputmode="numeric" value="${esc(String(val))}"><div class="muted small">${hint||''}${def!==undefined?` Par défaut : ${esc(Number(def).toLocaleString('fr-CA'))}.`:''}</div></div>`;
   const tog=(id,label,on,hint)=>`<label class="small" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="${id}" ${on?'checked':''} style="margin-top:3px;width:18px;height:18px"><span><b>${label}</b>${hint?`<br><span class="muted">${hint}</span>`:''}</span></label>`;
   return `${topbar('Réglages Super Admin','tab-garage')}
   <div class="wrap">
-    <div class="card"><span class="stat info">Super Admin seulement</span><h2>Parcours rapide « Cette offre me convient »</h2>
+    <div class="card"><span class="stat info">Super Admin seulement</span><h2>Réglages : parcours rapide et marge</h2>
       <p class="muted small" style="margin:0">Une auto qui respecte tous ces seuils peut accepter son offre initiale directement. Sinon : photos + dommages, puis Julia en direct. Les changements s'appliquent aux nouvelles évaluations en moins de 20 secondes.</p></div>
     ${SET.busy&&!d?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement des réglages…</span></div></div>`:''}
     ${SET.err?`<div class="card"><p class="small" style="margin:0;color:var(--bad)">${esc(SET.err)}</p><button class="btn sec" data-act="admin-settings">Réessayer</button></div>`:''}
@@ -1303,6 +1305,19 @@ function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().
       ${numF('setKm','Kilométrage maximum (km)',d.maxKm,D.maxKm)}
       ${numF('setMin','Offre minimum ($)',d.minOffer,D.minOffer)}
       ${numF('setMax','Offre maximum ($)',d.maxOffer,D.maxOffer)}
+    </div>
+    <div class="card"><h3>Marge Shopicar</h3>
+      <p class="muted small" style="margin:0">Offre au client = valeur wholesale − ajustements d'état − frais Shopicar. S'applique aux nouvelles évaluations seulement : les offres déjà affichées ne changent pas.</p>
+      <h3 style="margin-top:6px">Frais Shopicar (ta marge)</h3>
+      <div class="row">${numF('pf_feeMin','Frais minimum ($)',d.feeMin,D.feeMin)}${numF('pf_feeMax','Frais maximum ($)',d.feeMax,D.feeMax)}</div>
+      <div class="row">${numF('pf_feeLowAt','Minimum jusqu\'à un wholesale de ($)',d.feeLowAt,D.feeLowAt)}${numF('pf_feeHighAt','Maximum dès un wholesale de ($)',d.feeHighAt,D.feeHighAt)}</div>
+      <p class="muted small" style="margin:0">Entre les deux, les frais montent en ligne droite, arrondis à 50 $. Exemple avec ces valeurs : wholesale de ${Number(Math.round((+d.feeLowAt+ +d.feeHighAt)/2)).toLocaleString('fr-CA')} $ → frais de ${Math.round((+d.feeMin+ +d.feeMax)/2/50)*50} $.</p>
+      <h3 style="margin-top:10px">Écart détail → wholesale (%)</h3>
+      <p class="muted small" style="margin:0">Ce qu'on enlève au prix de détail des comparables pour estimer ce qu'un acheteur paie (remise en état, profit du concessionnaire). Selon la demande pour le modèle. +2 points dès 8 ans et dès 200 000 km. Ne s'applique pas quand il y a assez d'offres réelles du réseau.</p>
+      <div class="row">${numF('pf_spreadForte','Demande forte',d.spreadForte,D.spreadForte)}${numF('pf_spreadNormale','Normale',d.spreadNormale,D.spreadNormale)}${numF('pf_spreadFaible','Faible',d.spreadFaible,D.spreadFaible)}</div>
+      <p class="small" style="margin:0;font-weight:600">Autos de 4 ans ou moins</p>
+      <div class="row">${numF('pf_spreadRecentForte','Demande forte',d.spreadRecentForte,D.spreadRecentForte)}${numF('pf_spreadRecentNormale','Normale',d.spreadRecentNormale,D.spreadRecentNormale)}${numF('pf_spreadRecentFaible','Faible',d.spreadRecentFaible,D.spreadRecentFaible)}</div>
+      ${numF('pf_spreadMin','Écart minimum ($)',d.spreadMin,D.spreadMin,'Même pour une auto bon marché.')}
     </div>
     <div class="card"><h3>Règles</h3>
       ${tog('setList','Seulement les modèles de la liste de confiance',d.useComfortList,'Décoché : toutes les marques et modèles passent (sauf luxe et camionnettes), si les seuils sont respectés.')}

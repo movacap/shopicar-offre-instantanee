@@ -3,6 +3,7 @@
 // internalView : marge, valeur wholesale, frais et comparables, pour le Super Admin et la fiche 360inspek seulement.
 import { getMarket } from './market.js';
 import { computeOffer } from './pricing.js';
+import { loadSettings, pricingFrom } from './settings.js';
 
 const DEMANDE_TXT = { forte: 'se revend très vite', normale: 'se revend dans un délai normal', faible: 'se revend plus lentement' };
 
@@ -18,10 +19,10 @@ async function getBids(v) {
 }
 
 export async function valuate({ vin, vehicle, answers }) {
-  const [m, bids] = await Promise.all([getMarket({ vin, vehicle, km: answers && answers.km }), getBids(vehicle)]);
+  const [m, bids, settings] = await Promise.all([getMarket({ vin, vehicle, km: answers && answers.km }), getBids(vehicle), loadSettings().catch(() => ({}))]);
   const market = { ...m, bids };
   const a = { ...(answers || {}), km: Number(String((answers && answers.km) ?? '').replace(/[^\d]/g, '')) || 0 };
-  const calc = computeOffer({ market, vehicle, answers: a });
+  const calc = computeOffer({ market, vehicle, answers: a }, pricingFrom(settings));
   if (!calc) { const e = new Error('aucune annonce comparable trouvée'); e.status = 422; throw e; }
   return { calc, market, km: a.km };
 }

@@ -1,6 +1,7 @@
 // Réglages du parcours rapide (« Cette offre me convient »), modifiables par le Super Admin dans l'app.
 // Gardés dans Vercel Blob privé (settings/fast-track.json). Sans fichier ou sans Blob : valeurs par défaut ci-dessous.
 import { get, put } from '@vercel/blob';
+import { PRICING } from './pricing.js';
 
 const PATH = 'settings/fast-track.json';
 const TTL_MS = 20 * 1000; // une modification est prise en compte en moins de 20 secondes
@@ -25,7 +26,14 @@ export const DEFAULTS = {
   luxury: ['bmw', 'mercedes', 'mercedes-benz', 'audi', 'porsche', 'lexus', 'land rover', 'range rover', 'jaguar', 'maserati', 'genesis', 'cadillac', 'lincoln', 'infiniti', 'acura', 'volvo', 'alfa romeo', 'bentley', 'rolls-royce', 'ferrari', 'lamborghini', 'aston martin', 'mclaren', 'lotus', 'lucid', 'rivian', 'polestar'],
   pickupsToJulia: true,
   requireKnownTrim: true,
+  // Marge Shopicar (Super Admin) : frais Shopicar et écart détail → wholesale. Valeurs par défaut = PRICING (api/_lib/pricing.js)
+  feeMin: PRICING.FEE_MIN, feeMax: PRICING.FEE_MAX, feeLowAt: PRICING.FEE_LOW_AT, feeHighAt: PRICING.FEE_HIGH_AT,
+  spreadMin: PRICING.SPREAD_MIN,
+  spreadForte: PRICING.SPREAD_PCT.forte, spreadNormale: PRICING.SPREAD_PCT.normale, spreadFaible: PRICING.SPREAD_PCT.faible,
+  spreadRecentForte: PRICING.SPREAD_PCT_RECENT.forte, spreadRecentNormale: PRICING.SPREAD_PCT_RECENT.normale, spreadRecentFaible: PRICING.SPREAD_PCT_RECENT.faible,
 };
+const PRICE_KEYS = [['feeMin', 0, 20000], ['feeMax', 0, 20000], ['feeLowAt', 0, 500000], ['feeHighAt', 0, 1000000], ['spreadMin', 0, 50000],
+  ['spreadForte', 0, 60], ['spreadNormale', 0, 60], ['spreadFaible', 0, 60], ['spreadRecentForte', 0, 60], ['spreadRecentNormale', 0, 60], ['spreadRecentFaible', 0, 60]];
 
 const num = (v, d, lo, hi) => { if (v === undefined || v === null || String(v).trim() === '') return d; const n = Number(String(v ?? '').replace(/[^\d.]/g, '')); return Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n) : d; };
 const words = (a) => (Array.isArray(a) ? a : String(a || '').split(',')).map((s) => String(s).trim().toLowerCase()).filter(Boolean).slice(0, 80);
@@ -46,6 +54,9 @@ export function sanitize(s = {}) {
   const src = s.comfort && typeof s.comfort === 'object' ? s.comfort : D.comfort;
   for (const [make, models] of Object.entries(src).slice(0, 80)) { const k = String(make).trim().toLowerCase(); const m = words(models); if (k && m.length) out.comfort[k] = m; }
   if (out.maxOffer < out.minOffer) out.maxOffer = out.minOffer;
+  for (const [k, lo, hi] of PRICE_KEYS) out[k] = num(s[k], D[k], lo, hi);
+  if (out.feeMax < out.feeMin) out.feeMax = out.feeMin;
+  if (out.feeHighAt <= out.feeLowAt) out.feeHighAt = out.feeLowAt + 1000;
   return out;
 }
 
@@ -67,4 +78,12 @@ export async function saveSettings(s) {
   await put(PATH, JSON.stringify({ settings: clean, updatedAt: Date.now() }), { access: 'private', addRandomSuffix: false, allowOverwrite: true, contentType: 'application/json' });
   cache = clean; cacheAt = Date.now();
   return clean;
+}
+
+/* Paramètres de prix (PRICING) avec la marge réglée par le Super Admin. */
+export function pricingFrom(s) {
+  const x = sanitize(s || {});
+  return { ...PRICING, FEE_MIN: x.feeMin, FEE_MAX: x.feeMax, FEE_LOW_AT: x.feeLowAt, FEE_HIGH_AT: x.feeHighAt, SPREAD_MIN: x.spreadMin,
+    SPREAD_PCT: { forte: x.spreadForte, normale: x.spreadNormale, faible: x.spreadFaible },
+    SPREAD_PCT_RECENT: { forte: x.spreadRecentForte, normale: x.spreadRecentNormale, faible: x.spreadRecentFaible } };
 }
