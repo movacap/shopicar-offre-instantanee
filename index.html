@@ -1464,7 +1464,7 @@ document.addEventListener('click', async e=>{
       if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; await Store.save(c); go('prep'); }
   else if(a==='refuse-ask'){ const c=S.current; const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0);
       $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Refuser l'offre?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
-      <div class="bd"><p style="margin:0">${bl?`Vous refusez l'offre de <b class="num">${money(c.estimate)} + ${money(BONUS_24H)} de boni = ${money(tot)}</b> pour votre ${esc(vTitle(c.vehicle))}. Le boni de ${money(BONUS_24H)} sera perdu.`:`Vous refusez l'offre de <b class="num">${money(tot)}</b> pour votre ${esc(vTitle(c.vehicle))}.`}</p>
+      <div class="bd"><p style="margin:0">${bl?`Vous refusez l'offre de <b class="num">${money(tot)}</b> (boni de ${money(BONUS_24H)} inclus) pour votre ${esc(vTitle(c.vehicle))}. Le boni de ${money(BONUS_24H)} sera perdu.`:`Vous refusez l'offre de <b class="num">${money(tot)}</b> pour votre ${esc(vTitle(c.vehicle))}.`}</p>
       <p class="muted small" style="margin:0">Vous pouvez parler à un conseiller ou discuter avec Julia, notre conseillère IA.</p>
       <button class="btn pri" data-act="close">Non, je garde mon offre</button><button class="btn sec" data-act="refuse">Oui, je refuse cette offre</button></div></div></div>`; }
   else if(a==='refuse'){ $('#modal').innerHTML=''; const c=S.current; c.refused=true; c.refusedAt=Date.now(); c.status='refusee'; await Store.save(c); toast('Offre refusée.'); rerender(); }
