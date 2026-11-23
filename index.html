@@ -662,7 +662,7 @@ const STEPS=[
   {id:'voyants', label:'Voyants ou problèmes mécaniques', type:'multi', req:true, none:NONE_LIGHT, opts:[NONE_LIGHT,'Check engine','Freins / ABS','Coussin gonflable','Bruit, fuite ou autre']},
   {id:'roulable', label:'Le véhicule roule ?', type:'single', req:true, opts:['Oui','Non']},
   {id:'accidents', label:'Accidents ou réclamations d\'assurance', type:'single', req:true, opts:['Aucun','Oui','Je ne sais pas'], hint:'On le valide avec le rapport Carfax.'},
-  {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laisse vide si tu ne le sais pas.'},
+  {id:'accidentMontant', label:'Montant des dommages au Carfax', type:'number', suffix:'$', req:false, show:a=>a.accidents==='Oui', ph:'ex. 3 500', hint:'Le montant total des réclamations inscrit au rapport Carfax. Laisse vide si tu ne le sais pas : on le validera avec le rapport.'},
   {id:'titre', label:'Autre chose à déclarer ?', type:'multi', req:true, none:NONE_TITLE, opts:[NONE_TITLE,'Reconstruit / VGR','Inondation ou feu','Déjà volé','Ancien taxi, location ou police']},
   {id:'cles', label:'Nombre de clés', type:'single', req:true, opts:['1','2 ou plus']},
   {id:'pneus', label:'Pneus inclus', type:'single', req:true, opts:['1 ensemble','2 ensembles (été + hiver)']},

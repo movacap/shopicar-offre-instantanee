@@ -99,8 +99,11 @@ export function conditionAdjustments(a, wholesale) {
   if (has('voyants', 'Coussin gonflable')) add('Voyant coussin gonflable', -1500);
   if (has('voyants', 'Bruit, fuite ou autre')) add('Bruit ou fuite à diagnostiquer', -800);
   if (a.roulable === 'Non') add('Ne roule pas (remorquage, diagnostic)', -1000);
-  // « Oui » (nouveau choix, nov. 2026) = même ajustement que l'ancien « 1 »; le nombre réel est validé avec Carfax
-  if (a.accidents === 'Oui' || a.accidents === '1') add('Accident ou réclamation déclaré', pctOf(4, 500));
+  // Accident déclaré (nov. 2026) : si le client donne le montant des dommages au Carfax, on enlève 25 % de ce montant.
+  // Sans montant : ajustement par défaut de 4 % (min. 500 $), validé ensuite avec le rapport Carfax.
+  const dmg = Math.min(200000, Number(String(a.accidentMontant ?? '').replace(/[^\d]/g, '')) || 0);
+  if ((a.accidents === 'Oui' || a.accidents === '1') && dmg > 0) add(`Dommages au Carfax (25 % de ${dmg.toLocaleString('fr-CA')} $)`, -r(0.25 * dmg, 50));
+  else if (a.accidents === 'Oui' || a.accidents === '1') add('Accident ou réclamation déclaré', pctOf(4, 500));
   if (a.accidents === '2 ou plus') add('2 accidents ou plus', pctOf(8, 1000));
   if (has('titre', 'Reconstruit / VGR')) add('Titre reconstruit (VGR)', pctOf(30, 2000));
   if (has('titre', 'Inondation ou feu')) add('Inondation ou feu', pctOf(50, 3000));
