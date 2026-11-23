@@ -11,7 +11,8 @@ export const DEFAULTS = {
   maxKm: 200000,
   minOffer: 3000,
   maxOffer: 60000,
-  useComfortList: true,  // false : toutes les marques et modèles (sauf luxe et camionnettes) peuvent passer
+  useComfortList: false, // nov. 2026 : liste désactivée par défaut, toutes les marques passent (sauf luxe et camionnettes) si âge/km/prix conviennent
+  listV2: true,          // marqueur : les réglages enregistrés avant nov. 2026 (liste activée) ne sont plus repris pour cette case
   comfort: {
     honda: ['civic', 'cr-v', 'accord', 'hr-v', 'fit'],
     toyota: ['rav4', 'corolla', 'camry', 'c-hr', 'prius'],
@@ -46,7 +47,8 @@ export function sanitize(s = {}) {
     maxKm: num(s.maxKm, D.maxKm, 0, 1000000),
     minOffer: num(s.minOffer, D.minOffer, 0, 500000),
     maxOffer: num(s.maxOffer, D.maxOffer, 0, 1000000),
-    useComfortList: s.useComfortList === undefined ? D.useComfortList : !!s.useComfortList,
+    useComfortList: s.listV2 && s.useComfortList !== undefined ? !!s.useComfortList : D.useComfortList,
+    listV2: true,
     luxury: s.luxury === undefined ? D.luxury : words(s.luxury),
     pickupsToJulia: s.pickupsToJulia === undefined ? D.pickupsToJulia : !!s.pickupsToJulia,
     requireKnownTrim: s.requireKnownTrim === undefined ? D.requireKnownTrim : !!s.requireKnownTrim,

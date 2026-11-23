@@ -1290,7 +1290,7 @@ async function loadSettingsUI(){ SET.busy=true; SET.err=''; SET.msg=''; rerender
 const comfortTxt = c => Object.entries(c||{}).map(([m,l])=>`${m}: ${l.join(', ')}`).join('\n');
 function parseComfort(t){ const o={}; String(t||'').split(/\n+/).forEach(line=>{ const i=line.indexOf(':'); if(i<1) return; const mk=line.slice(0,i).trim().toLowerCase(); const ms=line.slice(i+1).split(',').map(x=>x.trim().toLowerCase()).filter(Boolean); if(mk&&ms.length) o[mk]=(o[mk]||[]).concat(ms); }); return o; }
 function readSettingsForm(){ const v=id=>($('#'+id)||{}).value, c=id=>!!($('#'+id)||{}).checked;
-  return { maxAge:v('setAge'), maxKm:v('setKm'), minOffer:v('setMin'), maxOffer:v('setMax'), useComfortList:c('setList'), pickupsToJulia:c('setPickup'), requireKnownTrim:c('setTrim'),
+  return { maxAge:v('setAge'), maxKm:v('setKm'), minOffer:v('setMin'), maxOffer:v('setMax'), useComfortList:c('setList'), listV2:true, pickupsToJulia:c('setPickup'), requireKnownTrim:c('setTrim'),
     comfort:parseComfort(v('setComfort')), luxury:String(v('setLux')||'').split(/[,\n]+/).map(x=>x.trim()).filter(Boolean),
     ...Object.fromEntries(PRICE_FIELDS.map(k=>[k, v('pf_'+k)])) }; }
 const PRICE_FIELDS=['feeMin','feeMax','feeLowAt','feeHighAt','spreadMin','spreadForte','spreadNormale','spreadFaible','spreadRecentForte','spreadRecentNormale','spreadRecentFaible','carfaxPct','carfaxCapPct','vgaPct'];
