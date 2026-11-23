@@ -828,10 +828,13 @@ function carGroup(c){ if(['payee','inspectee','vendue'].includes(c.status)) retu
   return 'encours'; }
 function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
-  return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
+  return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, refusee:{cls:'bad',txt:'Offre refusée'}, inspectee:{cls:'ok',txt:'Vendue'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Vendue'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
+/* Parcours rapide (sans Julia en direct) : boni de 24 h à partir de l'offre, s'il accepte avant. */
+const fastBonusEnd = c => (c.createdAt||0) + 24*3600000;
+const fastBonusLive = c => c.status==='estimation' && !c.prep && !c.refused && Date.now() < fastBonusEnd(c) && Date.now() < c.expiresAt;
 function bonusEnd(c){ return bonusStart(c) + 24*3600000; }
 function bonusLive(c){ return c.status==='offre' && Date.now() < bonusEnd(c) && Date.now() < c.expiresAt; }
 const amtHTML = n => `${Math.round(n).toLocaleString('fr-CA')}<sup>$</sup>`;
@@ -963,24 +966,31 @@ function wishHTML(c){ if(c.wish) return `<div class="card"><div class="jrow"><di
     <div class="field"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${esc(c.wishDraft||'')}"></div>
     <p class="muted small" style="margin:0">Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale. Ensuite, ajoute tes photos et tes dommages pour que Julia travaille pour toi.</p>
     <button class="btn pri big" data-act="wish-save">Continuer : ajouter mes photos</button></div>`; }
+function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0), expired=Date.now()>c.expiresAt;
+  if(c.refused) return `<div class="best official"><span class="tag" style="background:#525252">Offre refusée</span><h2>Vous avez refusé cette offre</h2><div class="amt num" style="opacity:.6">${amtHTML(c.estimate)}</div><p style="margin:0">Vous avez changé d'idée? Parlez à un conseiller ou demandez à Julia de chercher un meilleur prix.</p><button class="btn dark" data-act="refuse-undo">Revoir mon offre</button></div>`;
+  return `<div class="best official">
+    <span class="tag">✓ Offre Shopicar</span>
+    <h2>Excellente nouvelle! Votre offre est prête</h2>
+    <div class="amt num">${amtHTML(c.estimate)}</div>
+    ${bl?`<div class="bonus" style="width:100%"><span>Acceptez d'ici <b class="num" data-cd="${fastBonusEnd(c)}">${timeLeft(fastBonusEnd(c)-Date.now())}</b> et recevez</span><b>+${money(BONUS_24H)}</b></div>`:''}
+    ${expired?'<div class="cd">Cette offre est expirée.</div>':`<div class="cd num">Offre valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`}
+    ${expired?'':`<button class="btn pri big" data-act="initial-ok">Accepter ${money(tot)} et prendre rendez-vous</button>
+    <button class="btn" data-act="refuse-ask" style="background:transparent;color:#d4d4d4;border:1px solid #404040">Je refuse ${money(tot)}${bl?` et le boni de ${money(BONUS_24H)}`:''}</button>
+    <div class="small" style="color:#a3a3a3;width:100%">Prochaines étapes : vos photos et dommages, vos documents, puis votre rendez-vous. Un conseiller Shopicar valide ensuite votre dossier.</div>`}
+  </div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage();
   const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||more;
   return `${topbar('Ton offre initiale','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    <h2 style="font-size:24px">Ton offre est prête!</h2>
-    <div class="offer light">
+    ${fast&&!more?'':'<h2 style="font-size:24px">Ton offre est prête!</h2>'}
+    ${fast&&!more?fastOfferHTML(c):`<div class="offer light">
       <span class="lbl">Ton offre initiale</span>
       <div class="amt num">${amtHTML(c.estimate)}</div>
       <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de ton véhicule.</div>
       <ul class="clean checks"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
-    </div>
-    ${fast&&!more?`<div class="best ok">
-      <h2>Cette offre te convient?</h2>
-      <p>Ajoute tes photos et tes dommages, tes documents, puis choisis ton rendez-vous. Un conseiller Shopicar valide ensuite ton dossier et te confirme ton offre ferme.</p>
-      <button class="btn pri big" data-act="initial-ok">Cette offre me convient : je passe à la prochaine étape</button>
-    </div>
-    <button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour toi</span></span><span class="mc">›</span></button>
+    </div>`}
+    ${fast&&!more?`<button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour toi</span></span><span class="mc">›</span></button>
     <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
     ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoute 6 photos et tes dommages : Julia cherche ensuite le meilleur prix pour toi. Les offres reçues peuvent être plus hautes ou plus basses que ton offre initiale.</p></div>`:''}
@@ -1448,7 +1458,15 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-ex'){ const d=$('#dmgEx'); if(d) d.hidden=!d.hidden; }
   else if(a==='dmg-none-ok'){ $('#modal').innerHTML=''; const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
-  else if(a==='initial-ok'){ const c=S.current; c.prep=true; await Store.save(c); go('prep'); }
+  else if(a==='initial-ok'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
+      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; await Store.save(c); go('prep'); }
+  else if(a==='refuse-ask'){ const c=S.current; const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0);
+      $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Refuser l'offre?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+      <div class="bd"><p style="margin:0">Vous refusez l'offre de <b class="num">${money(tot)}</b>${bl?` (boni de ${money(BONUS_24H)} compris)`:''} pour votre ${esc(vTitle(c.vehicle))}. ${bl?'Le boni de 24 h sera perdu.':''}</p>
+      <p class="muted small" style="margin:0">Vous pouvez aussi demander à Julia de chercher un meilleur prix, ou parler à un conseiller.</p>
+      <button class="btn pri" data-act="refuse">Oui, je refuse l'offre</button><button class="btn sec" data-act="close">Non, je garde mon offre</button></div></div></div>`; }
+  else if(a==='refuse'){ $('#modal').innerHTML=''; const c=S.current; c.refused=true; c.refusedAt=Date.now(); c.status='refusee'; await Store.save(c); toast('Offre refusée.'); rerender(); }
+  else if(a==='refuse-undo'){ const c=S.current; c.refused=false; delete c.refusedAt; c.status='estimation'; await Store.save(c); rerender(); }
   else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
   else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complète les 3 étapes avant d\'envoyer ton dossier.'); return; } startSearch(c, 'initial'); }
   else if(a==='want-more'){ openMoreModal(); }
@@ -1617,7 +1635,7 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
    c.search = { status:'running'|'done', startedAt, demo, notify, offers:[{id, amount, at, expiresAt, status:'valid'|'withdrawn'|'expired'}] }
    Règles : on n'affiche que des offres validées; la meilleure offre encore valide ne baisse jamais à cause d'une offre plus basse;
    une offre expirée ou retirée ne compte plus; l'estimation reste à part (c.estimate). */
-function screenFor(c){ return c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
+function screenFor(c){ return c.status==='refusee'&&c.estimate?'estimate':c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
 const validOffers = c => ((c.search&&c.search.offers)||[]).filter(o=>o.status==='valid' && Date.now()<o.expiresAt);
 function bestOffer(c){ return validOffers(c).reduce((m,o)=>!m||o.amount>m.amount?o:m, null); }
 function bestSteps(c){ let m=-Infinity; return validOffers(c).slice().sort((a,b)=>a.at-b.at).filter(o=>o.amount>m && (m=o.amount, true)); } // chaque nouvelle meilleure offre
@@ -1696,9 +1714,9 @@ const autoOk = c => (c.search||{}).intent==='initial' && !!c.prepSentAt && c.sta
 const autoBusy={};
 async function autoAccept(c){ if(!autoOk(c) || autoBusy[c.id] || c.autoAccepted) return; autoBusy[c.id]=true;
   try{ const b=bestOffer(c); const pk=c.pickup||{}; const rdvOk=pk.date&&pk.slot&&pk.lieu&&pk.date>todayIso();
-    if(c.search&&c.search.leadToken&&b){ try{ await leadApi({action:'accept', token:c.search.leadToken, offer_id:b.id, bonus:0, final_amount:c.offer, auto:true}); }
+    if(c.search&&c.search.leadToken&&b){ try{ await leadApi({action:'accept', token:c.search.leadToken, offer_id:b.id, bonus:c.initialBonus||0, final_amount:c.offer+(c.initialBonus||0), auto:true}); }
       catch(e){ if(['expired','withdrawn'].includes(e.message)) return; } }
-    c.finalOffer=c.offer; c.acceptedAt=Date.now(); c.autoAccepted=true;
+    c.finalOffer=c.offer+(c.initialBonus||0); c.acceptedAt=Date.now(); c.autoAccepted=true;
     if(rdvOk){ if(c.search&&c.search.leadToken) leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}).catch(()=>{}); c.status='planifiee'; }
     else c.status='acceptee'; // rendez-vous passé pendant la validation : il en choisit un nouveau
     await Store.save(c);
