@@ -1466,7 +1466,7 @@ document.addEventListener('click', async e=>{
       $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Refuser l'offre?</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
       <div class="bd"><p style="margin:0">Vous refusez l'offre de <b class="num">${money(tot)}</b>${bl?` (boni de ${money(BONUS_24H)} compris)`:''} pour votre ${esc(vTitle(c.vehicle))}. ${bl?'Le boni de 24 h sera perdu.':''}</p>
       <p class="muted small" style="margin:0">Vous pouvez parler à un conseiller ou discuter avec Julia, notre conseillère IA.</p>
-      <button class="btn pri" data-act="refuse">Oui, je refuse l'offre</button><button class="btn sec" data-act="close">Non, je garde mon offre</button></div></div></div>`; }
+      <button class="btn pri" data-act="close">Non, je garde mon offre</button><button class="btn sec" data-act="refuse">Oui, je refuse cette offre</button></div></div></div>`; }
   else if(a==='refuse'){ $('#modal').innerHTML=''; const c=S.current; c.refused=true; c.refusedAt=Date.now(); c.status='refusee'; await Store.save(c); toast('Offre refusée.'); rerender(); }
   else if(a==='refuse-undo'){ const c=S.current; c.refused=false; delete c.refusedAt; c.status='estimation'; await Store.save(c); rerender(); }
   else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
