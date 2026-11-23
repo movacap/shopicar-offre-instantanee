@@ -1290,7 +1290,7 @@ function readSettingsForm(){ const v=id=>($('#'+id)||{}).value, c=id=>!!($('#'+i
   return { maxAge:v('setAge'), maxKm:v('setKm'), minOffer:v('setMin'), maxOffer:v('setMax'), useComfortList:c('setList'), pickupsToJulia:c('setPickup'), requireKnownTrim:c('setTrim'),
     comfort:parseComfort(v('setComfort')), luxury:String(v('setLux')||'').split(/[,\n]+/).map(x=>x.trim()).filter(Boolean),
     ...Object.fromEntries(PRICE_FIELDS.map(k=>[k, v('pf_'+k)])) }; }
-const PRICE_FIELDS=['feeMin','feeMax','feeLowAt','feeHighAt','spreadMin','spreadForte','spreadNormale','spreadFaible','spreadRecentForte','spreadRecentNormale','spreadRecentFaible'];
+const PRICE_FIELDS=['feeMin','feeMax','feeLowAt','feeHighAt','spreadMin','spreadForte','spreadNormale','spreadFaible','spreadRecentForte','spreadRecentNormale','spreadRecentFaible','carfaxPct','carfaxCapPct'];
 function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().getFullYear();
   const numF=(id,label,val,def,hint)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" class="inp num" inputmode="numeric" value="${esc(String(val))}"><div class="muted small">${hint||''}${def!==undefined?` Par défaut : ${esc(Number(def).toLocaleString('fr-CA'))}.`:''}</div></div>`;
   const tog=(id,label,on,hint)=>`<label class="small" style="display:flex;gap:10px;align-items:flex-start"><input type="checkbox" id="${id}" ${on?'checked':''} style="margin-top:3px;width:18px;height:18px"><span><b>${label}</b>${hint?`<br><span class="muted">${hint}</span>`:''}</span></label>`;
@@ -1318,6 +1318,10 @@ function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().
       <p class="small" style="margin:0;font-weight:600">Autos de 4 ans ou moins</p>
       <div class="row">${numF('pf_spreadRecentForte','Demande forte',d.spreadRecentForte,D.spreadRecentForte)}${numF('pf_spreadRecentNormale','Normale',d.spreadRecentNormale,D.spreadRecentNormale)}${numF('pf_spreadRecentFaible','Faible',d.spreadRecentFaible,D.spreadRecentFaible)}</div>
       ${numF('pf_spreadMin','Écart minimum ($)',d.spreadMin,D.spreadMin,'Même pour une auto bon marché.')}
+      <h3 style="margin-top:10px">Dommages déclarés au Carfax</h3>
+      <p class="muted small" style="margin:0">Quand le client déclare un accident et donne le montant des dommages au Carfax.</p>
+      <div class="row">${numF('pf_carfaxPct','% du montant des dommages enlevé',d.carfaxPct,D.carfaxPct)}${numF('pf_carfaxCapPct','Plafond (% de la valeur wholesale)',d.carfaxCapPct,D.carfaxCapPct)}</div>
+      <p class="muted small" style="margin:0">Exemple : 32 413 $ de dommages → ${Math.round((+d.carfaxPct||0)*32413/100/50)*50} $ enlevés, sans dépasser ${+d.carfaxCapPct||0} % de la valeur de l'auto.</p>
     </div>
     <div class="card"><h3>Règles</h3>
       ${tog('setList','Seulement les modèles de la liste de confiance',d.useComfortList,'Décoché : toutes les marques et modèles passent (sauf luxe et camionnettes), si les seuils sont respectés.')}

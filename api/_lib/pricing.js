@@ -20,6 +20,8 @@ export const PRICING = {
   SPREAD_MIN: 3000,            // profit minimum en dollars, même pour une auto bon marché
   // Frais Shopicar : 700 $ à 1 200 $, linéaire entre 10 000 $ et 40 000 $ de wholesale, arrondi à 50 $
   FEE_MIN: 700, FEE_MAX: 1200, FEE_LOW_AT: 10000, FEE_HIGH_AT: 40000,
+  // Dommages déclarés au Carfax : on enlève CARFAX_PCT % du montant, jamais plus de CARFAX_CAP_PCT % de la valeur wholesale
+  CARFAX_PCT: 17, CARFAX_CAP_PCT: 50,
 };
 
 const median = (xs) => { const s = [...xs].sort((a, b) => a - b); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
@@ -77,7 +79,7 @@ export function spreadFor(retail, { demande, year, km }, P = PRICING, now = new 
 }
 
 /** Ajustements d'état, selon les réponses du questionnaire seulement (barème fixe). */
-export function conditionAdjustments(a, wholesale) {
+export function conditionAdjustments(a, wholesale, P = PRICING) {
   const out = [];
   const add = (libelle, montant) => { if (montant) out.push({ libelle, montant: Math.round(montant) }); };
   const has = (k, v) => Array.isArray(a[k]) && a[k].includes(v);
@@ -99,10 +101,12 @@ export function conditionAdjustments(a, wholesale) {
   if (has('voyants', 'Coussin gonflable')) add('Voyant coussin gonflable', -1500);
   if (has('voyants', 'Bruit, fuite ou autre')) add('Bruit ou fuite à diagnostiquer', -800);
   if (a.roulable === 'Non') add('Ne roule pas (remorquage, diagnostic)', -1000);
-  // Accident déclaré (nov. 2026) : si le client donne le montant des dommages au Carfax, on enlève 25 % de ce montant.
+  // Accident déclaré (nov. 2026) : si le client donne le montant des dommages au Carfax, on enlève CARFAX_PCT % de ce montant
+  // (réglable dans le Super Admin), plafonné à CARFAX_CAP_PCT % de la valeur wholesale.
   // Sans montant : ajustement par défaut de 4 % (min. 500 $), validé ensuite avec le rapport Carfax.
   const dmg = Math.min(200000, Number(String(a.accidentMontant ?? '').replace(/[^\d]/g, '')) || 0);
-  if ((a.accidents === 'Oui' || a.accidents === '1') && dmg > 0) add(`Dommages au Carfax (25 % de ${dmg.toLocaleString('fr-CA')} $)`, -r(0.25 * dmg, 50));
+  if ((a.accidents === 'Oui' || a.accidents === '1') && dmg > 0) { const raw = (P.CARFAX_PCT / 100) * dmg, cap = (P.CARFAX_CAP_PCT / 100) * wholesale;
+    add(raw > cap ? `Dommages au Carfax (${dmg.toLocaleString('fr-CA')} $, plafonné)` : `Dommages au Carfax (${P.CARFAX_PCT} % de ${dmg.toLocaleString('fr-CA')} $)`, -r(Math.min(raw, cap), 50)); }
   else if (a.accidents === 'Oui' || a.accidents === '1') add('Accident ou réclamation déclaré', pctOf(4, 500));
   if (a.accidents === '2 ou plus') add('2 accidents ou plus', pctOf(8, 1000));
   // VGA (véhicule gravement accidenté) : −35 % de la valeur évaluée (nov. 2026). « VGR » = ancienne étiquette, dossiers existants
@@ -139,7 +143,7 @@ export function computeOffer({ market, vehicle, answers }, P = PRICING, now = ne
   // Source : offres réelles (3+), moyenne offres réelles + comparables (2), sinon comparables seulement
   const source = nb >= P.BIDS_MIN ? 'offres' : nb >= P.BIDS_BLEND_MIN && fromComps ? 'mixte' : 'comparables';
   const wholesale_base = source === 'offres' ? bids.wholesale : source === 'mixte' ? r((bids.wholesale + fromComps) / 2, 50) : fromComps;
-  const ajustements = conditionAdjustments(answers, wholesale_base);
+  const ajustements = conditionAdjustments(answers, wholesale_base, P);
   const wholesale_final = Math.max(0, wholesale_base + ajustements.reduce((s, x) => s + x.montant, 0));
   const fee = feeFor(wholesale_final, P);
   const offer = Math.max(0, Math.floor((wholesale_final - fee) / 25) * 25);

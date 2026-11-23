@@ -30,10 +30,11 @@ export const DEFAULTS = {
   feeMin: PRICING.FEE_MIN, feeMax: PRICING.FEE_MAX, feeLowAt: PRICING.FEE_LOW_AT, feeHighAt: PRICING.FEE_HIGH_AT,
   spreadMin: PRICING.SPREAD_MIN,
   spreadForte: PRICING.SPREAD_PCT.forte, spreadNormale: PRICING.SPREAD_PCT.normale, spreadFaible: PRICING.SPREAD_PCT.faible,
+  carfaxPct: PRICING.CARFAX_PCT, carfaxCapPct: PRICING.CARFAX_CAP_PCT,
   spreadRecentForte: PRICING.SPREAD_PCT_RECENT.forte, spreadRecentNormale: PRICING.SPREAD_PCT_RECENT.normale, spreadRecentFaible: PRICING.SPREAD_PCT_RECENT.faible,
 };
 const PRICE_KEYS = [['feeMin', 0, 20000], ['feeMax', 0, 20000], ['feeLowAt', 0, 500000], ['feeHighAt', 0, 1000000], ['spreadMin', 0, 50000],
-  ['spreadForte', 0, 60], ['spreadNormale', 0, 60], ['spreadFaible', 0, 60], ['spreadRecentForte', 0, 60], ['spreadRecentNormale', 0, 60], ['spreadRecentFaible', 0, 60]];
+  ['spreadForte', 0, 60], ['spreadNormale', 0, 60], ['spreadFaible', 0, 60], ['spreadRecentForte', 0, 60], ['spreadRecentNormale', 0, 60], ['spreadRecentFaible', 0, 60], ['carfaxPct', 0, 100], ['carfaxCapPct', 0, 100]];
 
 const num = (v, d, lo, hi) => { if (v === undefined || v === null || String(v).trim() === '') return d; const n = Number(String(v ?? '').replace(/[^\d.]/g, '')); return Number.isFinite(n) && n >= lo && n <= hi ? Math.round(n) : d; };
 const words = (a) => (Array.isArray(a) ? a : String(a || '').split(',')).map((s) => String(s).trim().toLowerCase()).filter(Boolean).slice(0, 80);
@@ -83,7 +84,7 @@ export async function saveSettings(s) {
 /* Paramètres de prix (PRICING) avec la marge réglée par le Super Admin. */
 export function pricingFrom(s) {
   const x = sanitize(s || {});
-  return { ...PRICING, FEE_MIN: x.feeMin, FEE_MAX: x.feeMax, FEE_LOW_AT: x.feeLowAt, FEE_HIGH_AT: x.feeHighAt, SPREAD_MIN: x.spreadMin,
+  return { ...PRICING, FEE_MIN: x.feeMin, FEE_MAX: x.feeMax, FEE_LOW_AT: x.feeLowAt, FEE_HIGH_AT: x.feeHighAt, SPREAD_MIN: x.spreadMin, CARFAX_PCT: x.carfaxPct, CARFAX_CAP_PCT: x.carfaxCapPct,
     SPREAD_PCT: { forte: x.spreadForte, normale: x.spreadNormale, faible: x.spreadFaible },
     SPREAD_PCT_RECENT: { forte: x.spreadRecentForte, normale: x.spreadRecentNormale, faible: x.spreadRecentFaible } };
 }
