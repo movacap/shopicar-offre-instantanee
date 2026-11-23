@@ -1228,7 +1228,7 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
       ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
     <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''}`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
-    ${photoSlotsHTML(c, head(1,p1,'Vos photos et vos dommages','Commencez par 6 photos de votre auto, puis vos dommages s\'il y en a.'))}
+    ${photoSlotsHTML(c, head(1,p1,'Vos photos','6 photos de votre auto'))}
     <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Vos documents','Prenez une photo claire de chaque document.',!p1)}
       ${p1?docsHTML(c,true):wait('Ajoutez d\'abord vos photos et vos dommages.')}</div>
     <div class="card stp ${p3?'ok':''}" id="pkAsk">${head(3,p3,isDrop?'Votre rendez-vous de dépôt':'Votre rendez-vous','Choisissez où et quand nous nous rencontrons, sans frais.',!(p1&&p2))}
