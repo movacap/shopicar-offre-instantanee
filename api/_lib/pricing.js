@@ -32,7 +32,11 @@ const r = (n, step) => Math.round(n / step) * step;
 /** Prix de détail d'un exemplaire en bon état moyen, au kilométrage exact du véhicule. */
 export function retailFromComps(comps, subject, P = PRICING) {
   const year = +subject.year || 0, km = +subject.km || 0;
-  const valid = (comps || []).filter((c) => +c.prix > 1000);
+  const all = (comps || []).filter((c) => +c.prix > 1000);
+  // Annonces hors Québec (ex. « Edmonton, AB ») retirées dès qu'il reste au moins MIN_COMPS annonces au Québec
+  const OUT_QC = /\b(AB|BC|ON|MB|SK|NS|NB|NL|PE|PEI|YT|NT|NU|Alberta|Ontario|Colombie|British Columbia|Manitoba|Saskatchewan|Nouvelle-[ÉE]cosse|Nova Scotia|Nouveau-Brunswick|New Brunswick|Terre-Neuve|Newfoundland)\b/i;
+  const qc = all.filter((c) => !OUT_QC.test(String(c.ville || '')));
+  const valid = qc.length >= P.MIN_COMPS ? qc : all;
   const same = valid.filter((c) => !c.annee || !year || +c.annee === year);
   const pool = same.length >= P.MIN_COMPS ? same : valid.filter((c) => !c.annee || !year || Math.abs(+c.annee - year) <= 1);
   const adjusted = pool.map((c) => {
@@ -46,11 +50,11 @@ export function retailFromComps(comps, subject, P = PRICING) {
     }
     return { ...c, ajuste: Math.round(prix + yearAdj + kmAdj) };
   });
-  if (!adjusted.length) return { retail: 0, used: [], excluded: valid.length };
+  if (!adjusted.length) return { retail: 0, used: [], excluded: all.length };
   const m = median(adjusted.map((c) => c.ajuste));
   const kept = adjusted.length >= 4 ? adjusted.filter((c) => Math.abs(c.ajuste - m) <= (P.OUTLIER_PCT / 100) * m) : adjusted;
   const used = kept.length ? kept : adjusted;
-  return { retail: r(median(used.map((c) => c.ajuste)), 100), used, excluded: valid.length - used.length };
+  return { retail: r(median(used.map((c) => c.ajuste)), 100), used, excluded: all.length - used.length };
 }
 
 /** Valeur wholesale tirée des offres réelles des acheteurs : chaque offre ajustée à l'année et au km du véhicule, puis médiane. */
