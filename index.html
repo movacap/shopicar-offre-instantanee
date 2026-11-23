@@ -308,6 +308,51 @@ details.details:not([open]){gap:0}
 .sticky-cta .btn{flex:1;padding:14px 12px}
 #app:has(.sticky-cta){padding-bottom:180px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:100px;background:#000;color:#fff;padding:12px 16px;border-radius:12px;font-size:14px;z-index:30;max-width:90%}
+
+/* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
+@media (min-width:768px){
+  #app{max-width:760px;padding-bottom:120px}
+  .top,.hero{box-shadow:0 0 0 100vmax #000;clip-path:inset(0 -100vmax)} /* fond noir pleine largeur */
+  .top{padding:calc(env(safe-area-inset-top) + 22px) 32px 22px}
+  .logo{height:26px}
+  .hero{padding:28px 32px 52px;gap:18px}
+  .hero h1{font-size:56px;line-height:1.02}
+  .hero p{font-size:19px;max-width:560px}
+  .hero .btn{max-width:460px}
+  .wrap{padding:28px 32px;gap:16px;max-width:720px;margin:0 auto;width:100%}
+  .wrap.home,.wrap.garage{max-width:none}
+  .steps3{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;padding:12px 0}
+  .s3{flex-direction:column;align-items:flex-start;gap:12px}
+  .s3>span{flex:0 0 auto;width:36px;height:36px}
+  .wrap.home>.btn.ghost{width:auto;align-self:flex-start;padding-left:0}
+  .wrap.garage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch}
+  .wrap.garage>.swipe>.gcar{height:100%}
+  .wrap.garage .gcar .amt{white-space:nowrap}
+  .wrap.garage .gcar .bot{flex-direction:column-reverse;align-items:flex-start;gap:10px;margin-top:auto}
+  .wrap.garage>*:not(.swipe){grid-column:1/-1}
+  .wrap.garage>.btn{width:auto;justify-self:start;min-width:280px}
+  .slots{grid-template-columns:repeat(4,1fr)}
+  .tabs .in,.sticky-cta .in{max-width:760px}
+  .tab{font-size:12px}
+  .sticky-cta{padding:12px 32px}
+  /* feuilles (Julia, RDV, code SMS) : fenêtre centrée au lieu du tiroir du bas */
+  .sheet-bg{align-items:center;padding:24px}
+  .sheet{max-width:560px;border-radius:22px;max-height:86vh}
+  .toast{bottom:calc(var(--tabs-h,64px) + 24px)}
+}
+@media (min-width:1100px){
+  #app{max-width:1080px}
+  .top{padding-left:40px;padding-right:40px}
+  .hero{padding:44px 40px 72px}
+  .hero h1{font-size:72px}
+  .hero p{font-size:20px}
+  .wrap{padding:36px 40px}
+  .wrap.garage{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tabs .in,.sticky-cta .in{max-width:640px}
+  .tab{flex-direction:row;justify-content:center;gap:8px;font-size:14px;padding:10px}
+  .tab svg{width:20px;height:20px}
+  .tab:hover{color:#525252}.tab.on:hover{color:#000}
+}
 </style>
 </head>
 <body>
@@ -670,7 +715,7 @@ function vHome(){
     <button class="btn pri big" data-act="start">Scanner ou entrer mon NIV</button>
     ${active?`<button class="btn dark" data-act="tab-garage">Mon garage · ${active} auto${active>1?'s':''}</button>`:''}
   </div>
-  <div class="wrap">
+  <div class="wrap home">
     <div class="steps3">
       ${[['Scanne ton NIV','Tout se remplit seul.'],['Reçois ton offre initiale','Basée sur le marché du Québec.'],['Julia trouve ton meilleur prix','Paiement le jour de la cueillette.']].map(([t,d],i)=>`<div class="s3"><span>${i+1}</span><div><b>${t}</b><small>${d}</small></div></div>`).join('')}
     </div>
@@ -1187,7 +1232,7 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
     </div></div>`; }
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get();
   return `${topbar('Mon garage', null, profileBtn())}
-  <div class="wrap">
+  <div class="wrap garage">
     ${pv&&pv.token?'':`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
     ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
