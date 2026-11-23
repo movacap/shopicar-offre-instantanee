@@ -1,7 +1,8 @@
 // Sauvegarde des dossiers de l'app dans la base Shopicar (Supabase djvaddbeeascwteetdeq, fonction offer-dossier).
 // Le secret partagé (OFFER_DB_SECRET) reste côté serveur. Chaque dossier a en plus sa propre clé, gardée sur l'appareil du client.
 const FN = 'https://djvaddbeeascwteetdeq.supabase.co/functions/v1/offer-dossier';
-const ACTIONS = new Set(['save', 'file', 'file-rm', 'garage']);
+import { isAdmin } from './_lib/market.js';
+const ACTIONS = new Set(['save', 'file', 'file-rm', 'garage', 'admin-cancels', 'admin-cancel-set']);
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Méthode non permise' });
@@ -9,6 +10,7 @@ export default async function handler(req, res) {
   if (!secret) return res.status(503).json({ error: 'OFFER_DB_SECRET manque dans Vercel' });
   const b = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
   if (!ACTIONS.has(b.action)) return res.status(400).json({ error: 'Action inconnue' });
+  if (b.action.startsWith('admin-') && !isAdmin(req)) return res.status(403).json({ error: 'Super Admin seulement' });
   try {
     const r = await fetch(FN, {
       method: 'POST',

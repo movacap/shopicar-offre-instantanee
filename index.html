@@ -391,6 +391,13 @@ details.details:not([open]){gap:0}
 }
 #pkAsk>.stp-q:first-child{border-top:0;padding-top:0;margin-top:0}
 .conf-no{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f5f5f5;border-radius:12px;padding:10px 14px;margin-top:12px;font-size:14px}.conf-no span{color:#525252}.conf-no b{font-size:16px;letter-spacing:.06em}.conf-no.dk{background:rgba(255,255,255,.1)}.conf-no.dk span{color:#d4d4d4}.conf-no.dk b{color:#fff}
+.stat.todo{background:#ffc53d;color:#0a0a0a;font-weight:700;font-size:13px;padding:6px 12px}.stat.todo::before{content:'';width:7px;height:7px;border-radius:50%;background:#0a0a0a;animation:todoP 1.6s ease-in-out infinite}
+@keyframes todoP{50%{opacity:.25}}
+.g-todo{margin-top:12px;width:100%}
+.cancel-box{text-align:center;padding:18px 8px 4px;border-top:1px solid #eee;margin-top:8px}.cancel-box p{margin:0;color:#737373;font-size:13.5px;line-height:1.45}.cancel-box .lnk{margin-top:8px;font-size:13.5px;color:#525252;text-decoration:underline;background:none;border:0;cursor:pointer;padding:4px}
+.cancel-pend{background:#fff8e6;border:1px solid #ffe3a3;border-radius:14px;padding:14px 16px}.cancel-pend b{display:block;margin-bottom:2px}.cancel-pend p{margin:0;font-size:13.5px;color:#525252}
+.ca-row{border:1px solid #e5e5e5;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}.ca-row .row{margin-top:6px}
+.gcar .bot{flex-wrap:wrap}.gcar .bot .amt{white-space:nowrap}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -798,6 +805,7 @@ function render(){ try{ confPersist(); }catch(e){}
   else if(s==='prep') app.innerHTML=vPrep();
   else if(s==='garage') app.innerHTML=vGarage();
   else if(s==='settings') app.innerHTML=vSettings();
+  else if(s==='admin-cancels') app.innerHTML=vAdminCancels();
   else if(s==='profile') app.innerHTML=vProfile();
   renderTabs(); setTabsH(); bindInputs();
 }
@@ -906,12 +914,14 @@ function vLoading(){ return `${topbar('Votre offre initiale')}
 /* Filtres de Mon garage : En cours / Expiré / Refusé / Vendu */
 const GROUPS=[['encours','En cours'],['expire','Expiré'],['refuse','Refusé'],['vendu','Vendu']];
 function carGroup(c){ if(['payee','inspectee','vendue'].includes(c.status)) return 'vendu';
-  if(['refusee','refused'].includes(c.status)||c.refused) return 'refuse';
+  if(['refusee','refused','annulee'].includes(c.status)||c.refused) return 'refuse';
   if((['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && !c.initialAcceptedAt && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt) return 'expire';
   return 'encours'; }
 function statusInfo(c){ const exp = (['offre','a_valider'].includes(c.status) || (c.status==='estimation' && !c.prep && !c.initialAcceptedAt && isFast(c) && !c.wantMore)) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
-  return ({estimation:(c.prep||c.initialAcceptedAt)&&!c.wantMore?{cls:'warn',txt:c.initialAcceptedAt?'Offre acceptée · dossier à compléter':'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour vous'},
+  if(c.status==='annulee') return {cls:'bad',txt:'Transaction annulée'};
+  if(cancelPending(c)) return {cls:'warn',txt:'Annulation demandée · en attente'};
+  return ({estimation:(c.prep||c.initialAcceptedAt)&&!c.wantMore?{cls:'todo',txt:c.initialAcceptedAt?'Offre acceptée · dossier à compléter':'Dossier à compléter'}:(isFast(c)&&!c.wantMore?{cls:'ok',txt:'Offre prête'}:{cls:'info',txt:'Offre initiale prête'}), recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour vous'},
     offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, refusee:{cls:'bad',txt:'Offre refusée'}, inspectee:{cls:'ok',txt:'Vendue'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Vendue'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
@@ -1269,6 +1279,7 @@ function validationListHTML(c){ const fin=c.answers.finance!=='Payée au complet
 function vPrep(){ const c=S.current; if(!c) return vGarage();
   fixBonus(c); const locked=!!c.initialAcceptedAt, bon=c.initialBonus||0; // offre acceptée : pas de retour en arrière
   // 1re étape après l'acceptation : le rendez-vous (puis félicitations + 2 étapes : photos et documents)
+  if(c.status==='annulee') return vCancelled(c);
   if((!c.prepRdvAt && !c.prepSentAt) || S.rdvEdit===c.id) return vPrepRdv(c, locked, bon);
   const p1=photosDone(c), p2=docsOk(c,true), p3=pickupOk(c); const done=[p1,p2].filter(Boolean).length; const isDrop=(c.pickup||{}).lieu===PK_DROP;
   const head=(n,ok,t,sub,lock)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}" style="${lock&&!ok?'background:#d4d4d4':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':lock?'À venir':'À faire'}</span></div>`;
@@ -1293,6 +1304,15 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
     ${done<2?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il ne vous reste que : ${[!p1&&'la prise de vos photos',!p2&&'vos documents'].filter(Boolean).join(' et ')}.</p>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     ${locked?'':`<button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>`}
+    ${locked?cancelBoxHTML(c):''}
+  </div>`; }
+function vCancelled(c){ const cr=c.cancelRequest||{};
+  return `${topbar('Transaction annulée','tab-garage')}
+  <div class="wrap">${vehHead(c)}
+    <div class="card"><span class="stat bad">Transaction annulée</span><h2 style="margin:8px 0 4px">Votre transaction est annulée</h2>
+      <p class="muted" style="margin:0">Annulation confirmée par Shopicar${cr.decidedAt?` le ${new Date(cr.decidedAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}`:''}.</p>${confHTML(c)}</div>
+    <button class="btn pri big" data-act="start">Obtenir une nouvelle offre</button>
+    <button class="btn sec" data-act="tab-garage">Retour à mon garage</button>
   </div>`; }
 /* Rendez-vous choisi tout de suite après l'acceptation de l'offre */
 function vPrepRdv(c, locked, bon){ const edit=S.rdvEdit===c.id; const ok=pickupOk(c);
@@ -1306,6 +1326,7 @@ function vPrepRdv(c, locked, bon){ const edit=S.rdvEdit===c.id; const ok=pickupO
     <div class="card stp" id="pkAsk">${pickupFormHTML(c)}</div>
     <button class="btn pri big" data-act="prep-rdv-ok" ${ok?'':'disabled'}>Confirmer mon rendez-vous</button>
     ${edit?'':`<div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>`}
+    ${!edit&&locked?cancelBoxHTML(c):''}
   </div>`; }
 
 function vAccept(){ const c=S.current; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
@@ -1360,6 +1381,21 @@ function dropPickerHTML(c, dr){ const pk=c.pickup||{}; const postal=dropPostal(c
         <span style="font-size:18px;line-height:1.2">${on?'✓':'📍'}</span><span style="flex:1;min-width:0"><b>${esc(a.nom)}</b>${i===0?` <small style="opacity:.75">· le plus près</small>`:''}<br>
         <small style="opacity:.8">${esc(agentAddr(a))} · ${a.km<1?'moins de 1':a.km} km</small>${a.heures?`<br><small style="opacity:.7">${esc(a.heures)}</small>`:''}</span></button>`; }).join('')}</div>
     ${pk.agent?`<a class="btn ghost" style="padding:8px 0 0" target="_blank" rel="noopener" href="${mapsUrl(pk.agent.demo?pk.agent.ville+' '+pk.agent.postal:agentAddr(pk.agent))}">Voir l'itinéraire</a>`:''}`; }
+/* Annulation demandée par le client : reste en attente jusqu'à la décision d'un acheteur Shopicar (Super Admin) */
+const cancelPending = c => !!(c.cancelRequest && c.cancelRequest.status==='pending') && c.status!=='annulee';
+const CANCEL_REASONS=['J\'ai vendu mon véhicule ailleurs','J\'ai reçu une meilleure offre','Je garde mon véhicule','Autre raison'];
+function cancelBoxHTML(c){
+  if(c.status==='annulee') return '';
+  if(cancelPending(c)) return `<div class="cancel-pend" role="status"><b>Demande d'annulation envoyée</b><p>Un acheteur Shopicar doit confirmer l'annulation. Il vous contactera sous peu. D'ici là, votre dossier reste actif.</p><button class="lnk" data-act="cancel-withdraw" style="margin-top:8px;padding:0;font-size:13.5px;color:#525252;text-decoration:underline;background:none;border:0;cursor:pointer">Retirer ma demande d'annulation</button></div>`;
+  return `<div class="cancel-box"><p>Vous avez changé d'avis?<br>Vous ne souhaitez plus vendre votre véhicule à Shopicar?</p><button class="lnk" data-act="cancel-ask">Demander une annulation</button></div>`; }
+function openCancelModal(){ S.cancelWhy=S.cancelWhy||'';
+  $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Demander une annulation</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
+  <div class="bd"><p class="muted" style="margin:0">Votre demande sera transmise à un acheteur Shopicar, qui vous contactera pour confirmer l'annulation. <b>Votre transaction n'est pas annulée tant que Shopicar ne l'a pas confirmée.</b></p>
+  <div class="q"><span class="ql">Pourquoi? (facultatif)</span><div class="chips">${CANCEL_REASONS.map(r=>`<button class="chip ${S.cancelWhy===r?'on':''}" data-act="cancel-why" data-v="${esc(r)}">${esc(r)}</button>`).join('')}</div></div>
+  <textarea id="cancelNote" class="inp" rows="2" maxlength="500" placeholder="Un détail à ajouter? (facultatif)" style="resize:vertical">${esc(S.cancelNote||'')}</textarea>
+  <button class="btn pri big" data-act="close">Non, je garde mon offre</button>
+  <button class="btn sec" data-act="cancel-send">Envoyer ma demande d'annulation</button></div></div></div>`;
+  const t=$('#cancelNote'); if(t) t.addEventListener('input',()=>{ S.cancelNote=t.value; }); }
 /* N° de confirmation : un par dossier (transaction + rendez-vous), créé à l'acceptation; sans O/0 ni I/1 pour le dicter au téléphone */
 const CONF_AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const hasConf = c => !!(c.initialAcceptedAt || c.acceptedAt || c.autoAccepted || ['acceptee','planifiee','inspectee','payee'].includes(c.status));
@@ -1396,12 +1432,13 @@ function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c);
     <button class="btn ghost" data-act="ics" style="padding:4px">Apple Calendrier / Outlook</button>
   </div>`; }
 
-function garageCard(c){ const st=statusInfo(c); const noArch=!c.archived && hasConf(c) && c.status!=='payee'; // offre acceptée : on ne l'archive pas
+function garageCard(c){ const st=statusInfo(c); const noArch=!c.archived && hasConf(c) && !['payee','annulee'].includes(c.status); // offre acceptée : on ne l'archive pas
   return `<div class="swipe" ${noArch?'':`data-sw="${c.id}"`}>
     ${noArch?'':`<div class="swipe-act ${c.archived?'un':''}"><button data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}"><span style="font-size:20px">${c.archived?'↩':'🗄'}</span>${c.archived?'Désarchiver':'Archiver'}</button></div>`}
     <div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div style="flex:1;min-width:0"><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
       <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span>${noArch?'':`<button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button>`}</span><span class="amt num">${money(c.finalOffer||(c.status==='estimation'&&c.initialAcceptedAt?c.estimate+(c.initialBonus||0):c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
+      ${!c.archived&&c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore&&!cancelPending(c)?`<button class="btn pri g-todo" data-act="open" data-id="${c.id}">Compléter mon dossier →</button>`:''}
       ${!c.archived&&hasConf(c)?`<div class="muted small">N° de confirmation <b class="num" style="color:var(--ink,#0a0a0a)">${confNo(c)}</b></div>`:''}
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
     </div></div>`; }
@@ -1414,10 +1451,12 @@ function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt
     ${cars.length?`<div class="g-head"><h2>Mes autos <span class="muted num">· ${cars.length}</span></h2><button class="btn pri g-add" data-act="start">+ Vendre une auto</button></div>
     <div class="g-filt" role="tablist" aria-label="Filtrer mes autos">${GROUPS.map(([k,l])=>{ const n=cars.filter(c=>carGroup(c)===k).length; const on=gf===k; return `<button class="chip ${on?'on':''}" role="tab" aria-selected="${on}" data-act="gf" data-v="${k}">${l}<span class="num">${n}</span></button>`; }).join('')}</div>`:''}
     ${cars.length&&!shown.length?`<p class="muted g-none">Aucune auto ${({encours:'en cours',expire:'avec une offre expirée',refuse:'refusée',vendu:'vendue'})[gf]}.</p>`:''}
+    ${gf==='expire'&&shown.length>1?`<button class="btn ghost" data-act="arch-expired" style="justify-self:start">Archiver toutes les autos expirées (${shown.length})</button>`:''}
     ${shown.map(garageCard).join('')}
     ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glissez une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
+    ${IS_ADMIN?`<button class="btn sec" data-act="admin-cancels">🛑  Demandes d'annulation (Super Admin)</button>`:''}
     ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages Super Admin (parcours rapide et marge)</button>`:''}
   </div>`; }
 
@@ -1428,11 +1467,36 @@ function vProfile(){ const pv=PV.get(); const on=!!(pv&&pv.token);
     ${on?`${profileCardHTML()}
       <div class="acct"><span>Connecté · <b class="num">${esc(fmtCell(pv.phone))}</b></span><button class="lnk small" data-act="logout">Me déconnecter</button></div>`
       :`<div class="card"><h3>Connectez-vous</h3><p class="muted small" style="margin:0">Connectez-vous avec votre cellulaire pour voir votre profil et votre garage sur tous vos appareils.</p><button class="btn pri" data-act="login">Me connecter avec mon cellulaire</button></div>`}
+    ${IS_ADMIN?`<button class="btn sec" data-act="admin-cancels">🛑  Demandes d'annulation (Super Admin)</button>`:''}
     ${IS_ADMIN?`<button class="btn sec" data-act="admin-settings">⚙️  Réglages Super Admin (parcours rapide et marge)</button>`:''}
   </div>`; }
 
 /* ============ SUPER ADMIN : RÉGLAGES DU PARCOURS RAPIDE (api/settings.js → api/_lib/settings.js) ============ */
 const SET = { data:null, defaults:null, busy:false, msg:'', err:'' };
+const CA={busy:false, items:[], err:'', show:'pending'};
+async function adminDossier(body){ const r=await fetch('/api/dossier',{method:'POST', headers:{'content-type':'application/json','x-admin-key':adminKey()}, body:JSON.stringify(body)});
+  const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok) throw new Error(j.error||'erreur'); return j; }
+async function loadCancelsUI(){ CA.busy=true; CA.err=''; rerender(); try{ CA.items=(await adminDossier({action:'admin-cancels'})).items||[]; }catch(e){ CA.err=e.message; } CA.busy=false; if(S.screen==='admin-cancels') rerender(); }
+async function decideCancel(id, v){ const it=CA.items.find(x=>x.id===id); if(!it) return;
+  if(!confirm(v==='confirm'?`Confirmer l'annulation de ${it.vehicle} (${it.prenom||it.phone||id})? Le client verra « Transaction annulée ».`:`Refuser l'annulation? La transaction de ${it.vehicle} continue.`)) return;
+  try{ await adminDossier({action:'admin-cancel-set', id, decision:v}); toast(v==='confirm'?'Annulation confirmée.':'Annulation refusée : la transaction continue.');
+    if(S.cars.some(c=>c.id===id)){ syncing=false; syncGarage(false); } }catch(e){ toast('Erreur : '+e.message); }
+  loadCancelsUI(); }
+function vAdminCancels(){ const st={pending:'En attente',confirmed:'Annulation confirmée',rejected:'Refusée (transaction maintenue)',withdrawn:'Retirée par le client'};
+  const list=CA.items.filter(x=>CA.show==='all'||(x.request||{}).status==='pending'); const n=CA.items.filter(x=>(x.request||{}).status==='pending').length;
+  return `${topbar("Demandes d'annulation",'tab-garage')}
+  <div class="wrap"><span class="stat info">Super Admin seulement</span>
+    <div class="g-filt"><button class="chip ${CA.show==='pending'?'on':''}" data-act="ca-show" data-v="pending">En attente <span class="num">${n}</span></button><button class="chip ${CA.show==='all'?'on':''}" data-act="ca-show" data-v="all">Toutes</button></div>
+    ${CA.busy?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement…</span></div></div>`:''}
+    ${CA.err?`<p style="color:var(--bad)">${esc(CA.err)}</p>`:''}
+    ${!CA.busy&&!list.length?`<p class="muted">Aucune demande ${CA.show==='pending'?'en attente':''}.</p>`:''}
+    ${list.map(x=>{ const r=x.request||{}; return `<div class="ca-row"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start"><b>${esc(x.vehicle)} ${esc(x.trim||'')}</b><span class="stat ${r.status==='pending'?'warn':r.status==='confirmed'?'bad':'info'}">${st[r.status]||esc(r.status||'')}</span></div>
+      <div class="small">${esc(x.prenom||'')} ${x.phone?`· <a href="tel:${esc(x.phone)}">${esc(x.phone)}</a>`:''} ${x.confNo?`· <b class="num">${esc(x.confNo)}</b>`:''} ${x.demo?'· démo':''}</div>
+      <div class="small">Offre : <b class="num">${money(x.amount||0)}</b> · statut : ${esc(x.status||'')}</div>
+      <div class="small muted">Demandée le ${r.at?new Date(r.at).toLocaleString('fr-CA'):'—'}${r.reason?` · ${esc(r.reason)}`:''}${r.note?`<br>« ${esc(r.note)} »`:''}</div>
+      ${r.status==='pending'?`<div class="row"><button class="btn pri" data-act="ca-decide" data-id="${esc(x.id)}" data-v="confirm">Confirmer l'annulation</button><button class="btn sec" data-act="ca-decide" data-id="${esc(x.id)}" data-v="reject">Refuser (garder la transaction)</button></div>`:''}</div>`; }).join('')}
+    <button class="btn ghost" data-act="admin-cancels">Actualiser</button>
+  </div>`; }
 async function setApi(method, body){ const r=await fetch('/api/settings',{method, headers:{'content-type':'application/json','x-admin-key':adminKey()}, body: body?JSON.stringify(body):undefined});
   const j=await r.json().catch(()=>({error:'HTTP '+r.status})); if(!r.ok) throw new Error(j.error||'erreur'); return j; }
 async function loadSettingsUI(){ SET.busy=true; SET.err=''; SET.msg=''; rerender();
@@ -1590,6 +1654,15 @@ document.addEventListener('click', async e=>{
       if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); confNo(c); c.prep=true; delete c.prepRdvAt; await Store.save(c); go('prep'); scrollTo(0,0); }
   else if(a==='prep-rdv-ok'){ const c=S.current; if(!pickupOk(c)){ toast('Choisissez le lieu, le jour et l\'heure.'); return; }
       const first=!c.prepRdvAt; c.prepRdvAt=Date.now(); S.rdvEdit=null; if(first) S.celebrate=c.id; else toast('Rendez-vous modifié.'); await Store.save(c); rerender(); scrollTo(0,0); }
+  else if(a==='cancel-ask'){ S.cancelWhy=''; S.cancelNote=''; openCancelModal(); }
+  else if(a==='cancel-why'){ S.cancelWhy=S.cancelWhy===el.dataset.v?'':el.dataset.v; openCancelModal(); }
+  else if(a==='cancel-send'){ const c=S.current; c.cancelRequest={status:'pending', at:Date.now(), reason:S.cancelWhy||'', note:(S.cancelNote||'').trim().slice(0,500)};
+      await Store.save(c); Cloud.flush(c); $('#modal').innerHTML=''; toast('Demande envoyée. Un acheteur Shopicar vous contactera pour confirmer.'); rerender(); }
+  else if(a==='cancel-withdraw'){ const c=S.current; if(c.cancelRequest) c.cancelRequest=Object.assign({}, c.cancelRequest, {status:'withdrawn', withdrawnAt:Date.now()}); await Store.save(c); Cloud.flush(c); toast('Demande d\'annulation retirée. Votre dossier continue.'); rerender(); }
+  else if(a==='arch-expired'){ const list=S.cars.filter(c=>!c.archived&&carGroup(c)==='expire'); for(const c of list){ c.archived=true; c.archivedAt=Date.now(); await Store.save(c); Cloud.flush(c); } S.gf=null; toast(`${list.length} auto${list.length>1?'s':''} archivée${list.length>1?'s':''}.`); rerender(); }
+  else if(a==='admin-cancels'){ if(!IS_ADMIN) return; go('admin-cancels'); loadCancelsUI(); }
+  else if(a==='ca-show'){ CA.show=el.dataset.v; rerender(); }
+  else if(a==='ca-decide'){ if(!IS_ADMIN) return; decideCancel(el.dataset.id, el.dataset.v); }
   else if(a==='prep-rdv-edit'){ S.rdvEdit=S.current.id; rerender(); scrollTo(0,0); }
   else if(a==='prep-rdv-cancel'){ S.rdvEdit=null; rerender(); scrollTo(0,0); }
   else if(a==='refuse-ask'){ const c=S.current; const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_24H:0);
@@ -1799,7 +1872,8 @@ async function runValuation(){ const d=S.draft, v=d.vehicle, a=d.answers; S.load
    une offre expirée ou retirée ne compte plus; l'estimation reste à part (c.estimate). */
 /* Boni 24 h : un dossier accepté dans les 24 h avant l'enregistrement du boni (nov. 2026) le reçoit quand même */
 function fixBonus(c){ if(c&&c.initialAcceptedAt&&c.initialBonus==null&&!c.wantMore&&!c.initialRefusedAt&&isFast(c)&&c.initialAcceptedAt<fastBonusEnd(c)){ c.initialBonus=BONUS_24H; Store.save(c); } }
-function screenFor(c){ if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ fixBonus(c); c.prep=true; return 'prep'; } // offre acceptée : on revient toujours au dossier
+function screenFor(c){ if(c.status==='annulee') return 'prep';
+  if(c.status==='estimation'&&c.initialAcceptedAt&&!c.wantMore){ fixBonus(c); c.prep=true; return 'prep'; } // offre acceptée : on revient toujours au dossier
   return c.status==='refusee'&&c.estimate?'estimate':c.status==='estimation'?(c.prep?'prep':'estimate'):c.status==='recherche'?'search':'offer'; }
 const validOffers = c => ((c.search&&c.search.offers)||[]).filter(o=>o.status==='valid' && Date.now()<o.expiresAt);
 function bestOffer(c){ return validOffers(c).reduce((m,o)=>!m||o.amount>m.amount?o:m, null); }
