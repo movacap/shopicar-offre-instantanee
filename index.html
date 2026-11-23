@@ -1002,7 +1002,8 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <p>Combien aimeriez-vous obtenir pour votre auto? Ajoutez ensuite 6 photos et vos dommages : Julia cherche le meilleur prix pour vous.</p>
       <div class="field" style="width:100%"><label for="wishIn">Prix souhaité</label><input id="wishIn" class="inp num" inputmode="numeric" placeholder="ex. ${Math.round((c.estimate*1.1)/500)*500} $" value="${c.wish?esc(Math.round(c.wish).toLocaleString('fr-CA')+' $'):''}"></div>
       <div class="field" style="width:100%"><label for="wishWhy">Pourquoi votre auto vaut-elle plus?</label><textarea id="wishWhy" class="inp" rows="3" style="font-family:inherit;resize:vertical" placeholder="ex. groupe Technologie, toit ouvrant, sièges chauffants, pneus d'hiver neufs, entretien chez le concessionnaire…">${esc(c.wishWhy||'')}</textarea><div class="muted small">Options, groupes (packages), équipements ou entretiens qu'on devrait connaître : Julia s'en sert pour défendre votre prix.</div></div>
-      <div class="small" style="width:100%;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px 14px">⚠️ <b>Votre offre initiale de ${money(c.estimate)} ne sera plus garantie.</b> Les offres reçues peuvent être plus hautes ou plus basses.</div>`
+      <div class="small" style="width:100%;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:12px;padding:12px 14px">⚠️ <b>Votre offre initiale de ${money(c.estimate)} ne sera plus garantie.</b> Les offres reçues peuvent être plus hautes ou plus basses.</div>
+      <button class="btn more lite" style="width:100%" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complétez votre dossier : un conseiller le valide et vous confirme votre offre ferme</span></span><span class="mc">›</span></button>`
       :`<h2>Obtenez le meilleur prix Shopicar</h2>
       <p>Ajoutez 6 photos de votre auto, plus les dommages s'il y en a, et laissez Julia travailler pour vous.</p>`}
       <button class="btn ${fast&&more?'pri':'dark'} big" data-act="best-price">${photosDone(c)?'Obtenir mon meilleur prix Shopicar':slotCount(c)<6?`Ajouter mes photos · ${slotCount(c)}/6`:'Étape 2 : mes photos de dommages'}</button>
@@ -1010,7 +1011,6 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
     ${photoSlotsHTML(c)}
     <button class="btn pri big" data-act="best-price">Obtenir mon meilleur prix Shopicar</button>
     ${photosDone(c)?'':`<p class="muted small" style="text-align:center;margin:-6px 0 0">${slotCount(c)<6?'Ajoutez les 6 photos pour continuer.':'Ajoutez une photo des dommages ou confirmez qu\'il n\'y en a aucun.'}</p>`}`:''}
-    ${fast&&more?`<button class="btn more lite" data-act="want-more-undo"><span class="mi">✓</span><span class="mt"><b>Finalement, l'offre initiale de ${money(c.estimate)} me convient</b><span>Complétez votre dossier : un conseiller le valide et vous confirme votre offre ferme</span></span><span class="mc">›</span></button>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
     ${ADVANTAGES}
     ${c.rdv?`<div class="card"><span class="stat info">${c.rdv.type==='appel'?'Rappel d\'un conseiller demandé':'Rendez-vous demandé'}</span><div><b>${esc(c.rdv.label)}</b></div></div>`:''}
