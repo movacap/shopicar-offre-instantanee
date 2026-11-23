@@ -398,6 +398,7 @@ details.details:not([open]){gap:0}
 .cancel-pend{background:#fff8e6;border:1px solid #ffe3a3;border-radius:14px;padding:14px 16px}.cancel-pend b{display:block;margin-bottom:2px}.cancel-pend p{margin:0;font-size:13.5px;color:#525252}
 .ca-row{border:1px solid #e5e5e5;border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:6px}.ca-row .row{margin-top:6px}
 .gcar .bot{flex-wrap:wrap}.gcar .bot .amt{white-space:nowrap}
+.logo-btn{background:none;border:0;padding:0;margin:0;cursor:pointer;display:inline-flex;align-items:center;line-height:0}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -660,12 +661,12 @@ async function syncGarage(show){ const pv=PV.get(); if(!pv||!pv.token||syncing) 
       const local=S.cars.find(c=>c.id===r.id);
       if(!local){ const car=Object.assign({}, r.state, { id:r.id, archived:!!r.archived, slots:imgs.slots, dmg:imgs.dmg, photos, docs:Object.assign({}, r.state.docs||{}, r.docs||{}), dbSaved:true, fromAccount:true });
         S.cars.push(car); await Store.save(car, true); added++; if(car.search&&car.search.leadToken&&['recherche','offre'].includes(car.status)) pollLead(car); }
-      else if((r.state.localAt ? r.state.localAt > (local.localAt||0) : (Date.parse(r.updated_at)||0) > (local.localAt||0) + 5000) && !Cloud.t[local.id] && !Cloud.busy[local.id] && !(S.current===local && ['prep','accept','estimate','offer'].includes(S.screen))){ // modifié sur un autre appareil (archivage, statut, offre…) : on prend la version du compte
+      else if((r.state.localAt ? r.state.localAt > (local.localAt||0) : (Date.parse(r.updated_at)||0) > (local.localAt||0) + 5000) && !Cloud.t[local.id] && !Cloud.busy[local.id] && !$('#modal .sheet')){ // modifié sur un autre appareil (archivage, statut, offre…) : on prend la version du compte
         const keep={ id:local.id, dbKey:local.dbKey, dbSaved:true }; const la=local.archivedAt||0, lArch=!!local.archived;
         for(const k of Object.keys(local)) if(!['slots','dmg','photos','photoBlobs'].includes(k)) delete local[k];
         Object.assign(local, r.state, keep, { archived:!!r.archived, localAt:Date.parse(r.updated_at), slots:Object.assign({}, local.slots, imgs.slots), dmg:imgs.dmg.length?imgs.dmg:(local.dmg||[]), docs:Object.assign({}, r.state.docs||{}, r.docs||{}) });
         if(la>(r.state.archivedAt||0)){ local.archived=lArch; local.archivedAt=la; Cloud.save(local); } // archivé ici plus récemment
-        syncPhotos(local); await Store.save(local, true); }
+        syncPhotos(local); await Store.save(local, true); if(S.current===local && !['garage','home'].includes(S.screen)) rerender(); }
       else if((r.state.archivedAt||0) > (local.archivedAt||0)){ local.archived=!!r.archived; local.archivedAt=r.state.archivedAt; await Store.save(local, true); }
       else if((local.archivedAt||0) > (r.state.archivedAt||0) && !!local.archived !== !!r.archived && !Cloud.t[local.id]) Cloud.save(local); // un autre appareil a renvoyé l'ancien état : on corrige
       else if(local.fromAccount || !Object.keys(local.slots||{}).length){ // liens des photos rafraîchis
@@ -809,7 +810,7 @@ function render(){ try{ confPersist(); }catch(e){}
   else if(s==='profile') app.innerHTML=vProfile();
   renderTabs(); setTabsH(); bindInputs();
 }
-function topbar(title, back, right){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<img class="logo" src="/logo-blanc.png" alt="Shopicar">`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}${right||'<span class="pill-top">Québec</span>'}</div>`; }
+function topbar(title, back, right){ return `<div class="top">${back?`<button class="back" data-act="${back}" aria-label="Retour">‹</button>`:`<button class="logo-btn" data-act="tab-sell" aria-label="Accueil Shopicar · Vendre"><img class="logo" src="/logo-blanc.png" alt="Shopicar"></button>`}${title?`<div style="font-weight:700">${esc(title)}</div>`:''}${right||'<span class="pill-top">Québec</span>'}</div>`; }
 const PROFILE_ICON = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>';
 const profileBtn = () => { const pv=PV.get(); const on=!!(pv&&pv.token); return `<button class="pf-btn${on?' on':''}" data-act="profile-open" aria-label="Mon profil">${PROFILE_ICON}</button>`; };
 
@@ -1297,7 +1298,7 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
       <div class="stp-prog"><i style="width:${Math.round(done*100/2)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/2 complétées · environ 5 minutes</p></div>
     ${photoSlotsHTML(c, head(1,p1,'Vos photos','6 photos de votre auto'))}
     <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Vos documents','Prenez une photo claire de chaque document.',!p1)}
-      ${p1?docsHTML(c,true):wait('Ajoutez d\'abord vos photos.')}</div>
+      ${p1||p2?docsHTML(c,true):wait('Ajoutez d\'abord vos photos.')}</div>
     ${c.prepSentAt?`<div class="card stp">${head(3,false,'Validation du dossier','Nous vérifions que vos photos et vos documents sont conformes, puis nous vous confirmons votre offre ferme.').replace(/<span class="stp-s[^>]*>[^<]*<\/span>/,'')}
       ${validationListHTML(c)}</div>`:''}
     <button class="btn pri big" data-act="prep-send" ${p1&&p2&&p3?'':'disabled'}>Envoyer le dossier</button>
@@ -1387,6 +1388,8 @@ const CANCEL_REASONS=['J\'ai vendu mon véhicule ailleurs','J\'ai reçu une meil
 function cancelBoxHTML(c){
   if(c.status==='annulee') return '';
   if(cancelPending(c)) return `<div class="cancel-pend" role="status"><b>Demande d'annulation envoyée</b><p>Un acheteur Shopicar doit confirmer l'annulation. Il vous contactera sous peu. D'ici là, votre dossier reste actif.</p><button class="lnk" data-act="cancel-withdraw" style="margin-top:8px;padding:0;font-size:13.5px;color:#525252;text-decoration:underline;background:none;border:0;cursor:pointer">Retirer ma demande d'annulation</button></div>`;
+  const cr=c.cancelRequest||{};
+  if(cr.status==='rejected' && !S.cancelAgain) return `<div class="cancel-pend" role="status" style="background:var(--soft);border-color:#e5e5e5"><b>Demande d'annulation traitée</b><p>Un acheteur Shopicar a examiné votre demande${cr.decidedAt?` le ${new Date(cr.decidedAt).toLocaleDateString('fr-CA',{day:'numeric',month:'long'})}`:''} : votre transaction se poursuit.</p><button class="lnk" data-act="cancel-ask" style="margin-top:8px;padding:0;font-size:13.5px;color:#525252;text-decoration:underline;background:none;border:0;cursor:pointer">Faire une nouvelle demande</button></div>`;
   return `<div class="cancel-box"><p>Vous avez changé d'avis?<br>Vous ne souhaitez plus vendre votre véhicule à Shopicar?</p><button class="lnk" data-act="cancel-ask">Demander une annulation</button></div>`; }
 function openCancelModal(){ S.cancelWhy=S.cancelWhy||'';
   $('#modal').innerHTML=`<div class="sheet-bg" data-act="close"><div class="sheet"><div class="hd"><h2>Demander une annulation</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>
