@@ -1227,7 +1227,7 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
       <div><b>Félicitations! Vous avez accepté l'offre${(c.initialBonus||0)?` de ${nbsp(money(c.estimate+c.initialBonus))}`:''}.</b><span>Encore 3 petites étapes et un conseiller valide votre dossier.</span></div></div>`:''}
     <div class="acc-card"><div class="acc-top"><span>Offre acceptée</span><b class="num">${nbsp(money(c.estimate+(locked?bon:0)))}</b></div>
       ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
-    <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Votre dossier est complet!'}</h2>
+    <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''}`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
     ${photoSlotsHTML(c, head(1,p1,'Vos photos et vos dommages','Commencez par 6 photos de votre auto, puis vos dommages s\'il y en a.'))}
     <div class="card stp ${p2?'ok':''}" id="docsAsk">${head(2,p2,'Vos documents','Prenez une photo claire de chaque document.',!p1)}
