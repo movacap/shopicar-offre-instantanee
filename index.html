@@ -1199,10 +1199,13 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
   const p1=photosDone(c), p2=docsOk(c,true), p3=pickupOk(c); const done=[p1,p2,p3].filter(Boolean).length; const isDrop=(c.pickup||{}).lieu===PK_DROP;
   const head=(n,ok,t,sub,lock)=>`<div class="stp-h"><span class="stp-n ${ok?'ok':''}" style="${lock&&!ok?'background:#d4d4d4':''}">${ok?'✓':n}</span><div style="flex:1"><h2>${t}</h2><p class="small muted" style="margin:2px 0 0">${sub}</p></div><span class="stp-s ${ok?'ok':''}">${ok?'Complété':lock?'À venir':'À faire'}</span></div>`;
   const wait=t=>`<p class="small muted" style="margin:0">${t}</p>`;
-  return `${topbar('Prochaines étapes','prep-back')}
+  const locked=!!c.initialAcceptedAt, bon=c.initialBonus||0; // offre acceptée : pas de retour en arrière
+  return `${topbar('Prochaines étapes',locked?'tab-garage':'prep-back')}
   <div class="wrap">
     ${vehHead(c)}
-    <div class="offer-mini"><span>Offre initiale choisie</span><b class="num">${money(c.estimate)}</b></div>
+    ${locked?`<div class="offer-mini" style="flex-wrap:wrap"><span>Offre acceptée</span><b class="num">${money(c.estimate+bon)}</b>
+      ${bon?`<div style="flex-basis:100%;display:flex;justify-content:space-between;gap:10px;background:#ffc53d;color:#0a0a0a;border-radius:10px;padding:8px 12px;font-size:14px;margin-top:4px"><span style="text-transform:none;letter-spacing:0;color:#0a0a0a;font-size:14px">Boni 24 h inclus (offre de ${nbsp(money(c.estimate))})</span><b class="num" style="font-size:15px;white-space:nowrap">+${nbsp(money(bon))}</b></div>`:''}</div>`
+    :`<div class="offer-mini"><span>Offre initiale choisie</span><b class="num">${money(c.estimate)}</b></div>`}
     <div><h2 style="font-size:20px">${done<3?`Plus que ${3-done} étape${3-done>1?'s':''} avant la validation`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/3)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/3 complétées · environ 5 minutes</p></div>
     ${photoSlotsHTML(c, head(1,p1,'Vos photos et vos dommages','Commencez par 6 photos de votre auto, puis vos dommages s\'il y en a.'))}
@@ -1215,7 +1218,7 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
     <button class="btn pri big" data-act="prep-send" ${done===3?'':'disabled'}>Envoyer le dossier</button>
     ${done<3?`<p class="muted small" style="text-align:center;margin:-4px 0 0">Il vous reste : ${[!p1&&'vos photos et vos dommages',!p2&&'vos documents',!p3&&'votre rendez-vous'].filter(Boolean).join(', ')}.</p>`:''}
     <div class="row"><button class="btn sec" data-act="conseiller">Parler à un conseiller</button><button class="btn sec" data-act="julia">Discuter avec Julia</button></div>
-    <button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>
+    ${locked?'':`<button class="btn ghost" data-act="prep-back">Revenir à mon offre initiale</button>`}
   </div>`; }
 
 function vAccept(){ const c=S.current; const pk=c.pickup||{}; const fin=c.answers.finance!=='Payée au complet';
@@ -1303,7 +1306,7 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
     <div class="swipe-act ${c.archived?'un':''}"><button data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}"><span style="font-size:20px">${c.archived?'↩':'🗄'}</span>${c.archived?'Désarchiver':'Archiver'}</button></div>
     <div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div style="flex:1;min-width:0"><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
-      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
+      <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='estimation'&&c.initialAcceptedAt?c.estimate+(c.initialBonus||0):c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
     </div></div>`; }
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get(); const gf=S.gf||(GROUPS.map(g=>g[0]).find(k=>cars.some(c=>carGroup(c)===k))||'encours'); const shown=cars.filter(c=>carGroup(c)===gf);
@@ -1498,7 +1501,7 @@ document.addEventListener('click', async e=>{
       $('#modal').innerHTML=''; const c=S.current; c.initialRefusedAt=Date.now(); c.initialRefusedAmount=c.estimate+(fastBonusLive(c)?BONUS_24H:0); c.wantMore=true; delete c.initialBonus; await Store.save(c); rerender();
       setTimeout(()=>{ const w=$('#bestBox'); if(w){ w.scrollIntoView({behavior:'smooth',block:'start'}); $('#wishIn')?.focus({preventScroll:true}); } },50); }
   else if(a==='refuse-undo'){ const c=S.current; c.refused=false; delete c.refusedAt; c.status='estimation'; await Store.save(c); rerender(); }
-  else if(a==='prep-back'){ const c=S.current; c.prep=false; await Store.save(c); go('estimate'); }
+  else if(a==='prep-back'){ const c=S.current; if(c.initialAcceptedAt){ go('garage'); return; } c.prep=false; await Store.save(c); go('estimate'); }
   else if(a==='prep-send'){ const c=S.current; if(!(photosDone(c)&&docsOk(c,true)&&pickupOk(c))){ toast('Complétez les 3 étapes avant d\'envoyer votre dossier.'); return; } startSearch(c, 'initial'); }
   else if(a==='want-more'){ openMoreModal(); }
   else if(a==='more-keep'){ $('#modal').innerHTML=''; const b=document.querySelector('[data-act="initial-ok"]'); if(b){ b.scrollIntoView({behavior:'smooth',block:'center'}); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse'); } }
