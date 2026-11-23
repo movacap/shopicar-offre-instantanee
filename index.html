@@ -994,9 +994,7 @@ function vEstimate(){ const c=S.current; if(!c) return vGarage();
       <div class="small">Une offre initiale basée sur les données du marché et les caractéristiques de votre véhicule.</div>
       <ul class="clean checks"><li><span>Offre initiale personnalisée par Julia</span></li><li><span>Aucun engagement</span></li><li><span>${fast?'Offre initiale : sujette à validation par un conseiller et à l\'inspection':'Offre initiale : conditionnelle suite à la réception des photos et dommages'}</span></li></ul>
     </div>`}
-    ${fast&&!more&&Date.now()<=c.expiresAt&&!c.refused?`<button class="btn more" data-act="want-more"><span class="mi">↑</span><span class="mt"><b>Je veux plus que cette offre</b><span>Julia cherche un meilleur prix pour vous</span></span><span class="mc">›</span></button>
-    <div class="card"><h3>* Avant l'offre ferme</h3>${initialDisclosuresHTML(c)}</div>`:''}
-    ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
+        ${!fast&&c.fastTrack?`<div class="card guard"><div class="jrow"><div class="julia-av">J</div><div><span class="stepk">Prochaine étape : Julia en direct</span><p style="margin:2px 0 0">${GUARD_TXT[(c.fastTrack||{}).raison]||GUARD_TXT.categorie}</p></div></div>
       <p class="muted small" style="margin:0">Ajoutez 6 photos et vos dommages : Julia cherche ensuite le meilleur prix pour vous. Les offres reçues peuvent être plus hautes ou plus basses que votre offre initiale.</p></div>`:''}
     ${showPhotos?`<div class="best${fast&&more?' ok':''}" id="bestBox">
       <div class="jl-pulse sm"><div class="julia-av">J</div></div>
