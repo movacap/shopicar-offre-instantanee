@@ -980,7 +980,7 @@ function fastOfferHTML(c){ const bl=fastBonusLive(c), tot=c.estimate+(bl?BONUS_2
     ${expired?'<div class="cd">Cette offre est expirée.</div>':`<div class="cd num">Offre valide encore <b data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`}
     ${expired?'':`<button class="btn pri big" data-act="initial-ok">Accepter ${money(tot)} et prendre rendez-vous</button>
     <button class="btn" data-act="refuse-ask" style="background:transparent;color:#d4d4d4;border:1px solid #404040">Je refuse ${money(tot)}${bl?` et le boni de ${money(BONUS_24H)}`:''}</button>
-    <div class="small" style="color:#a3a3a3;width:100%">Prochaines étapes : vos photos et dommages, vos documents, puis votre rendez-vous. Un conseiller Shopicar valide ensuite votre dossier.</div>`}
+    <div class="small" style="color:#a3a3a3;width:100%">*Offre conditionnelle à la vérification des informations, photos et de l’état du véhicule.</div>`}
   </div>`; }
 function vEstimate(){ const c=S.current; if(!c) return vGarage();
   const fast=isFast(c), more=!!c.wantMore, showPhotos=!fast||more;
