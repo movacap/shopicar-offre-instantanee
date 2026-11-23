@@ -312,6 +312,11 @@ details.details:not([open]){gap:0}
 .g-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:4px}
 .g-head h2{font-size:20px}.g-head .muted{font-size:inherit;font-weight:500}
 .g-head .g-add{width:auto;padding:10px 16px;font-size:14.5px;border-radius:99px;flex:0 0 auto}
+.g-filt{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.g-filt .chip{display:flex;align-items:center;justify-content:center;gap:5px;padding:8px 4px;font-size:13.5px;white-space:nowrap}
+.g-filt .chip span{font-size:11.5px;font-weight:600;background:#f2f2f2;color:#737373;border-radius:99px;padding:0 6px;min-width:18px;text-align:center}
+.g-filt .chip.on span{background:rgba(255,255,255,.2);color:#fff}
+.g-none{text-align:center;margin:18px 0}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -334,6 +339,7 @@ details.details:not([open]){gap:0}
   .wrap.garage .gcar .bot{flex-direction:column-reverse;align-items:flex-start;gap:10px;margin-top:auto}
   .wrap.garage>*:not(.swipe){grid-column:1/-1}
   .wrap.garage>.btn{width:auto;justify-self:start;min-width:280px}
+  .g-filt{display:flex;gap:8px}.g-filt .chip{padding:8px 14px;font-size:14px;gap:7px}
   .g-head h2{font-size:24px}.g-head .g-add{padding:12px 22px;font-size:15.5px}
   .slots{grid-template-columns:repeat(4,1fr)}
   .tabs .in,.sticky-cta .in{max-width:760px}
@@ -805,10 +811,16 @@ function vLoading(){ return `${topbar('Ton offre initiale')}
     ${LOAD_STEPS.map((t,i)=>`<div class="ld ${i<S.loadStage?'done':i===S.loadStage?'on':''}">${i<S.loadStage?'<span style="font-weight:800">✓</span>':i===S.loadStage?'<span class="spin"></span>':'<span></span>'}<span>${t}</span></div>`).join('')}
   </div>`; }
 
+/* Filtres de Mon garage : En cours / Expiré / Refusé / Vendu */
+const GROUPS=[['encours','En cours'],['expire','Expiré'],['refuse','Refusé'],['vendu','Vendu']];
+function carGroup(c){ if(['payee','inspectee','vendue'].includes(c.status)) return 'vendu';
+  if(['refusee','refused'].includes(c.status)||c.refused) return 'refuse';
+  if(['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt) return 'expire';
+  return 'encours'; }
 function statusInfo(c){ const exp = ['offre','a_valider'].includes(c.status) && Date.now()>c.expiresAt;
   if(exp) return {cls:'bad',txt:'Offre expirée'};
   return ({estimation:c.prep?{cls:'warn',txt:'Dossier à compléter'}:{cls:'info',txt:'Offre initiale prête'}, recherche:{cls:'info',txt:(c.search||{}).intent==='initial'?'Validation en cours':'Julia travaille pour toi'},
-    offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Payée'}})[c.status]||{cls:'info',txt:c.status}; }
+    offre:{cls:'ok',txt:c.estimate?'Offre ferme prête':'Offre ferme active'}, a_valider:{cls:'warn',txt:'Offre préliminaire'}, acceptee:{cls:'info',txt:'Acceptée · documents'}, refusee:{cls:'bad',txt:'Offre refusée'}, inspectee:{cls:'ok',txt:'Vendue'}, planifiee:{cls:'info',txt:(c.pickup||{}).lieu==='Garage partenaire près de chez moi'?'Dépôt planifié':'Cueillette planifiée'}, payee:{cls:'ok',txt:'Vendue'}})[c.status]||{cls:'info',txt:c.status}; }
 // Le bonus 24 h ne s'applique qu'aux anciennes offres fermes (avant le parcours estimation → meilleure offre).
 function bonusStart(c){ return c.estimate ? (c.officialAt||c.offerAt||c.createdAt) : c.createdAt; } // nouveau parcours : 24 h à partir de l'offre officielle
 function bonusEnd(c){ return bonusStart(c) + 24*3600000; }
@@ -1234,14 +1246,16 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
       <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
     </div></div>`; }
-function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get();
+function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get(); const gf=S.gf||(GROUPS.map(g=>g[0]).find(k=>cars.some(c=>carGroup(c)===k))||'encours'); const shown=cars.filter(c=>carGroup(c)===gf);
   return `${topbar('Mon garage', null, profileBtn())}
   <div class="wrap garage">
     ${pv&&pv.token?'':`<div class="card"><h3>Retrouve toutes tes autos</h3><p class="muted small" style="margin:0">Connecte-toi avec ton cellulaire pour voir ton garage sur tous tes appareils.</p><button class="btn sec" data-act="login">Me connecter avec mon cellulaire</button></div>`}
     ${!S.loaded?`<div class="load"><div class="ld on"><span class="spin"></span><span>Chargement de ton garage…</span></div></div>`:''}
     ${S.loaded&&!cars.length?`<div class="card empty"><h2>${arch.length?'Aucune auto active':'Ton garage est vide'}</h2><p class="muted" style="margin:0">Ajoute ton auto pour recevoir une offre et suivre sa valeur.</p><button class="btn pri" data-act="start">Ajouter mon auto</button></div>`:''}
-    ${cars.length?`<div class="g-head"><h2>Mes autos <span class="muted num">· ${cars.length}</span></h2><button class="btn pri g-add" data-act="start">+ Vendre une auto</button></div>`:''}
-    ${cars.map(garageCard).join('')}
+    ${cars.length?`<div class="g-head"><h2>Mes autos <span class="muted num">· ${cars.length}</span></h2><button class="btn pri g-add" data-act="start">+ Vendre une auto</button></div>
+    <div class="g-filt" role="tablist" aria-label="Filtrer mes autos">${GROUPS.map(([k,l])=>{ const n=cars.filter(c=>carGroup(c)===k).length; const on=gf===k; return `<button class="chip ${on?'on':''}" role="tab" aria-selected="${on}" data-act="gf" data-v="${k}">${l}<span class="num">${n}</span></button>`; }).join('')}</div>`:''}
+    ${cars.length&&!shown.length?`<p class="muted g-none">Aucune auto ${({encours:'en cours',expire:'avec une offre expirée',refuse:'refusée',vendu:'vendue'})[gf]}.</p>`:''}
+    ${shown.map(garageCard).join('')}
     ${cars.length&&matchMedia('(hover:none)').matches?`<p class="swipe-hint">Glisse une auto vers la gauche pour l'archiver.</p>`:''}
     ${cars.length?`<button class="btn sec" data-act="start">+ Ajouter une autre auto</button>`:''}
     ${arch.length?`<button class="btn ghost" data-act="show-arch">${S.showArch?'Masquer':'Voir'} les autos archivées (${arch.length})</button>${S.showArch?arch.map(garageCard).join(''):''}`:''}
@@ -1362,6 +1376,7 @@ document.addEventListener('click', async e=>{
   else if(a==='logout'){ logout(); }
   else if(a==='profile-open'){ go('profile'); }
   else if(a==='archive'||a==='unarchive'){ $('#modal').innerHTML=''; SW.open=null; const c=S.cars.find(x=>x.id===el.dataset.id); if(c){ c.archived = a==='archive'; await Store.save(c); toast(c.archived?'Auto archivée.':'Auto remise dans ton garage.'); rerender(); } }
+  else if(a==='gf'){ S.gf=el.dataset.v; rerender(); }
   else if(a==='show-arch'){ S.showArch=!S.showArch; rerender(); }
   else if(a==='otp-resend'){ otpSend(true); }
   else if(a==='otp-edit'&&OTP.mode==='login'){ OTP.phone=null; OTP.code=''; OTP.err=''; renderOtp(); }
