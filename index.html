@@ -390,6 +390,7 @@ details.details:not([open]){gap:0}
   .cam-shot{width:66px;height:66px}
 }
 #pkAsk>.stp-q:first-child{border-top:0;padding-top:0;margin-top:0}
+.conf-no{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#f5f5f5;border-radius:12px;padding:10px 14px;margin-top:12px;font-size:14px}.conf-no span{color:#525252}.conf-no b{font-size:16px;letter-spacing:.06em}.conf-no.dk{background:rgba(255,255,255,.1)}.conf-no.dk span{color:#d4d4d4}.conf-no.dk b{color:#fff}
 /* ===== iPad & desktop : la vue mobile (< 768 px) reste identique. Même navigation (barre d'onglets en bas), contenu plus large. ===== */
 @media (min-width:768px){
   #app{max-width:760px;padding-bottom:120px}
@@ -775,10 +776,11 @@ function newDraft(){ const pf=PROFILE.get()||{}, pv=PV.get(); const a={};
 
 /* ============ NAVIGATION ============ */
 function go(screen, extra){ Object.assign(S, {screen, error:null}, extra||{}); render(); scrollTo(0,0); }
+function confPersist(){ S.cars.forEach(c=>{ if(hasConf(c)&&!c.confNo){ confNo(c); Store.save(c); } }); }
 function rerender(){ const y=scrollY; render(); scrollTo(0,y); }
 
 /* ============ RENDU ============ */
-function render(){
+function render(){ try{ confPersist(); }catch(e){}
   const app=$('#app'); const s=S.screen;
   if(s==='home') app.innerHTML=vHome();
   else if(s==='vin') app.innerHTML=vVin();
@@ -1177,7 +1179,7 @@ function vOffer(){ const c=S.current; if(!c) return vGarage(); const st=statusIn
   return `${topbar(nu&&firm?'Mon offre ferme':'Mon offre','tab-garage')}
   <div class="wrap">
     ${vehHead(c)}
-    ${c.autoAccepted&&['planifiee','acceptee'].includes(c.status)?`<div class="best official"><span class="tag">✓ Dossier validé · Offre ferme confirmée</span><h2>C'est confirmé!</h2><div class="amt num">${amtHTML(c.finalOffer||c.offer)}</div><p style="margin:0">Votre dossier est conforme : félicitations, votre offre ferme est confirmée au même prix que votre offre initiale${c.status==='planifiee'?' et votre rendez-vous est confirmé.':'. Choisissez maintenant la date de votre rendez-vous.'}</p></div>`:''}
+    ${c.autoAccepted&&['planifiee','acceptee'].includes(c.status)?`<div class="best official"><span class="tag">✓ Dossier validé · Offre ferme confirmée</span><h2>C'est confirmé!</h2><div class="amt num">${amtHTML(c.finalOffer||c.offer)}</div><p style="margin:0">Votre dossier est conforme : félicitations, votre offre ferme est confirmée au même prix que votre offre initiale${c.status==='planifiee'?' et votre rendez-vous est confirmé.':'. Choisissez maintenant la date de votre rendez-vous.'}</p>${confHTML(c,true)}</div>`:''}
     ${official?`<div class="best official">
       <span class="tag">✓ Meilleure offre Shopicar · Offre ferme</span>
       <h2>${(c.search||{}).intent==='initial'?(diff<0?'Votre offre a été ajustée après la validation':'Votre offre est validée!'):'Excellente nouvelle! Votre meilleure offre est prête'}</h2>
@@ -1248,7 +1250,7 @@ function pickupFormHTML(c){ const pk=c.pickup||{}; const isDrop=pk.lieu===PK_DRO
       ${sec('À quelle heure?',`<div class="chips">${['8 h à 12 h','12 h à 16 h','16 h à 20 h'].map(o=>`<button class="chip ${pk.slot===o?'on':''}" data-act="pk" data-k="slot" data-v="${o}">${o}</button>`).join('')}</div>`)}`; }
 function pickupLabel(c){ const pk=c.pickup||{}; const w=pickupWhen(c); if(!w) return ''; return `${w.label}, ${pk.slot} · ${pk.lieu===PK_DROP?'dépôt chez ':''}${pickupWhere(c)}`; }
 function pickupApi(c){ const pk=c.pickup||{};
-  return { when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`,
+  return { confirmation: hasConf(c)?confNo(c):undefined, when:`${new Date(pk.date+'T12:00:00').toLocaleDateString('fr-CA',{weekday:'long',day:'numeric',month:'long'})}, ${pk.slot}`,
     where: pk.lieu==='À mon adresse'?pk.adresse:pk.agent?`Dépôt chez ${pk.agent.nom}, ${pk.agent.adresse}, ${pk.agent.ville}`:'Dépôt chez un agent Shopicar (à confirmer)' }; }
 /* Parcours rapide : le rendez-vous choisi avant la validation est encore à venir → l'acceptation le confirme directement. */
 const prepReady = c => (c.search||{}).intent==='initial' && !!c.prepSentAt && pickupOk(c) && (c.pickup||{}).date > todayIso();
@@ -1274,7 +1276,7 @@ function vPrep(){ const c=S.current; if(!c) return vGarage();
       <div class="ck"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24"/><path d="M15 27l7 7 15-16"/></svg></div>
       <div><b>Félicitations! Vous avez accepté l'offre${bon?` de ${nbsp(money(c.estimate+bon))}`:''}.</b><span>Votre rendez-vous est choisi. Il ne reste que 2 petites étapes : vos photos et vos documents.</span></div></div>`:''}
     <div class="acc-card"><div class="acc-top"><span>Offre acceptée</span><b class="num">${nbsp(money(c.estimate+(locked?bon:0)))}</b></div>
-      ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
+      ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}${confHTML(c)}</div>
     <div class="card stp ok rdv-done"><div class="stp-h"><span class="stp-n ok">✓</span><div style="flex:1;min-width:0"><h2>${isDrop?'Votre rendez-vous de dépôt':'Votre rendez-vous'}</h2><p class="small" style="margin:2px 0 0">${p3?esc(pickupLabel(c)):'À préciser'}</p></div>${c.prepSentAt?'':`<button class="btn sec" data-act="prep-rdv-edit" style="flex:0 0 auto;width:auto;padding:8px 14px;min-height:0;font-size:14px">Modifier</button>`}</div></div>
     <div><h2 style="font-size:20px">${done<2?`Plus que ${2-done} étape${2-done>1?'s':''}`:'Votre dossier est complet!'}</h2>
       <div class="stp-prog"><i style="width:${Math.round(done*100/2)}%"></i></div><p class="small muted" style="margin:6px 0 0">${done}/2 complétées · environ 5 minutes</p></div>
@@ -1294,7 +1296,7 @@ function vPrepRdv(c, locked, bon){ const edit=S.rdvEdit===c.id; const ok=pickupO
   <div class="wrap">
     ${vehHead(c)}
     <div class="acc-card"><div class="acc-top"><span>Offre acceptée</span><b class="num">${nbsp(money(c.estimate+(locked?bon:0)))}</b></div>
-      ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}</div>
+      ${locked&&bon?`<div class="acc-bon"><span>✓ Boni 24 h inclus <em>(offre de ${nbsp(money(c.estimate))})</em></span><b class="num">+${nbsp(money(bon))}</b></div>`:''}${confHTML(c)}</div>
     <div><h2 style="font-size:22px">${edit?'Modifier votre rendez-vous':'Choisissez votre rendez-vous'}</h2>
       <p class="muted" style="margin:6px 0 0">Choisissez où et quand nous récupérons votre voiture.${edit?'':' Ensuite, il ne restera que vos photos et vos documents.'}</p></div>
     <div class="card stp" id="pkAsk">${pickupFormHTML(c)}</div>
@@ -1354,6 +1356,11 @@ function dropPickerHTML(c, dr){ const pk=c.pickup||{}; const postal=dropPostal(c
         <span style="font-size:18px;line-height:1.2">${on?'✓':'📍'}</span><span style="flex:1;min-width:0"><b>${esc(a.nom)}</b>${i===0?` <small style="opacity:.75">· le plus près</small>`:''}<br>
         <small style="opacity:.8">${esc(agentAddr(a))} · ${a.km<1?'moins de 1':a.km} km</small>${a.heures?`<br><small style="opacity:.7">${esc(a.heures)}</small>`:''}</span></button>`; }).join('')}</div>
     ${pk.agent?`<a class="btn ghost" style="padding:8px 0 0" target="_blank" rel="noopener" href="${mapsUrl(pk.agent.demo?pk.agent.ville+' '+pk.agent.postal:agentAddr(pk.agent))}">Voir l'itinéraire</a>`:''}`; }
+/* N° de confirmation : un par dossier (transaction + rendez-vous), créé à l'acceptation; sans O/0 ni I/1 pour le dicter au téléphone */
+const CONF_AL='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const hasConf = c => !!(c.initialAcceptedAt || c.acceptedAt || c.autoAccepted || ['acceptee','planifiee','inspectee','payee'].includes(c.status));
+function confNo(c){ if(!c.confNo){ let x=''; crypto.getRandomValues(new Uint8Array(6)).forEach(n=>x+=CONF_AL[n%32]); c.confNo='SC-'+x; } return c.confNo; }
+const confHTML = (c, dark) => hasConf(c) ? `<div class="conf-no ${dark?'dk':''}"><span>N° de confirmation</span><b class="num">${confNo(c)}</b></div>` : '';
 function pickupWhen(c){ const pk=c.pickup||{}; if(!pk.date) return null;
   const m=String(pk.slot||'').match(/(\d{1,2})\s*h\s*à\s*(\d{1,2})/); const h1=m?+m[1]:9, h2=m?+m[2]:h1+1;
   const d=pk.date.replace(/-/g,''); const t=h=>String(h).padStart(2,'0')+'0000';
@@ -1362,7 +1369,7 @@ function pickupWhere(c){ const pk=c.pickup||{}; if(pk.lieu==='À mon adresse') r
   return pk.agent ? (pk.agent.demo ? `${pk.agent.nom}, ${pk.agent.ville}` : `${pk.agent.nom}, ${agentAddr(pk.agent)}`) : 'Agent Shopicar (adresse à confirmer)'; }
 function pickupEvent(c){ const w=pickupWhen(c); if(!w) return null; const drop=(c.pickup||{}).lieu===PK_DROP; const a=(c.pickup||{}).agent;
   return {...w, title:`${drop?'Dépôt':'Cueillette'} Shopicar · ${vTitle(c.vehicle)}`, where:pickupWhere(c),
-    details:`${drop?'Dépôt de votre auto chez l\'agent Shopicar':'Cueillette de votre auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 15 min à 20 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
+    details:`${hasConf(c)?'N° de confirmation : '+confNo(c)+'\n':''}${drop?'Dépôt de votre auto chez l\'agent Shopicar':'Cueillette de votre auto par Shopicar'} · ${vTitle(c.vehicle)} (NIV ${c.vin}).\nOffre acceptée : ${money(c.finalOffer||c.offer)}.\nApporte : certificat d'immatriculation, permis de conduire${c.answers.finance!=='Payée au complet'?', état de compte du prêteur':''} et toutes les clés.\nInspection de 15 min à 20 minutes, puis virement le jour même.${drop&&a&&a.tel?`\nAgent : ${a.tel}`:''}\nSuivi : ${location.origin}`}; }
 function gcalUrl(ev){ return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(ev.title)+'&dates='+ev.start+'/'+ev.end+'&ctz=America/Toronto&location='+encodeURIComponent(ev.where)+'&details='+encodeURIComponent(ev.details); }
 function downloadIcs(c){ const ev=pickupEvent(c); if(!ev) return; const x=s=>String(s).replace(/\\/g,'\\\\').replace(/[,;]/g,m=>'\\'+m).replace(/\n/g,'\\n');
   const ics=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Shopicar//Offre//FR','BEGIN:VEVENT',`UID:${c.id||c.vin}-pickup@shopicar.com`,`DTSTAMP:${new Date().toISOString().replace(/[-:]/g,'').slice(0,15)}Z`,
@@ -1376,6 +1383,7 @@ function pickupCardHTML(c, tag){ const pk=c.pickup||{}; const ev=pickupEvent(c);
     <span class="stat info">${tag||(drop?'Dépôt planifié':'Cueillette planifiée')}</span>
     ${line('📅', ev.label.charAt(0).toUpperCase()+ev.label.slice(1), drop?'Présentez-vous pendant cette plage':'Nous arrivons pendant cette plage')}
     ${line('🕒', esc(pk.slot||''), '')}
+    ${hasConf(c)?line('🔖', confNo(c), 'N° de confirmation (transaction et rendez-vous)'):''}
     ${drop ? line('📍', a?esc(a.nom):'Agent Shopicar', a ? `${esc(agentAddr(a))}${a.km!=null?` · ${a.km<1?'moins de 1':a.km} km de chez vous`:''}${a.heures?`<br>${esc(a.heures)}`:''}${a.tel?`<br><a href="tel:${esc(a.tel.replace(/[^\d+]/g,''))}">${esc(a.tel)}</a>`:''}` : 'Un conseiller vous confirme l\'adresse')
       : line('📍', esc(pk.adresse||'À votre adresse'), 'Cueillette sans frais')}
     ${mapQ?`<a class="small" target="_blank" rel="noopener" href="${mapsUrl(mapQ)}" style="color:var(--acc);font-weight:600;margin-left:34px">Ouvrir dans Google Maps</a>`:''}
@@ -1388,6 +1396,7 @@ function garageCard(c){ const st=statusInfo(c); return `<div class="swipe" data-
     <div class="card gcar ${c.archived?'arch':''}" data-act="open" data-id="${c.id}" role="button" tabindex="0">
       <div class="veh">${carThumb(c)}<div style="flex:1;min-width:0"><div class="t">${esc(vTitle(c.vehicle))}</div><div class="muted small">${esc(c.vehicle.trim||'')}</div><div class="muted small num">${Number(String(c.answers.km).replace(/\D/g,'')).toLocaleString('fr-CA')} km</div></div></div>
       <div class="bot"><span style="display:flex;gap:12px;align-items:center"><span class="stat ${st.cls}">${c.archived?'Archivée':st.txt}</span><button class="lnk arch-lnk" data-act="${c.archived?'unarchive':'archive-ask'}" data-id="${c.id}">${c.archived?'Désarchiver':'Archiver'}</button></span><span class="amt num">${money(c.finalOffer||(c.status==='estimation'&&c.initialAcceptedAt?c.estimate+(c.initialBonus||0):c.status==='recherche'?(bestOffer(c)||{}).amount||c.estimate:c.offer))}</span></div>
+      ${!c.archived&&hasConf(c)?`<div class="muted small">N° de confirmation <b class="num" style="color:var(--ink,#0a0a0a)">${confNo(c)}</b></div>`:''}
       ${!c.archived&&['offre','a_valider'].includes(c.status)&&Date.now()<c.expiresAt?`<div class="muted small">Valide encore <b class="num" data-cd="${c.expiresAt}">${timeLeft(c.expiresAt-Date.now())}</b></div>`:''}
     </div></div>`; }
 function vGarage(){ const all=S.cars.slice().sort((a,b)=>b.createdAt-a.createdAt); const cars=all.filter(c=>!c.archived), arch=all.filter(c=>c.archived); const pv=PV.get(); const gf=S.gf||(GROUPS.map(g=>g[0]).find(k=>cars.some(c=>carGroup(c)===k))||'encours'); const shown=cars.filter(c=>carGroup(c)===gf);
@@ -1572,7 +1581,7 @@ document.addEventListener('click', async e=>{
   else if(a==='dmg-none-ok'){ $('#modal').innerHTML=''; const c=S.current; c.noDmg=true; c.answers.confirmation_dommages="Aucun dommage (confirmé par le vendeur après les photos)"; Store.save(c); rerender(); }
   else if(a==='dmg-undo'){ const c=S.current; c.noDmg=false; delete c.answers.confirmation_dommages; Store.save(c); rerender(); }
   else if(a==='initial-ok'){ const c=S.current; if(Date.now()>c.expiresAt){ toast('Cette offre est expirée.'); return; }
-      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); c.prep=true; delete c.prepRdvAt; await Store.save(c); go('prep'); scrollTo(0,0); }
+      if(fastBonusLive(c)){ c.initialBonus=BONUS_24H; } c.initialAcceptedAt=Date.now(); confNo(c); c.prep=true; delete c.prepRdvAt; await Store.save(c); go('prep'); scrollTo(0,0); }
   else if(a==='prep-rdv-ok'){ const c=S.current; if(!pickupOk(c)){ toast('Choisissez le lieu, le jour et l\'heure.'); return; }
       const first=!c.prepRdvAt; c.prepRdvAt=Date.now(); S.rdvEdit=null; if(first) S.celebrate=c.id; else toast('Rendez-vous modifié.'); await Store.save(c); rerender(); scrollTo(0,0); }
   else if(a==='prep-rdv-edit'){ S.rdvEdit=S.current.id; rerender(); scrollTo(0,0); }
@@ -1620,7 +1629,7 @@ document.addEventListener('click', async e=>{
       const ready=prepReady(c); c.finalOffer = c.offer + bonus; c.acceptedAt=Date.now();
       if(ready){ if(c.search&&c.search.leadToken) await leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}).catch(()=>{});
         c.status='planifiee'; await Store.save(c); toast((c.pickup||{}).lieu===PK_DROP?'Offre acceptée et dépôt confirmé. Julia vous texte la veille.':'Offre acceptée et rendez-vous confirmé. Julia vous texte la veille.'); go('offer'); return; }
-      c.status='acceptee'; await Store.save(c); go('accept'); }
+      c.status='acceptee'; confNo(c); await Store.save(c); go('accept'); }
   else if(a==='open-accept'){ go('accept'); }
   else if(a==='pk'){ const pk=S.current.pickup=S.current.pickup||{}; pk[el.dataset.k]=el.dataset.v; const pf=PROFILE.get();
       if(el.dataset.k==='lieu'&&el.dataset.v==='À mon adresse'&&!pk.adresse&&pf&&pf.address) pk.adresse=[pf.address, pf.city, pf.postal].filter(Boolean).join(', ');
@@ -1811,7 +1820,7 @@ async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.l
   const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
   for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
-  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(c.initialRefusedAt) notes.unshift(`Le client a REFUSÉ l'offre de ${money(c.initialRefusedAmount||c.estimate)}${c.wish?` : il souhaite ${money(c.wish)}`:''}.`); if(accidentNote(c.answers)) notes.unshift(accidentNote(c.answers)); if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
+  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(hasConf(c)) notes.unshift(`N° de confirmation client : ${confNo(c)}`); if(c.initialRefusedAt) notes.unshift(`Le client a REFUSÉ l'offre de ${money(c.initialRefusedAmount||c.estimate)}${c.wish?` : il souhaite ${money(c.wish)}`:''}.`); if(accidentNote(c.answers)) notes.unshift(accidentNote(c.answers)); if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
   const D=B.docs||{}; const documents=[]; for(const [k,label] of docsNeed(c)){ const d=D[k]; if(d&&d.blob) documents.push({ type:k, label, name:d.name, mime:d.mime, data:await blobToB64(d.blob) }); }
   if(c.intent==='initial'){
     if(pickupOk(c)) notes.unshift(`Rendez-vous choisi par le client : ${pickupLabel(c)} (confirmé à l'acceptation de l'offre ferme).`);
@@ -1866,7 +1875,7 @@ async function autoAccept(c){ if(!autoOk(c) || autoBusy[c.id] || c.autoAccepted)
   try{ const b=bestOffer(c); const pk=c.pickup||{}; const rdvOk=pk.date&&pk.slot&&pk.lieu&&pk.date>todayIso();
     if(c.search&&c.search.leadToken&&b){ try{ await leadApi({action:'accept', token:c.search.leadToken, offer_id:b.id, bonus:c.initialBonus||0, final_amount:c.offer+(c.initialBonus||0), auto:true}); }
       catch(e){ if(['expired','withdrawn'].includes(e.message)) return; } }
-    c.finalOffer=c.offer+(c.initialBonus||0); c.acceptedAt=Date.now(); c.autoAccepted=true;
+    c.finalOffer=c.offer+(c.initialBonus||0); c.acceptedAt=Date.now(); c.autoAccepted=true; confNo(c);
     if(rdvOk){ if(c.search&&c.search.leadToken) leadApi({action:'pickup', token:c.search.leadToken, ...pickupApi(c)}).catch(()=>{}); c.status='planifiee'; }
     else c.status='acceptee'; // rendez-vous passé pendant la validation : il en choisit un nouveau
     await Store.save(c);
