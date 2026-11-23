@@ -1320,7 +1320,7 @@ function vSettings(){ const d=SET.data, D=SET.defaults||{}; const yr=new Date().
       ${numF('pf_spreadMin','Écart minimum ($)',d.spreadMin,D.spreadMin,'Même pour une auto bon marché.')}
       <h3 style="margin-top:10px">Dommages déclarés au Carfax</h3>
       <p class="muted small" style="margin:0">Quand le client déclare un accident et donne le montant des dommages au Carfax.</p>
-      <div class="row">${numF('pf_carfaxPct','% du montant des dommages enlevé',d.carfaxPct,D.carfaxPct)}${numF('pf_carfaxCapPct','Plafond (% de la valeur wholesale)',d.carfaxCapPct,D.carfaxCapPct)}</div>
+      <div class="row">${numF('pf_carfaxPct','% du montant des dommages enlevé',d.carfaxPct,D.carfaxPct)}${numF('pf_carfaxCapPct','Jamais plus de (% de la valeur wholesale)',d.carfaxCapPct,D.carfaxCapPct)}</div>
       <p class="muted small" style="margin:0">Exemple : 32 413 $ de dommages → ${Math.round((+d.carfaxPct||0)*32413/100/50)*50} $ enlevés, sans dépasser ${+d.carfaxCapPct||0} % de la valeur de l'auto.</p>
     </div>
     <div class="card"><h3>Règles</h3>
