@@ -637,6 +637,7 @@ function vTitle(v){ return [v.year,v.make,v.model].filter(Boolean).join(' '); }
 const NONE_EXT='Aucun dommage', NONE_INT='Aucun dommage', NONE_LIGHT='Aucun voyant', NONE_TITLE='Rien à déclarer', NONE_MOD="Aucune, tout d'origine";
 const TX_SALE='Vente seulement', TX_TRADE='Échange (trade-in) contre une autre auto';
 const isTrade = a => (a||{}).transaction===TX_TRADE;
+const accidentNote = a => { const n=Number(String((a||{}).accidentMontant||'').replace(/\D/g,'')); return (a||{}).accidents==='Oui' ? `ACCIDENT déclaré : ${n?`dommages au Carfax de ${n.toLocaleString('fr-CA')} $ selon le client`:'montant des dommages non fourni'}.` : ''; };
 const tradeNote = a => isTrade(a) ? `ÉCHANGE (trade-in) : le client recherche ${String((a||{}).recherche||'modèle non précisé').trim()}.` : ((a||{}).transaction ? 'Vente seulement (pas d\'échange).' : '');
 const STEPS=[
  {title:'Ton auto', qs:[
@@ -1575,7 +1576,7 @@ const inspekBusy={};
 async function inspekDraft(c){ if(!c||!c.estimate||c.archived||c.inspekToken||(c.search&&c.search.leadToken)||inspekBusy[c.id]) return; if(!phoneE164((c.answers||{}).cell)) return;
   inspekBusy[c.id]=true;
   try{ const answers=Object.assign({}, c.answers, c.answers.nom?{prenom:c.answers.nom}:{});
-    const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos:[], stage:'offre_initiale', demo:!!DEMO_OFFERS, valuation:{ drapeaux:[...(tradeNote(c.answers)?[tradeNote(c.answers)]:[]), ...(((c.valuation||{}).drapeaux)||[])] } }});
+    const j=await leadApi({action:'create', lead:{ app_car_id:c.id, vin:c.vin, vehicle:c.vehicle, answers, estimate:c.estimate, photos:[], stage:'offre_initiale', demo:!!DEMO_OFFERS, valuation:{ drapeaux:[...(tradeNote(c.answers)?[tradeNote(c.answers)]:[]), ...(accidentNote(c.answers)?[accidentNote(c.answers)]:[]), ...(((c.valuation||{}).drapeaux)||[])] } }});
     if(j&&j.token){ c.inspekToken=j.token; await Store.save(c); } }
   catch(e){ console.warn('[360inspek] brouillon', e.message); }
   finally{ inspekBusy[c.id]=false; } }
@@ -1588,7 +1589,7 @@ async function ensureLead(c){ if(c.search&&c.search.leadToken) return c.search.l
   const photos=[]; for(const [k] of PHOTO_SLOTS){ if(B.slots[k]) photos.push(await blobToB64(B.slots[k])); else if(c.slots&&c.slots[k]) photos.push(String(c.slots[k]).split(',')[1]); }
   for(let i=0;i<(c.dmg||[]).length;i++){ photos.push(B.dmg[i]?await blobToB64(B.dmg[i]):String(c.dmg[i]).split(',')[1]); }
   if(!photos.length) (c.photos||[]).forEach(p=>photos.push(String(p).split(',')[1]));
-  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
+  const notes=[...(((c.valuation||{}).drapeaux)||[])]; if(accidentNote(c.answers)) notes.unshift(accidentNote(c.answers)); if(tradeNote(c.answers)) notes.unshift(tradeNote(c.answers));
   const D=B.docs||{}; const documents=[]; for(const [k,label] of docsNeed(c)){ const d=D[k]; if(d&&d.blob) documents.push({ type:k, label, name:d.name, mime:d.mime, data:await blobToB64(d.blob) }); }
   if(c.intent==='initial'){
     if(pickupOk(c)) notes.unshift(`Rendez-vous choisi par le client : ${pickupLabel(c)} (confirmé à l'acceptation de l'offre ferme).`);
